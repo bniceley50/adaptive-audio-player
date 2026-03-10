@@ -14,6 +14,28 @@ This repo is a portfolio-grade prototype for an adaptive audiobook SaaS. The cor
 
 It is not just a TTS demo. It is designed to show product thinking, backend architecture, account/session hardening, and premium UX in one project.
 
+## Screenshots
+
+### Home dashboard
+
+![Adaptive Audio Player home dashboard](./public/screenshots/home-dashboard.png)
+
+### Import flow
+
+![Adaptive Audio Player import flow](./public/screenshots/import-flow.png)
+
+### Taste setup
+
+![Adaptive Audio Player setup flow](./public/screenshots/setup-flow.png)
+
+### Listening player
+
+![Adaptive Audio Player player experience](./public/screenshots/player-experience.png)
+
+### Render and job console
+
+![Adaptive Audio Player jobs console](./public/screenshots/jobs-console.png)
+
 ## Why It Stands Out
 
 Most similar repos are strong in one lane:
