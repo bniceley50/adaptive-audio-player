@@ -141,6 +141,56 @@ export default function ImportPage() {
               </span>
             </div>
           </div>
+          <div className="mt-6 grid gap-3 md:grid-cols-4">
+            {[
+              {
+                step: "01",
+                label: "Import the source",
+                detail: "Paste text or upload a file to start the listening workflow.",
+                active: true,
+              },
+              {
+                step: "02",
+                label: "Design the taste",
+                detail: "Pick the narrator and listening mode that fit this title.",
+              },
+              {
+                step: "03",
+                label: "Generate the sample",
+                detail: "Create the first preview before you commit to a full render.",
+              },
+              {
+                step: "04",
+                label: "Listen and promote",
+                detail: "Open the player, then move into a full-book render when it feels right.",
+              },
+            ].map((item) => (
+              <article
+                key={item.step}
+                className={`rounded-[1.35rem] border p-4 shadow-sm ${
+                  item.active
+                    ? "border-stone-950 bg-stone-950 text-white"
+                    : "border-white/80 bg-white/80 text-stone-800"
+                }`}
+              >
+                <p
+                  className={`text-[0.68rem] font-semibold uppercase tracking-[0.22em] ${
+                    item.active ? "text-stone-300" : "text-stone-500"
+                  }`}
+                >
+                  Step {item.step}
+                </p>
+                <h3 className="mt-3 text-sm font-semibold">{item.label}</h3>
+                <p
+                  className={`mt-2 text-sm leading-6 ${
+                    item.active ? "text-stone-200" : "text-stone-600"
+                  }`}
+                >
+                  {item.detail}
+                </p>
+              </article>
+            ))}
+          </div>
         </div>
 
         <div className="p-8">
