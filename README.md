@@ -114,6 +114,28 @@ That seeds:
 - default taste and playback defaults
 - render history and backend activity
 
+## Try It In 60 Seconds
+
+If you want the fastest possible product tour:
+
+1. Run `pnpm dev:all`
+2. Open [http://127.0.0.1:3100](http://127.0.0.1:3100)
+3. Click `Load portfolio demo`
+4. Walk this path:
+   - `Home` → review the library, account/security, and cloud activity
+   - `Import` → see the guided intake flow
+   - `Storm Harbor` → open setup and inspect taste, sample, and render history
+   - `Listen current full book` → open the player
+   - `Jobs` → inspect render orchestration and per-book history
+
+Best pages for a quick portfolio review:
+
+- `/`
+- `/import`
+- `/books/demo-book-1`
+- `/player/demo-book-1?artifact=full&renderState=current`
+- `/jobs`
+
 ## Local Run
 
 ```bash
