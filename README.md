@@ -1,36 +1,173 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Adaptive Audio Player
 
-## Getting Started
+Private AI audiobook player for your books and documents, with customizable voices, character-aware narration, and premium listening controls.
 
-First, run the development server:
+## What This Is
+
+This repo is a portfolio-grade prototype for an adaptive audiobook SaaS. The core idea is simple:
+
+- import a book or document
+- choose how it should sound
+- generate a sample first
+- listen in a polished player
+- keep render history, sync, jobs, and account/security visible as first-class product features
+
+It is not just a TTS demo. It is designed to show product thinking, backend architecture, account/session hardening, and premium UX in one project.
+
+## Why It Stands Out
+
+Most similar repos are strong in one lane:
+
+- document reader
+- TTS generator
+- audiobook library server
+- character-voice experiment
+
+This project intentionally combines:
+
+- adaptive narration product design
+- a polished multi-screen listening flow
+- worker-backed generation jobs
+- server-backed sync and restore
+- account/session/security controls
+- render history as a first-class concept
+
+## Core Product Flow
+
+1. Import a file or paste text
+2. Preview parsed chapters
+3. Choose narrator and listening mode
+4. Generate a sample
+5. Approve the sound
+6. Generate full-book audio
+7. Listen, resume, bookmark, and restore across sessions
+
+## Main Screens
+
+- `/`
+  Home dashboard with library, account/security, cloud sync, and recent render activity
+- `/import`
+  Guided intake for text and file-based imports
+- `/books/[bookId]`
+  Taste setup, sample generation, full-book generation, and render history
+- `/player/[bookId]`
+  Listening surface with render-aware state, playback controls, and chapter context
+- `/jobs`
+  Render orchestration console with current queue health and per-book render history
+
+## What Is Real In This Repo
+
+- polished home, import, setup, player, and jobs surfaces
+- local shelf with demo-mode seeded books
+- signed workspace cookies
+- signed account sessions with expiry and revocation
+- selective and bulk session revocation
+- worker-backed generation queue
+- backend sync snapshot and restore flow
+- generated sample/full-book artifact history
+- route-level ownership tests for protected APIs
+
+## What Is Still Prototype-Grade
+
+- SQLite is still the primary backend store
+- the queue is local-worker based, not cloud queue infrastructure
+- cloud storage/CDN delivery is not productionized
+- auth is custom and local-environment oriented, not hosted auth
+- multi-device production deployment is not finished
+
+## Demo Mode
+
+For portfolio walkthroughs, the app includes a seeded local demo.
+
+After starting the app:
+
+- open `/`
+- click `Load portfolio demo`
+
+That seeds:
+
+- a full-book-ready title with listening progress
+- a sample-ready title
+- a setup-pending title
+- default taste and playback defaults
+- render history and backend activity
+
+## Local Run
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+pnpm dev:all
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- [http://127.0.0.1:3100](http://127.0.0.1:3100)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Key Scripts
 
-## Learn More
+```bash
+pnpm dev:all     # Next dev server + background worker
+pnpm worker      # background generation worker only
+pnpm build       # production build
+pnpm test:e2e    # Playwright browser flow
+pnpm gate        # lint + typecheck + unit/route tests
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Gate Command
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Every change must pass before merge:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+pnpm lint && pnpm typecheck && pnpm test
+```
 
-## Deploy on Vercel
+## Stack
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Next.js 16
+- TypeScript
+- pnpm
+- Vitest
+- Playwright
+- SQLite-backed backend sync and job persistence
+- background worker via `node scripts/job-worker.mjs`
+- generated audio artifact streaming
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## TTS Generation
+
+- If `OPENAI_API_KEY` is set, the worker uses the OpenAI speech API for generated sample/full-book audio.
+- If the key is missing, the worker falls back to deterministic local mock audio so the app and tests still run.
+- Generated audio is stored under `data/generated-audio/` and streamed through secured app routes.
+
+## Architecture Highlights
+
+- server-backed workspace sync snapshot model
+- account session table with revocation and expiry
+- protected API routes with direct ownership tests
+- worker-driven sample/full-book generation
+- preserved current vs archived render history
+- cloud/library preview and resume logic on the home dashboard
+
+## Good Portfolio Angles
+
+If you are reviewing this repo as an employer or client, the strongest things to inspect are:
+
+- the home/dashboard composition in [src/app/page.tsx](/Users/brian/Projects/adaptive-audio-player/src/app/page.tsx)
+- the setup flow in [src/app/books/[bookId]/page.tsx](/Users/brian/Projects/adaptive-audio-player/src/app/books/[bookId]/page.tsx)
+- the player experience in [src/app/player/[bookId]/page.tsx](/Users/brian/Projects/adaptive-audio-player/src/app/player/[bookId]/page.tsx)
+- the jobs console in [src/app/jobs/page.tsx](/Users/brian/Projects/adaptive-audio-player/src/app/jobs/page.tsx)
+- the backend/session model in [src/lib/backend/sqlite.ts](/Users/brian/Projects/adaptive-audio-player/src/lib/backend/sqlite.ts) and [src/lib/backend/workspace-session.ts](/Users/brian/Projects/adaptive-audio-player/src/lib/backend/workspace-session.ts)
+
+## Current Limitations
+
+- experimental `node:sqlite` warnings still appear during test/build
+- production auth, storage, and queue infrastructure are not yet swapped in
+- real cloud deployment is the next major step after portfolio/demo readiness
+
+## Next Production Steps
+
+- hosted auth
+- Postgres
+- object storage for imports and generated audio
+- persistent cloud queue
+- production session and sync infrastructure
+- mobile-grade playback and offline downloads

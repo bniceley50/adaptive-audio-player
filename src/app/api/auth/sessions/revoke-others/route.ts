@@ -1,0 +1,46 @@
+import { NextResponse } from "next/server";
+
+import { verifySameOriginMutation } from "@/lib/backend/csrf";
+import { revokeOtherAccountSessions } from "@/lib/backend/sqlite";
+import {
+  accountCookieName,
+  readSignedAccountSessionFromCookieValue,
+  readVerifiedAccountIdFromCookieValue,
+} from "@/lib/backend/workspace-session";
+
+function parseCookieValue(request: Request, cookieName: string) {
+  return (
+    request.headers
+      .get("cookie")
+      ?.split(";")
+      .map((part) => part.trim())
+      .find((part) => part.startsWith(`${cookieName}=`))
+      ?.split("=")[1] ?? null
+  );
+}
+
+export async function POST(request: Request) {
+  const csrfError = verifySameOriginMutation(request);
+  if (csrfError) {
+    return csrfError;
+  }
+
+  const accountCookieValue = parseCookieValue(request, accountCookieName);
+  const accountId = readVerifiedAccountIdFromCookieValue(accountCookieValue);
+  const currentSession =
+    readSignedAccountSessionFromCookieValue(accountCookieValue);
+
+  if (!accountId || !currentSession) {
+    return NextResponse.json(
+      { error: "Sign in before managing sessions." },
+      { status: 401 },
+    );
+  }
+
+  const revokedCount = revokeOtherAccountSessions(
+    accountId,
+    currentSession.sessionId,
+  );
+
+  return NextResponse.json({ ok: true, revokedCount });
+}

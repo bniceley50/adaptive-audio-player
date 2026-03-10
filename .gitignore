@@ -12,6 +12,8 @@
 
 # testing
 /coverage
+/test-results
+/playwright-report
 
 # next.js
 /.next/
@@ -35,6 +37,13 @@ yarn-error.log*
 
 # vercel
 .vercel
+
+# local app data
+/data/*.sqlite
+/data/*.sqlite-shm
+/data/*.sqlite-wal
+/data/generated-audio
+/demo-assets/audiobooks
 
 # typescript
 *.tsbuildinfo
