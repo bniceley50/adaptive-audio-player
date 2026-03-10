@@ -44,6 +44,7 @@ export function DemoModeCard() {
   const showcasePaths = useMemo(
     () => [
       {
+        step: "01",
         title: "Hear the cinematic full-book version",
         body:
           "Open Harbor Lights in its current full-book render to feel the product at its most complete.",
@@ -52,6 +53,7 @@ export function DemoModeCard() {
         href: "/player/demo-book-1?artifact=full&renderState=current",
       },
       {
+        step: "02",
         title: "Compare the lighter sample path",
         body:
           "Open Midnight Platform in sample mode to show the product before the full-book render exists.",
@@ -60,6 +62,7 @@ export function DemoModeCard() {
         href: "/player/demo-book-2?artifact=sample&renderState=current",
       },
       {
+        step: "03",
         title: "Review the taste-design workflow",
         body:
           "Open Quiet Orbit in setup to show how narrator and mode choices become the product experience.",
@@ -287,9 +290,14 @@ export function DemoModeCard() {
               className="rounded-[1.5rem] border border-white/10 bg-white/8 p-5 shadow-sm backdrop-blur"
             >
               <div className="flex items-center justify-between gap-3">
-                <span className="rounded-full bg-white/15 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-white">
-                  {path.badge}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-white px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-950">
+                    Step {path.step}
+                  </span>
+                  <span className="rounded-full bg-white/15 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-white">
+                    {path.badge}
+                  </span>
+                </div>
                 <span className="text-sm text-stone-300">{path.meta}</span>
               </div>
               <h4 className="mt-4 text-lg font-semibold text-white">{path.title}</h4>
@@ -308,6 +316,46 @@ export function DemoModeCard() {
               )}
             </article>
           ))}
+        </div>
+        <div className="mt-5 rounded-[1.5rem] border border-white/10 bg-black/10 p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-3xl">
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-300">
+                3-minute walkthrough
+              </p>
+              <h4 className="mt-2 text-lg font-semibold text-white">
+                Best order for a portfolio review
+              </h4>
+              <p className="mt-2 text-sm leading-6 text-stone-300">
+                Start with the full-book player to show the polished end state, compare it
+                with the sample-only path, then finish in setup to reveal how the adaptive
+                taste system creates that experience.
+              </p>
+            </div>
+            <div className="rounded-full border border-white/15 bg-white/8 px-4 py-2 text-sm text-stone-200">
+              {demoReady ? "Recommended tour unlocked" : "Load the demo to unlock the tour"}
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {showcasePaths.map((path) =>
+              demoReady ? (
+                <Link
+                  key={`${path.step}-tour`}
+                  className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
+                  href={path.href}
+                >
+                  Step {path.step}: {path.badge}
+                </Link>
+              ) : (
+                <div
+                  key={`${path.step}-tour`}
+                  className="inline-flex rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-stone-300"
+                >
+                  Step {path.step}: {path.badge}
+                </div>
+              ),
+            )}
+          </div>
         </div>
       </div>
     </section>
