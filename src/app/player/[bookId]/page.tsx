@@ -208,6 +208,57 @@ export default function PlayerPage({ params }: PlayerPageProps) {
               "This player opened without a generated render for the current taste, so playback is locked until setup creates one.",
             action: "Go back to setup and generate a sample first",
           };
+  const playerNextMove = preferredAudioKind === "full-book-generation"
+    ? {
+        eyebrow: "Recommended next move",
+        label: "Stay with the current full-book render",
+        detail:
+          "This is the best listening path for this title right now, so the next useful move is to keep going or resume from your current chapter.",
+        href: `/player/${bookId}?artifact=full&renderState=current`,
+        cta: "Keep listening",
+      }
+    : preferredAudioKind === "sample-generation"
+      ? {
+          eyebrow: "Recommended next move",
+          label: "Judge the taste from the sample",
+          detail:
+            "Use this preview to decide whether to keep listening here or move back into setup for a full-book render.",
+          href: `/player/${bookId}?artifact=sample&renderState=${renderState ?? "current"}${hasQueryOverride ? `&narrator=${narratorId}&mode=${mode}` : ""}`,
+          cta: "Stay with the sample",
+        }
+      : {
+          eyebrow: "Recommended next move",
+          label: "Return to setup and generate audio",
+          detail:
+            "Playback is blocked until setup creates a sample or full-book render for this narrator and mode.",
+          href: `/books/${bookId}?from=player`,
+          cta: "Back to setup",
+        };
+  const playerFollowUp = fullBookIsReady || sampleIsReady
+    ? {
+        eyebrow: "After that",
+        label: "Review the render timeline",
+        detail:
+          "Compare the current approved render with preserved historical versions when you want to understand how this title evolved.",
+        href: `/books/${bookId}#render-history`,
+        cta: "Open render timeline",
+      }
+    : {
+        eyebrow: "After that",
+        label: "Keep the taste aligned",
+        detail:
+          "Once you like this voice direction, save it from setup so future imports can start from the same default taste.",
+        href: `/books/${bookId}?from=player`,
+        cta: "Review setup",
+      };
+  const playerSupport = {
+    eyebrow: "Keep moving",
+    label: "Bring another title into the flow",
+    detail:
+      "When this listening session is on track, jump back to import and bring the next book through the same taste-first workflow.",
+    href: "/import",
+    cta: "Import another draft",
+  };
 
   useEffect(() => {
     if (removedBook || draftText) {
@@ -452,6 +503,34 @@ export default function PlayerPage({ params }: PlayerPageProps) {
             <p className="mt-2">{resolvedTasteMeta.detail}</p>
           </div>
         ) : null}
+        <div className="mb-5 grid gap-4 lg:grid-cols-3">
+          {[playerNextMove, playerFollowUp, playerSupport].map((item, index) => (
+            <article
+              key={item.eyebrow}
+              className={`rounded-[1.5rem] border p-5 shadow-sm ${
+                index === 0
+                  ? "border-emerald-200 bg-emerald-50/80"
+                  : index === 1
+                    ? "border-sky-200 bg-sky-50/80"
+                    : "border-stone-200 bg-stone-50"
+              }`}
+            >
+              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-stone-500">
+                {item.eyebrow}
+              </p>
+              <h3 className="mt-3 text-lg font-semibold text-stone-950">{item.label}</h3>
+              <p className="mt-2 text-sm leading-6 text-stone-600">{item.detail}</p>
+              <div className="mt-4">
+                <Link
+                  className="inline-flex rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100"
+                  href={item.href}
+                >
+                  {item.cta}
+                </Link>
+              </div>
+            </article>
+          ))}
+        </div>
         <div className="flex flex-wrap gap-3">
           <Link
             className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700"

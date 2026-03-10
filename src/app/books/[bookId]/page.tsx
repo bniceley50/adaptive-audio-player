@@ -214,6 +214,80 @@ export default function BookPage({ params }: BookPageProps) {
                 "Lock the narrator and listening mode first. Once that feels right, generate a sample and move into playback.",
               action: "Generate the first sample from this setup",
             };
+  const recommendedAction = sampleIsCurrent
+    ? fullBookOutput?.bookId === bookId
+      ? {
+          label: "Listen to the current full book",
+          detail:
+            "The polished render is ready. Open the player and review the exact version listeners would hear.",
+          href: `/player/${bookId}?artifact=full&renderState=current`,
+        }
+      : fullBookJobIsActive
+        ? {
+            label: "Track the full-book render",
+            detail:
+              "Your approved sample is already promoting into a full-book render. Keep an eye on the queue while it finishes.",
+            href: "/jobs",
+          }
+        : {
+            label: "Listen to the sample first",
+            detail:
+              "Validate the generated sample before committing more generation time to the full-book render.",
+            href: `/player/${bookId}?narrator=${selectedNarrator}&mode=${selectedMode}&artifact=sample&renderState=current`,
+          }
+    : sampleJobIsActive
+      ? {
+          label: "Watch the sample render finish",
+          detail:
+            "The worker is already building this taste. The next useful move is to track status until the preview is ready.",
+          href: "/jobs",
+        }
+      : {
+          label: "Generate the first sample",
+          detail:
+            "Lock this narrator and mode into a concrete listening preview before you move into playback or full-book rendering.",
+          action: "generate-sample" as const,
+        };
+  const followUpAction = sampleIsCurrent
+    ? fullBookOutput?.bookId === bookId
+      ? {
+          label: "Review the render timeline",
+          detail:
+            "Current and archived renders stay separated below so you can compare what is live versus what is preserved.",
+          href: "#render-history",
+        }
+      : fullBookJobIsActive
+        ? {
+            label: "Keep the render history tidy",
+            detail:
+              "Once the full book finishes, this book screen becomes the best place to compare current versus archived renders.",
+            href: "#render-history",
+          }
+        : {
+            label: "Promote the sample into a full book",
+            detail:
+              "Once the sample feels right, queue the full-book render so listening can move beyond the preview.",
+            action: "generate-full-book" as const,
+          }
+    : sampleJobIsActive
+      ? {
+          label: "Prepare the default taste",
+          detail:
+            "If this setup feels like your long-term default, save it now so future imports start from the same voice direction.",
+          action: "save-default" as const,
+        }
+      : {
+          label: "Save this as your default taste",
+          detail:
+            "If this narrator and mode feel right for your library, make them the default before you import the next book.",
+          action: "save-default" as const,
+        };
+  const supportAction = {
+    label: "Keep the story moving",
+    detail:
+      "This page is your control tower: generate, listen, compare renders, and then jump back to import whenever you are ready for the next title.",
+    href: "/import",
+  };
 
   const loadBookJobs = useCallback(async () => {
     const response = await fetch(`/api/jobs/book/${bookId}`).catch(() => null);
@@ -942,6 +1016,79 @@ export default function BookPage({ params }: BookPageProps) {
                     : "Not queued yet"}
               </span>
             </div>
+          </div>
+          <div className="mt-6 grid gap-4 lg:grid-cols-3">
+            {[
+              {
+                eyebrow: "Recommended next move",
+                accent:
+                  "border-amber-200/35 bg-[linear-gradient(135deg,rgba(252,211,77,0.16)_0%,rgba(255,255,255,0.08)_100%)]",
+                ...recommendedAction,
+              },
+              {
+                eyebrow: "After that",
+                accent:
+                  "border-sky-200/30 bg-[linear-gradient(135deg,rgba(125,211,252,0.14)_0%,rgba(255,255,255,0.06)_100%)]",
+                ...followUpAction,
+              },
+              {
+                eyebrow: "Keep aligned",
+                accent:
+                  "border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08)_0%,rgba(255,255,255,0.04)_100%)]",
+                ...supportAction,
+              },
+            ].map((item) => (
+              <article
+                key={item.eyebrow}
+                className={`rounded-[1.6rem] border p-5 shadow-sm ${item.accent}`}
+              >
+                <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-stone-300">
+                  {item.eyebrow}
+                </p>
+                <h3 className="mt-3 text-lg font-semibold text-white">{item.label}</h3>
+                <p className="mt-2 text-sm leading-6 text-stone-200">{item.detail}</p>
+                <div className="mt-4">
+                  {item.href ? (
+                    <Link
+                      className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
+                      href={item.href}
+                    >
+                      Open
+                    </Link>
+                  ) : item.action === "generate-sample" ? (
+                    <button
+                      className="inline-flex rounded-full border border-amber-200/35 bg-amber-300 px-4 py-2 text-sm font-semibold text-stone-950 transition hover:bg-amber-200 disabled:bg-amber-200 disabled:text-stone-500"
+                      type="button"
+                      disabled={sampleJobIsActive}
+                      onClick={() => {
+                        void generateSample();
+                      }}
+                    >
+                      Generate first sample
+                    </button>
+                  ) : item.action === "generate-full-book" ? (
+                    <button
+                      className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15 disabled:border-white/10 disabled:bg-transparent disabled:text-stone-400"
+                      type="button"
+                      disabled={!sampleIsCurrent || chapters.length === 0 || fullBookJobIsActive}
+                      onClick={() => {
+                        void queueFullBookGeneration();
+                      }}
+                    >
+                      Queue full book
+                    </button>
+                  ) : (
+                    <button
+                      className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
+                      type="button"
+                      onClick={saveAsDefaultTaste}
+                    >
+                      Set as library default
+                    </button>
+                  )}
+                </div>
+              </article>
+            ))}
           </div>
           <div className="mt-6 flex flex-wrap gap-3">
             <button
