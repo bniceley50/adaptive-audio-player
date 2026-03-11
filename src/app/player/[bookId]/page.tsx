@@ -512,6 +512,105 @@ export default function PlayerPage({ params }: PlayerPageProps) {
           </article>
         </div>
       </section>
+      {sampleIsReady && fullBookIsReady ? (
+        <section className="rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#111827_0%,#1c1917_45%,#292524_100%)] p-6 text-white shadow-[0_28px_80px_-46px_rgba(17,24,39,0.9)]">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-3xl">
+              <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-300">
+                Adaptive compare
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold text-white">
+                Hear the same book in two different modes
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-stone-300">
+                This is the clearest product moment in the app: a lighter sample render
+                for taste validation, and a polished full-book render for long-form
+                listening. Switch between them to hear the adaptive workflow in action.
+              </p>
+            </div>
+            <div className="rounded-[1.4rem] border border-white/10 bg-white/5 px-4 py-3 shadow-sm">
+              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-300">
+                Current player
+              </p>
+              <p className="mt-2 text-lg font-semibold text-white">
+                {preferredAudioKind === "full-book-generation"
+                  ? "Full book"
+                  : preferredAudioKind === "sample-generation"
+                    ? "Sample"
+                    : "Not selected"}
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            <article
+              className={`rounded-[1.5rem] border p-5 shadow-sm transition ${
+                preferredAudioKind === "sample-generation"
+                  ? "border-amber-300/40 bg-[linear-gradient(135deg,rgba(252,211,77,0.18)_0%,rgba(255,255,255,0.06)_100%)]"
+                  : "border-white/10 bg-white/5"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="rounded-full bg-amber-300 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-950">
+                  Sample render
+                </span>
+                {preferredAudioKind === "sample-generation" ? (
+                  <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white">
+                    Playing now
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-4 text-lg font-semibold text-white">
+                Fast taste check
+              </p>
+              <p className="mt-2 text-sm leading-6 text-stone-300">
+                Use the sample when you want to judge the voice, mode, and feel of the
+                book before committing to the long-form render.
+              </p>
+              <div className="mt-4">
+                <Link
+                  className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
+                  href={`/player/${bookId}?artifact=sample&renderState=current`}
+                >
+                  Listen to sample
+                </Link>
+              </div>
+            </article>
+            <article
+              className={`rounded-[1.5rem] border p-5 shadow-sm transition ${
+                preferredAudioKind === "full-book-generation"
+                  ? "border-emerald-300/35 bg-[linear-gradient(135deg,rgba(74,222,128,0.16)_0%,rgba(255,255,255,0.06)_100%)]"
+                  : "border-white/10 bg-white/5"
+              }`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <span className="rounded-full bg-emerald-300 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-950">
+                  Full-book render
+                </span>
+                {preferredAudioKind === "full-book-generation" ? (
+                  <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white">
+                    Playing now
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-4 text-lg font-semibold text-white">
+                Main listening path
+              </p>
+              <p className="mt-2 text-sm leading-6 text-stone-300">
+                Use the full-book render when you are ready for the polished, current
+                version that carries the title through longer listening sessions.
+              </p>
+              <div className="mt-4">
+                <Link
+                  className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
+                  href={`/player/${bookId}?artifact=full&renderState=current`}
+                >
+                  Listen to full book
+                </Link>
+              </div>
+            </article>
+          </div>
+        </section>
+      ) : null}
       <NowPlaying
         audioKind={preferredAudioKind}
         audioUrl={audioUrl}
