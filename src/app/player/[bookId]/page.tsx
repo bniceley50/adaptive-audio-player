@@ -13,8 +13,8 @@ import {
   readLocalGenerationOutput,
   readLocalDraftText,
   readLocalLibraryBook,
+  replaceRemovedLocalLibraryBooks,
   resolveListeningTaste,
-  readLocalLibraryBookTitle,
   readRemovedLocalLibraryBook,
   readLocalSampleRequest,
   writeLocalGenerationOutput,
@@ -85,14 +85,10 @@ export default function PlayerPage({ params }: PlayerPageProps) {
       ? readLocalDraftText(bookId)
       : "",
   );
-  const [bookTitle] = useState(() =>
-    typeof window !== "undefined"
-      ? readLocalLibraryBookTitle(bookId) ?? `Book ${bookId}`
-      : `Book ${bookId}`,
-  );
-  const [bookMeta] = useState(() =>
+  const [hydratedBookMeta, setHydratedBookMeta] = useState(() =>
     typeof window !== "undefined" ? readLocalLibraryBook(bookId) : null,
   );
+  const bookTitle = hydratedBookMeta?.title ?? `Book ${bookId}`;
   const [removedBook] = useState(() =>
     typeof window !== "undefined" ? readRemovedLocalLibraryBook(bookId) : null,
   );
@@ -303,6 +299,82 @@ export default function PlayerPage({ params }: PlayerPageProps) {
   ] as const;
 
   useEffect(() => {
+    if (hydratedBookMeta) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function hydrateBookMetaFromBackend() {
+      const response = await fetch("/api/sync/library").catch(() => null);
+      const payload = response
+        ? ((await response.json().catch(() => null)) as
+            | {
+                snapshot?: import("@/lib/backend/types").LibrarySyncSnapshot | null;
+              }
+            | null)
+        : null;
+
+      if (cancelled || !payload?.snapshot) {
+        return;
+      }
+
+      const syncedBook =
+        payload.snapshot.libraryBooks.find((book) => book.bookId === bookId) ?? null;
+
+      if (syncedBook) {
+        setHydratedBookMeta(syncedBook);
+      }
+    }
+
+    void hydrateBookMetaFromBackend();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookId, hydratedBookMeta]);
+
+  useEffect(() => {
+    if (hydratedRemovedBook) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function hydrateRemovedStateFromBackend() {
+      const response = await fetch("/api/sync/library").catch(() => null);
+      const payload = response
+        ? ((await response.json().catch(() => null)) as
+            | {
+                snapshot?: import("@/lib/backend/types").LibrarySyncSnapshot | null;
+              }
+            | null)
+        : null;
+
+      if (cancelled || !payload?.snapshot) {
+        return;
+      }
+
+      const removedSnapshot =
+        payload.snapshot.removedBooks?.find((entry) => entry.book.bookId === bookId) ?? null;
+
+      if (!removedSnapshot) {
+        return;
+      }
+
+      replaceRemovedLocalLibraryBooks(payload.snapshot.removedBooks ?? [removedSnapshot]);
+      setHydratedRemovedBook(readRemovedLocalLibraryBook(bookId));
+      setRecoveryState("idle");
+    }
+
+    void hydrateRemovedStateFromBackend();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookId, hydratedRemovedBook]);
+
+  useEffect(() => {
     if (hydratedRemovedBook || draftText) {
       return;
     }
@@ -496,7 +568,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
     };
   }, [bookId, draftText, fullBookOutput, generatedSample, hydratedRemovedBook, sampleOutput]);
 
-  if (!draftText && hydratedRemovedBook) {
+  if (hydratedRemovedBook) {
     return (
       <AppShell eyebrow="Player" title={`${hydratedRemovedBook.book.title} needs recovery`}>
         <RemovedBookRecoveryCard removedBook={hydratedRemovedBook} returnHref="/" />
@@ -641,13 +713,13 @@ export default function PlayerPage({ params }: PlayerPageProps) {
             </p>
             <div className="mt-3 flex items-start gap-4">
               <div
-                className={`flex h-24 w-20 shrink-0 flex-col justify-between overflow-hidden rounded-[1.2rem] border border-stone-200 bg-gradient-to-br ${bookMeta?.coverTheme ?? getBookCoverTheme(bookTitle)} p-3 shadow-sm`}
+                className={`flex h-24 w-20 shrink-0 flex-col justify-between overflow-hidden rounded-[1.2rem] border border-stone-200 bg-gradient-to-br ${hydratedBookMeta?.coverTheme ?? getBookCoverTheme(bookTitle)} p-3 shadow-sm`}
               >
                 <p className="text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-stone-600">
-                  {bookMeta?.coverLabel ?? "Playback"}
+                  {hydratedBookMeta?.coverLabel ?? "Playback"}
                 </p>
                 <p className="text-xl font-semibold tracking-tight text-stone-950">
-                  {bookMeta?.coverGlyph ?? getBookInitials(bookTitle)}
+                  {hydratedBookMeta?.coverGlyph ?? getBookInitials(bookTitle)}
                 </p>
               </div>
               <div className="min-w-0">
@@ -655,9 +727,9 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                 <p className="mt-2 text-sm text-stone-600">
                   {playerChapters.length} chapter{playerChapters.length === 1 ? "" : "s"} in this listening session
                 </p>
-                {bookMeta?.genreLabel ? (
+                {hydratedBookMeta?.genreLabel ? (
                   <span className="mt-3 inline-flex rounded-full border border-fuchsia-200 bg-fuchsia-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-fuchsia-700">
-                    {bookMeta.genreLabel}
+                    {hydratedBookMeta.genreLabel}
                   </span>
                 ) : null}
               </div>
