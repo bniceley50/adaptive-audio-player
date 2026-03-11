@@ -5,6 +5,7 @@ import {
   readLocalDraftText,
   readLocalLibraryBooks,
   readLocalListeningProfiles,
+  readRemovedLocalLibraryBooks,
   readLocalSampleRequest,
 } from "@/lib/library/local-library";
 import {
@@ -17,6 +18,7 @@ export function buildClientLibrarySyncSnapshot() {
 
   return {
     libraryBooks,
+    removedBooks: readRemovedLocalLibraryBooks(),
     draftTexts: libraryBooks.map((book) => ({
       bookId: book.bookId,
       text: readLocalDraftText(book.bookId),
@@ -49,4 +51,3 @@ export async function pushClientLibrarySyncSnapshot() {
     body: JSON.stringify(buildClientLibrarySyncSnapshot()),
   });
 }
-

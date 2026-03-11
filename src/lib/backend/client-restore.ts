@@ -2,6 +2,7 @@
 
 import type { LibrarySyncSnapshot } from "./types.ts";
 import {
+  replaceRemovedLocalLibraryBooks,
   upsertLocalLibraryBook,
   writeDefaultListeningProfile,
   writeLocalDraftText,
@@ -27,6 +28,14 @@ export async function restoreBookFromBackendSnapshot(bookId: string) {
 
   if (!snapshot) {
     return "missing" as const;
+  }
+
+  const removedBook =
+    snapshot.removedBooks?.find((entry) => entry.book.bookId === bookId) ?? null;
+
+  if (removedBook) {
+    replaceRemovedLocalLibraryBooks(snapshot.removedBooks ?? [removedBook]);
+    return "removed" as const;
   }
 
   const syncedBook =

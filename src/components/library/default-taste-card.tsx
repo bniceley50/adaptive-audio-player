@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import type { LocalListeningProfile } from "@/lib/library/local-library";
 import {
   clearDefaultListeningProfile,
   describeListeningTasteSource,
@@ -9,9 +10,13 @@ import {
   readDefaultListeningProfile,
 } from "@/lib/library/local-library";
 
-export function DefaultTasteCard() {
+interface DefaultTasteCardProps {
+  initialProfile?: LocalListeningProfile | null;
+}
+
+export function DefaultTasteCard({ initialProfile = null }: DefaultTasteCardProps) {
   const [defaultProfile, setDefaultProfile] = useState(() =>
-    readDefaultListeningProfile(),
+    initialProfile ?? readDefaultListeningProfile(),
   );
 
   useEffect(() => {

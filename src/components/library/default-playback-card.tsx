@@ -5,10 +5,17 @@ import {
   clearPlaybackDefaults,
   playbackDefaultsChangedEvent,
   readPlaybackDefaults,
+  type PlaybackDefaults,
 } from "@/lib/playback/local-playback";
 
-export function DefaultPlaybackCard() {
-  const [defaults, setDefaults] = useState(() => readPlaybackDefaults());
+interface DefaultPlaybackCardProps {
+  initialDefaults?: PlaybackDefaults | null;
+}
+
+export function DefaultPlaybackCard({
+  initialDefaults = null,
+}: DefaultPlaybackCardProps) {
+  const [defaults, setDefaults] = useState(() => initialDefaults ?? readPlaybackDefaults());
 
   useEffect(() => {
     function handleDefaultsChanged() {

@@ -12,6 +12,7 @@ import {
   listeningProfileChangedEvent,
   readLocalLibraryBooks,
   removedBooksChangedEvent,
+  replaceRemovedLocalLibraryBooks,
   sampleRequestChangedEvent,
   upsertLocalLibraryBook,
   writeDefaultListeningProfile,
@@ -65,6 +66,8 @@ export function WorkspaceSync() {
         upsertLocalLibraryBook(book);
       }
 
+      replaceRemovedLocalLibraryBooks(snapshot.removedBooks ?? []);
+
       for (const draft of snapshot.draftTexts) {
         writeLocalDraftText(draft.bookId, draft.text);
       }
@@ -96,14 +99,25 @@ export function WorkspaceSync() {
       }
     }
 
-    async function initializeSync() {
-      const localBooks = readLocalLibraryBooks();
-      if (localBooks.length > 0) {
-        workspaceTransitionRef.current = false;
-        scheduleSync();
-        return;
+    function hasBackendSnapshotState(snapshot: LibrarySyncSnapshot | null) {
+      if (!snapshot) {
+        return false;
       }
 
+      return (
+        snapshot.libraryBooks.length > 0 ||
+        (snapshot.removedBooks?.length ?? 0) > 0 ||
+        snapshot.draftTexts.length > 0 ||
+        snapshot.listeningProfiles.length > 0 ||
+        snapshot.playbackStates.length > 0 ||
+        (snapshot.generationOutputs?.length ?? 0) > 0 ||
+        !!snapshot.defaultListeningProfile ||
+        !!snapshot.playbackDefaults ||
+        !!snapshot.sampleRequest
+      );
+    }
+
+    async function initializeSync() {
       const response = await fetch("/api/sync/library").catch(() => null);
       const payload = response
         ? ((await response.json()) as {
@@ -111,9 +125,18 @@ export function WorkspaceSync() {
           })
         : null;
 
-      if (payload?.snapshot && payload.snapshot.libraryBooks.length > 0) {
-        restoreSnapshot(payload.snapshot);
+      const backendSnapshot = payload?.snapshot ?? null;
+
+      if (backendSnapshot && hasBackendSnapshotState(backendSnapshot)) {
+        restoreSnapshot(backendSnapshot);
         workspaceTransitionRef.current = false;
+        return;
+      }
+
+      const localBooks = readLocalLibraryBooks();
+      if (localBooks.length > 0) {
+        workspaceTransitionRef.current = false;
+        scheduleSync();
         return;
       }
 

@@ -12,6 +12,7 @@ import {
   readPersistedPlaybackState,
   writePlaybackDefaults,
   writePersistedPlaybackState,
+  type PlaybackDefaults,
   type PersistedBookmark,
   type PersistedPlaybackState,
 } from "@/lib/playback/local-playback";
@@ -23,6 +24,8 @@ export function NowPlaying({
   bookId,
   bookTitle,
   chapters,
+  initialPlaybackDefaults,
+  initialPlaybackState,
   narratorName,
   mode,
   playbackIsReady,
@@ -32,15 +35,20 @@ export function NowPlaying({
   bookId: string;
   bookTitle: string;
   chapters: Chapter[];
+  initialPlaybackDefaults?: PlaybackDefaults | null;
+  initialPlaybackState?: PersistedPlaybackState | null;
   narratorName: string;
   mode: string;
   playbackIsReady: boolean;
 }) {
-  const persistedState = useMemo(
-    () => readPersistedPlaybackState(bookId),
-    [bookId],
+  const persistedState = useMemo(() => {
+    const localState = readPersistedPlaybackState(bookId);
+    return localState ?? initialPlaybackState ?? null;
+  }, [bookId, initialPlaybackState]);
+  const playbackDefaults = useMemo(
+    () => readPlaybackDefaults() ?? initialPlaybackDefaults ?? null,
+    [initialPlaybackDefaults],
   );
-  const playbackDefaults = useMemo(() => readPlaybackDefaults(), []);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentChapterIndex, setCurrentChapterIndex] = useState(
     Math.min(persistedState?.currentChapterIndex ?? 0, Math.max(chapters.length - 1, 0)),

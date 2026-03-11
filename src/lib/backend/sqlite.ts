@@ -133,6 +133,7 @@ function ensureDbSchema(db: DatabaseSync) {
       default_profile_json text,
       playback_defaults_json text,
       sample_request_json text,
+      removed_books_json text,
       updated_at text not null,
       foreign key (workspace_id) references workspaces(id) on delete cascade
     );
@@ -281,6 +282,17 @@ function ensureDbSchema(db: DatabaseSync) {
 
   if (!hasGenreLabel) {
     db.exec("alter table synced_books add column genre_label text");
+  }
+
+  const workspaceDefaultsColumns = db
+    .prepare("pragma table_info(workspace_defaults)")
+    .all() as Array<{ name: string }>;
+  const hasRemovedBooksJson = workspaceDefaultsColumns.some(
+    (column) => column.name === "removed_books_json",
+  );
+
+  if (!hasRemovedBooksJson) {
+    db.exec("alter table workspace_defaults add column removed_books_json text");
   }
 }
 
@@ -1231,13 +1243,15 @@ export function syncWorkspaceLibrarySnapshot(
           default_profile_json,
           playback_defaults_json,
           sample_request_json,
+          removed_books_json,
           updated_at
         )
-        values (?, ?, ?, ?, ?)
+        values (?, ?, ?, ?, ?, ?)
         on conflict(workspace_id) do update set
           default_profile_json = excluded.default_profile_json,
           playback_defaults_json = excluded.playback_defaults_json,
           sample_request_json = excluded.sample_request_json,
+          removed_books_json = excluded.removed_books_json,
           updated_at = excluded.updated_at
       `,
     ).run(
@@ -1247,6 +1261,7 @@ export function syncWorkspaceLibrarySnapshot(
         : null,
       snapshot.playbackDefaults ? JSON.stringify(snapshot.playbackDefaults) : null,
       snapshot.sampleRequest ? JSON.stringify(snapshot.sampleRequest) : null,
+      JSON.stringify(snapshot.removedBooks ?? []),
       snapshot.syncedAt,
     );
 
@@ -1541,7 +1556,7 @@ export function getWorkspaceLibrarySnapshot(workspaceId: string) {
   const workspaceDefaults = db
     .prepare(
       `
-        select default_profile_json, playback_defaults_json, sample_request_json
+        select default_profile_json, playback_defaults_json, sample_request_json, removed_books_json
         from workspace_defaults
         where workspace_id = ?
       `,
@@ -1551,6 +1566,7 @@ export function getWorkspaceLibrarySnapshot(workspaceId: string) {
         default_profile_json: string | null;
         playback_defaults_json: string | null;
         sample_request_json: string | null;
+        removed_books_json: string | null;
       }
     | undefined;
 
@@ -1565,6 +1581,9 @@ export function getWorkspaceLibrarySnapshot(workspaceId: string) {
       coverGlyph: book.cover_glyph ?? undefined,
       genreLabel: book.genre_label ?? undefined,
     })),
+    removedBooks: workspaceDefaults?.removed_books_json
+      ? JSON.parse(workspaceDefaults.removed_books_json)
+      : [],
     draftTexts: draftTexts.map((draft) => ({
       bookId: draft.book_id,
       text: draft.draft_text,

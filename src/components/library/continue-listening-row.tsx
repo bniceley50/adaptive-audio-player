@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import type { LibrarySyncSnapshot } from "@/lib/backend/types";
 import {
   clearRemovedLocalLibraryBook,
   defaultTasteChangedEvent,
@@ -44,6 +45,51 @@ interface ShelfBookRecord {
   book: LocalLibraryBook;
   group: ShelfGroupKey;
   searchText: string;
+}
+
+function getUpdatedAtWeight(updatedAt: string | null | undefined): number {
+  if (!updatedAt) {
+    return 0;
+  }
+
+  const timestamp = new Date(updatedAt).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function mergeLibraryBooks(
+  localBooks: LocalLibraryBook[],
+  syncedBooks: LocalLibraryBook[],
+  removedBookIds: Set<string> = new Set(),
+): LocalLibraryBook[] {
+  const merged = new Map<string, LocalLibraryBook>();
+
+  for (const book of syncedBooks) {
+    if (removedBookIds.has(book.bookId)) {
+      continue;
+    }
+    merged.set(book.bookId, book);
+  }
+
+  for (const localBook of localBooks) {
+    if (removedBookIds.has(localBook.bookId)) {
+      continue;
+    }
+    const existing = merged.get(localBook.bookId);
+
+    if (!existing) {
+      merged.set(localBook.bookId, localBook);
+      continue;
+    }
+
+    merged.set(
+      localBook.bookId,
+      getUpdatedAtWeight(localBook.updatedAt) >= getUpdatedAtWeight(existing.updatedAt)
+        ? localBook
+        : existing,
+    );
+  }
+
+  return [...merged.values()];
 }
 
 function getBookCoverTheme(title: string) {
@@ -104,8 +150,16 @@ const shelfGroups: Array<{
   },
 ];
 
-export function ContinueListeningRow() {
-  const [libraryBooks, setLibraryBooks] = useState<LocalLibraryBook[]>([]);
+interface ContinueListeningRowProps {
+  initialSnapshot?: LibrarySyncSnapshot | null;
+}
+
+export function ContinueListeningRow({
+  initialSnapshot = null,
+}: ContinueListeningRowProps) {
+  const [libraryBooks, setLibraryBooks] = useState<LocalLibraryBook[]>(
+    () => mergeLibraryBooks([], initialSnapshot?.libraryBooks ?? []),
+  );
   const [removedBooks, setRemovedBooks] = useState<RemovedLocalLibraryBook[]>([]);
   const [sampleRequest, setSampleRequest] = useState<LocalSampleRequest | null>(null);
   const [expandedBookId, setExpandedBookId] = useState<string | null>(null);
@@ -117,9 +171,20 @@ export function ContinueListeningRow() {
 
   useEffect(() => {
     function refreshLibrary() {
-      setLibraryBooks(readLocalLibraryBooks());
-      setRemovedBooks(readRemovedLocalLibraryBooks());
-      setSampleRequest(readLocalSampleRequest());
+      const localBooks = readLocalLibraryBooks();
+      const nextRemovedBooks = readRemovedLocalLibraryBooks();
+      const removedBookIds = new Set(
+        nextRemovedBooks.map((removedBook) => removedBook.book.bookId),
+      );
+      setLibraryBooks(
+        mergeLibraryBooks(
+          localBooks,
+          initialSnapshot?.libraryBooks ?? [],
+          removedBookIds,
+        ),
+      );
+      setRemovedBooks(nextRemovedBooks);
+      setSampleRequest(readLocalSampleRequest() ?? initialSnapshot?.sampleRequest ?? null);
     }
 
     refreshLibrary();
@@ -143,21 +208,79 @@ export function ContinueListeningRow() {
       window.removeEventListener(removedBooksChangedEvent, refreshLibrary);
       window.removeEventListener("storage", refreshLibrary);
     };
-  }, []);
+  }, [initialSnapshot]);
+
+  const initialProfilesByBook = useMemo(
+    () =>
+      new Map(
+        (initialSnapshot?.listeningProfiles ?? []).map((profile) => [
+          profile.bookId,
+          profile,
+        ]),
+      ),
+    [initialSnapshot],
+  );
+  const initialPlaybackStatesByBook = useMemo(
+    () =>
+      new Map(
+        (initialSnapshot?.playbackStates ?? []).map((playback) => [
+          playback.bookId,
+          playback.state,
+        ]),
+      ),
+    [initialSnapshot],
+  );
+  const initialGenerationOutputsByKey = useMemo(
+    () =>
+      new Map(
+        (initialSnapshot?.generationOutputs ?? []).map((output) => [
+          `${output.bookId}:${output.kind}`,
+          output,
+        ]),
+      ),
+    [initialSnapshot],
+  );
+  const initialDefaultProfile = initialSnapshot?.defaultListeningProfile ?? null;
+  const initialRecentProfile = initialSnapshot?.listeningProfiles?.[0] ?? null;
 
   const shelfBooks = useMemo(() => {
     return libraryBooks
       .map((book) => {
-        const playbackState = readPersistedPlaybackState(book.bookId);
-        const resolvedTaste = resolveListeningTaste(book.bookId);
-        const sampleOutput = readLocalGenerationOutput(book.bookId, "sample-generation");
-        const fullBookOutput = readLocalGenerationOutput(
-          book.bookId,
-          "full-book-generation",
-        );
+        const playbackState =
+          readPersistedPlaybackState(book.bookId) ??
+          initialPlaybackStatesByBook.get(book.bookId) ??
+          null;
+        const localResolvedTaste = resolveListeningTaste(book.bookId);
+        const resolvedTaste =
+          localResolvedTaste.source !== "none"
+            ? localResolvedTaste
+            : initialProfilesByBook.get(book.bookId)
+              ? {
+                  profile: initialProfilesByBook.get(book.bookId) ?? null,
+                  source: "saved" as const,
+                }
+              : initialDefaultProfile
+                ? {
+                    profile: initialDefaultProfile,
+                    source: "default" as const,
+                  }
+                : initialRecentProfile
+                  ? {
+                      profile: initialRecentProfile,
+                      source: "recent" as const,
+                    }
+                  : localResolvedTaste;
+        const sampleOutput =
+          readLocalGenerationOutput(book.bookId, "sample-generation") ??
+          initialGenerationOutputsByKey.get(`${book.bookId}:sample-generation`) ??
+          null;
+        const fullBookOutput =
+          readLocalGenerationOutput(book.bookId, "full-book-generation") ??
+          initialGenerationOutputsByKey.get(`${book.bookId}:full-book-generation`) ??
+          null;
         const hasSample =
           !!sampleOutput ||
-          (sampleRequest?.bookId === book.bookId &&
+          ((sampleRequest ?? initialSnapshot?.sampleRequest ?? null)?.bookId === book.bookId &&
             (resolvedTaste.source !== "none" || !!resolvedTaste.profile));
         const group: ShelfGroupKey = playbackState
           ? "active"
@@ -183,7 +306,16 @@ export function ContinueListeningRow() {
           rightPlayback?.updatedAt ?? right.book.updatedAt ?? new Date(0).toISOString();
         return rightActivity.localeCompare(leftActivity);
       });
-  }, [libraryBooks, sampleRequest]);
+  }, [
+    initialDefaultProfile,
+    initialGenerationOutputsByKey,
+    initialPlaybackStatesByBook,
+    initialProfilesByBook,
+    initialRecentProfile,
+    initialSnapshot?.sampleRequest,
+    libraryBooks,
+    sampleRequest,
+  ]);
 
   const normalizedSearch = search.trim().toLowerCase();
   const filteredShelfBooks = shelfBooks.filter((entry) => {
@@ -407,15 +539,22 @@ export function ContinueListeningRow() {
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   {groupBooks.map(({ book }, index) => {
-                    const playbackState = readPersistedPlaybackState(book.bookId);
-                    const sampleOutput = readLocalGenerationOutput(
-                      book.bookId,
-                      "sample-generation",
-                    );
-                    const fullBookOutput = readLocalGenerationOutput(
-                      book.bookId,
-                      "full-book-generation",
-                    );
+                    const playbackState =
+                      readPersistedPlaybackState(book.bookId) ??
+                      initialPlaybackStatesByBook.get(book.bookId) ??
+                      null;
+                    const sampleOutput =
+                      readLocalGenerationOutput(book.bookId, "sample-generation") ??
+                      initialGenerationOutputsByKey.get(
+                        `${book.bookId}:sample-generation`,
+                      ) ??
+                      null;
+                    const fullBookOutput =
+                      readLocalGenerationOutput(book.bookId, "full-book-generation") ??
+                      initialGenerationOutputsByKey.get(
+                        `${book.bookId}:full-book-generation`,
+                      ) ??
+                      null;
                     const currentChapterNumber = Math.min(
                       (playbackState?.currentChapterIndex ?? 0) + 1,
                       Math.max(book.chapterCount, 1),
@@ -427,18 +566,41 @@ export function ContinueListeningRow() {
                       ? `${getPlaybackPercent(playbackState.progressSeconds)}% through this chapter`
                       : "Ready to start";
                     const bookmarkCount = playbackState?.bookmarks?.length ?? 0;
-                    const resolvedTaste = resolveListeningTaste(book.bookId);
+                    const localResolvedTaste = resolveListeningTaste(book.bookId);
+                    const resolvedTaste =
+                      localResolvedTaste.source !== "none"
+                        ? localResolvedTaste
+                        : initialProfilesByBook.get(book.bookId)
+                          ? {
+                              profile:
+                                initialProfilesByBook.get(book.bookId) ?? null,
+                              source: "saved" as const,
+                            }
+                          : initialDefaultProfile
+                            ? {
+                                profile: initialDefaultProfile,
+                                source: "default" as const,
+                              }
+                            : initialRecentProfile
+                              ? {
+                                  profile: initialRecentProfile,
+                                  source: "recent" as const,
+                                }
+                              : localResolvedTaste;
                     const narratorLabel =
                       resolvedTaste.profile?.narratorName ??
                       sampleOutput?.narratorId ??
-                      (sampleRequest && sampleRequest.bookId === book.bookId
-                        ? sampleRequest.narratorId
+                      ((sampleRequest ?? initialSnapshot?.sampleRequest ?? null)?.bookId ===
+                      book.bookId
+                        ? (sampleRequest ?? initialSnapshot?.sampleRequest ?? null)
+                            ?.narratorId
                         : "Not chosen yet");
                     const modeLabel =
                       resolvedTaste.profile?.mode ??
                       sampleOutput?.mode ??
-                      (sampleRequest && sampleRequest.bookId === book.bookId
-                        ? sampleRequest.mode
+                      ((sampleRequest ?? initialSnapshot?.sampleRequest ?? null)?.bookId ===
+                      book.bookId
+                        ? (sampleRequest ?? initialSnapshot?.sampleRequest ?? null)?.mode
                         : "setup pending");
                     const sampleResumeProfile =
                       (resolvedTaste.profile && resolvedTaste.source === "saved"
@@ -450,10 +612,15 @@ export function ContinueListeningRow() {
                             mode: sampleOutput.mode,
                           }
                         : null) ??
-                      (sampleRequest && sampleRequest.bookId === book.bookId
+                      ((sampleRequest ?? initialSnapshot?.sampleRequest ?? null)?.bookId ===
+                      book.bookId
                         ? {
-                            narratorId: sampleRequest.narratorId,
-                            mode: sampleRequest.mode,
+                            narratorId:
+                              (sampleRequest ?? initialSnapshot?.sampleRequest ?? null)
+                                ?.narratorId ?? "",
+                            mode:
+                              (sampleRequest ?? initialSnapshot?.sampleRequest ?? null)
+                                ?.mode ?? "ambient",
                           }
                         : null);
                     const resumeArtifact =

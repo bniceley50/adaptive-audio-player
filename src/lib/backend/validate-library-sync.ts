@@ -88,6 +88,252 @@ export function parseLibrarySyncSnapshot(
         .filter((draft): draft is NonNullable<typeof draft> => draft !== null)
     : null;
 
+  const removedBooks =
+    input.removedBooks === undefined
+      ? []
+      : Array.isArray(input.removedBooks)
+        ? input.removedBooks
+        .map((removedBook) => {
+          if (!isRecord(removedBook) || !isRecord(removedBook.book)) {
+            return null;
+          }
+
+          const bookId = readString(removedBook.book.bookId);
+          const title = readString(removedBook.book.title);
+          const chapterCount = readNumber(removedBook.book.chapterCount);
+          const updatedAt = readString(removedBook.book.updatedAt);
+          const removedAt = readString(removedBook.removedAt);
+          const draftText = readString(removedBook.draftText);
+          const coverTheme = readString(removedBook.book.coverTheme);
+          const coverLabel = readString(removedBook.book.coverLabel);
+          const coverGlyph = readString(removedBook.book.coverGlyph);
+          const genreLabel = readString(removedBook.book.genreLabel);
+
+          if (
+            !bookId ||
+            !title ||
+            chapterCount === null ||
+            !updatedAt ||
+            !removedAt ||
+            draftText === null
+          ) {
+            return null;
+          }
+
+          const profile =
+            removedBook.profile === null
+              ? null
+              : isRecord(removedBook.profile)
+                ? (() => {
+                    const profileBookId = readString(removedBook.profile.bookId);
+                    const narratorId = readString(removedBook.profile.narratorId);
+                    const narratorName = readString(
+                      removedBook.profile.narratorName,
+                    );
+                    const mode = readString(removedBook.profile.mode);
+
+                    if (
+                      !profileBookId ||
+                      !narratorId ||
+                      !narratorName ||
+                      !mode
+                    ) {
+                      return null;
+                    }
+
+                    return {
+                      bookId: profileBookId,
+                      narratorId,
+                      narratorName,
+                      mode,
+                    };
+                  })()
+                : null;
+
+          const sampleRequest =
+            removedBook.sampleRequest === null
+              ? null
+              : isRecord(removedBook.sampleRequest)
+                ? (() => {
+                    const sampleBookId = readString(removedBook.sampleRequest.bookId);
+                    const narratorId = readString(
+                      removedBook.sampleRequest.narratorId,
+                    );
+                    const mode = readString(removedBook.sampleRequest.mode);
+
+                    if (!sampleBookId || !narratorId || !mode) {
+                      return null;
+                    }
+
+                    return {
+                      bookId: sampleBookId,
+                      narratorId,
+                      mode,
+                    };
+                  })()
+                : null;
+
+          const playbackState =
+            removedBook.playbackState === null
+              ? null
+              : isRecord(removedBook.playbackState)
+                ? (() => {
+                    const currentChapterIndex = readNumber(
+                      removedBook.playbackState.currentChapterIndex,
+                    );
+                    const progressSeconds = readNumber(
+                      removedBook.playbackState.progressSeconds,
+                    );
+                    const speed = readNumber(removedBook.playbackState.speed);
+                    const sleepTimerMinutes = readNullableNumber(
+                      removedBook.playbackState.sleepTimerMinutes,
+                    );
+                    const updatedAtValue = readString(
+                      removedBook.playbackState.updatedAt,
+                    );
+                    const isBookmarked =
+                      typeof removedBook.playbackState.isBookmarked === "boolean"
+                        ? removedBook.playbackState.isBookmarked
+                        : false;
+                    const playbackArtifactKind =
+                      removedBook.playbackState.playbackArtifactKind ===
+                        "sample-generation" ||
+                      removedBook.playbackState.playbackArtifactKind ===
+                        "full-book-generation" ||
+                      removedBook.playbackState.playbackArtifactKind === null ||
+                      removedBook.playbackState.playbackArtifactKind === undefined
+                        ? (removedBook.playbackState.playbackArtifactKind as
+                            | "sample-generation"
+                            | "full-book-generation"
+                            | null
+                            | undefined)
+                        : null;
+                    const bookmarks = Array.isArray(removedBook.playbackState.bookmarks)
+                      ? removedBook.playbackState.bookmarks
+                          .map((bookmark) => {
+                            if (!isRecord(bookmark)) {
+                              return null;
+                            }
+
+                            const id = readString(bookmark.id);
+                            const chapterIndex = readNumber(bookmark.chapterIndex);
+                            const bookmarkProgressSeconds = readNumber(
+                              bookmark.progressSeconds,
+                            );
+                            const createdAt = readString(bookmark.createdAt);
+
+                            if (
+                              !id ||
+                              chapterIndex === null ||
+                              bookmarkProgressSeconds === null ||
+                              !createdAt
+                            ) {
+                              return null;
+                            }
+
+                            return {
+                              id,
+                              chapterIndex,
+                              progressSeconds: bookmarkProgressSeconds,
+                              createdAt,
+                            };
+                          })
+                          .filter(
+                            (bookmark): bookmark is NonNullable<typeof bookmark> =>
+                              bookmark !== null,
+                          )
+                      : [];
+
+                    if (
+                      currentChapterIndex === null ||
+                      progressSeconds === null ||
+                      speed === null
+                    ) {
+                      return null;
+                    }
+
+                    return {
+                      currentChapterIndex,
+                      progressSeconds,
+                      speed,
+                      isBookmarked,
+                      sleepTimerMinutes,
+                      playbackArtifactKind: playbackArtifactKind ?? undefined,
+                      updatedAt: updatedAtValue ?? undefined,
+                      bookmarks,
+                    };
+                  })()
+                : null;
+
+          const generationOutputs = Array.isArray(removedBook.generationOutputs)
+            ? removedBook.generationOutputs
+                .map((output) => {
+                  if (!isRecord(output)) {
+                    return null;
+                  }
+
+                  const outputBookId = readString(output.bookId);
+                  const kind = readString(output.kind);
+                  const assetPath = readString(output.assetPath);
+                  const mimeType = readString(output.mimeType);
+                  const provider = readString(output.provider);
+                  const generatedAt = readString(output.generatedAt);
+                  const narratorId = readString(output.narratorId);
+                  const mode = readString(output.mode);
+                  const chapterCountValue = readNullableNumber(output.chapterCount);
+
+                  if (
+                    !outputBookId ||
+                    (kind !== "sample-generation" && kind !== "full-book-generation") ||
+                    !assetPath ||
+                    !mimeType ||
+                    (provider !== "openai" && provider !== "mock") ||
+                    !generatedAt
+                  ) {
+                    return null;
+                  }
+
+                  return {
+                    workspaceId: "",
+                    bookId: outputBookId,
+                    kind: kind as "sample-generation" | "full-book-generation",
+                    narratorId,
+                    mode,
+                    chapterCount: chapterCountValue,
+                    assetPath,
+                    mimeType,
+                    provider: provider as "openai" | "mock",
+                    generatedAt,
+                  };
+                })
+                .filter((output): output is NonNullable<typeof output> => output !== null)
+            : [];
+
+          return {
+            book: {
+              bookId,
+              title,
+              chapterCount,
+              updatedAt,
+              coverTheme: coverTheme ?? undefined,
+              coverLabel: coverLabel ?? undefined,
+              coverGlyph: coverGlyph ?? undefined,
+              genreLabel: genreLabel ?? undefined,
+            },
+            draftText,
+            profile,
+            sampleRequest,
+            playbackState,
+            generationOutputs,
+            removedAt,
+          };
+        })
+        .filter(
+          (removedBook): removedBook is NonNullable<typeof removedBook> =>
+            removedBook !== null,
+        )
+        : null;
+
   const listeningProfiles = Array.isArray(input.listeningProfiles)
     ? input.listeningProfiles
         .map((profile) => {
@@ -275,6 +521,7 @@ export function parseLibrarySyncSnapshot(
 
   if (
     !libraryBooks ||
+    removedBooks === null ||
     !draftTexts ||
     !listeningProfiles ||
     playbackStates === null ||
@@ -285,6 +532,7 @@ export function parseLibrarySyncSnapshot(
 
   return {
     libraryBooks,
+    removedBooks,
     draftTexts,
     listeningProfiles,
     defaultListeningProfile,

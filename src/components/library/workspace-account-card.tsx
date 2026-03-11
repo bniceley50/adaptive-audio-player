@@ -335,6 +335,7 @@ export function WorkspaceAccountCard({
       return;
     }
 
+    clearAdaptiveAudioPlayerLocalState();
     notifyWorkspaceContextChanged();
     setIsSaving(false);
     window.location.assign("/");
@@ -347,8 +348,8 @@ export function WorkspaceAccountCard({
     await fetch("/api/auth/sign-out", {
       method: "POST",
     }).catch(() => null);
-    notifyWorkspaceContextChanged();
     clearAdaptiveAudioPlayerLocalState();
+    notifyWorkspaceContextChanged();
     window.location.assign("/");
   }
 
@@ -373,8 +374,8 @@ export function WorkspaceAccountCard({
       return;
     }
 
-    notifyWorkspaceContextChanged();
     clearAdaptiveAudioPlayerLocalState();
+    notifyWorkspaceContextChanged();
     window.location.assign(redirectPath);
   }
 

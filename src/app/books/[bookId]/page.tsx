@@ -82,13 +82,14 @@ export default function BookPage({ params }: BookPageProps) {
       ? resolveListeningTaste(bookId)
       : { profile: null, source: "none" as const },
   );
+  const [resolvedTaste, setResolvedTaste] = useState(initialTaste);
   const savedListeningProfile =
-    initialTaste.source === "saved" ? initialTaste.profile : null;
+    resolvedTaste.source === "saved" ? resolvedTaste.profile : null;
   const [defaultListeningProfile, setDefaultListeningProfile] = useState(() =>
     typeof window !== "undefined" ? readDefaultListeningProfile() : null,
   );
-  const initialListeningProfile = initialTaste.profile;
-  const initialTasteMeta = describeListeningTasteSource(initialTaste);
+  const initialListeningProfile = resolvedTaste.profile;
+  const initialTasteMeta = describeListeningTasteSource(resolvedTaste);
   const [selectedNarrator, setSelectedNarrator] = useState(
     initialListeningProfile?.narratorId ?? (narratorOptions[0]?.id ?? "marlowe"),
   );
@@ -111,6 +112,7 @@ export default function BookPage({ params }: BookPageProps) {
   const [removedBook] = useState(() =>
     typeof window !== "undefined" ? readRemovedLocalLibraryBook(bookId) : null,
   );
+  const [hydratedRemovedBook, setHydratedRemovedBook] = useState(removedBook);
   const [recoveryState, setRecoveryState] = useState<
     "idle" | "recovering" | "missing"
   >(() =>
@@ -376,7 +378,7 @@ export default function BookPage({ params }: BookPageProps) {
   }, [bookId]);
 
   useEffect(() => {
-    if (removedBook || draftText) {
+    if (hydratedRemovedBook || draftText) {
       return;
     }
 
@@ -386,6 +388,12 @@ export default function BookPage({ params }: BookPageProps) {
       setRecoveryState("recovering");
       const result = await restoreBookFromBackendSnapshot(bookId);
       if (cancelled) {
+        return;
+      }
+
+      if (result === "removed") {
+        setHydratedRemovedBook(readRemovedLocalLibraryBook(bookId));
+        setRecoveryState("idle");
         return;
       }
 
@@ -403,7 +411,129 @@ export default function BookPage({ params }: BookPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [bookId, draftText, removedBook, router]);
+  }, [bookId, draftText, hydratedRemovedBook, router]);
+
+  useEffect(() => {
+    if (resolvedTaste.source !== "none") {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function hydrateTasteFromBackend() {
+      const response = await fetch("/api/sync/library").catch(() => null);
+      const payload = response
+        ? ((await response.json().catch(() => null)) as
+            | {
+                snapshot?: import("@/lib/backend/types").LibrarySyncSnapshot | null;
+              }
+            | null)
+        : null;
+
+      if (cancelled || !payload?.snapshot) {
+        return;
+      }
+
+      const snapshot = payload.snapshot;
+      const savedProfile =
+        snapshot.listeningProfiles.find((profile) => profile.bookId === bookId) ?? null;
+      const backendTaste = savedProfile
+        ? { profile: savedProfile, source: "saved" as const }
+        : snapshot.defaultListeningProfile
+          ? {
+              profile: snapshot.defaultListeningProfile,
+              source: "default" as const,
+            }
+          : snapshot.listeningProfiles[0]
+            ? { profile: snapshot.listeningProfiles[0], source: "recent" as const }
+            : { profile: null, source: "none" as const };
+
+      if (snapshot.defaultListeningProfile) {
+        setDefaultListeningProfile(snapshot.defaultListeningProfile);
+      }
+
+      if (backendTaste.source === "none" || !backendTaste.profile) {
+        return;
+      }
+
+      setResolvedTaste(backendTaste);
+      setSelectedNarrator(backendTaste.profile.narratorId);
+      setSelectedMode(backendTaste.profile.mode as ListeningMode);
+    }
+
+    void hydrateTasteFromBackend();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookId, resolvedTaste.source]);
+
+  useEffect(() => {
+    if (hydratedRemovedBook || !draftText) {
+      return;
+    }
+
+    if (generatedSample && sampleOutput && fullBookOutput) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function hydrateGenerationStateFromBackend() {
+      const response = await fetch("/api/sync/library").catch(() => null);
+      const payload = response
+        ? ((await response.json().catch(() => null)) as
+            | {
+                snapshot?: import("@/lib/backend/types").LibrarySyncSnapshot | null;
+              }
+            | null)
+        : null;
+
+      if (cancelled || !payload?.snapshot) {
+        return;
+      }
+
+      const snapshot = payload.snapshot;
+      const backendSampleRequest =
+        snapshot.sampleRequest?.bookId === bookId ? snapshot.sampleRequest : null;
+      const backendSampleOutput =
+        snapshot.generationOutputs?.find(
+          (output) =>
+            output.bookId === bookId && output.kind === "sample-generation",
+        ) ?? null;
+      const backendFullBookOutput =
+        snapshot.generationOutputs?.find(
+          (output) =>
+            output.bookId === bookId && output.kind === "full-book-generation",
+        ) ?? null;
+
+      if (!generatedSample && backendSampleRequest) {
+        const hydratedRequest = {
+          bookId: backendSampleRequest.bookId,
+          narratorId: backendSampleRequest.narratorId,
+          mode: backendSampleRequest.mode as ListeningMode,
+        };
+        writeLocalSampleRequest(hydratedRequest);
+        setGeneratedSample(hydratedRequest);
+      }
+
+      if (!sampleOutput && backendSampleOutput) {
+        writeLocalGenerationOutput(backendSampleOutput);
+        setSampleOutput(backendSampleOutput);
+      }
+
+      if (!fullBookOutput && backendFullBookOutput) {
+        writeLocalGenerationOutput(backendFullBookOutput);
+        setFullBookOutput(backendFullBookOutput);
+      }
+    }
+
+    void hydrateGenerationStateFromBackend();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookId, draftText, fullBookOutput, generatedSample, hydratedRemovedBook, sampleOutput]);
 
   useEffect(() => {
     if (!generationJob || generationJob.status === "completed" || generationJob.status === "failed") {
@@ -625,10 +755,10 @@ export default function BookPage({ params }: BookPageProps) {
     setDefaultListeningProfile(profile);
   }
 
-  if (!draftText && removedBook) {
+  if (!draftText && hydratedRemovedBook) {
     return (
-      <AppShell eyebrow="Book setup" title={`${removedBook.book.title} needs recovery`}>
-        <RemovedBookRecoveryCard removedBook={removedBook} returnHref="/" />
+      <AppShell eyebrow="Book setup" title={`${hydratedRemovedBook.book.title} needs recovery`}>
+        <RemovedBookRecoveryCard removedBook={hydratedRemovedBook} returnHref="/" />
       </AppShell>
     );
   }
@@ -797,11 +927,11 @@ export default function BookPage({ params }: BookPageProps) {
               Taste source
             </p>
             <p className="mt-2 text-lg font-semibold text-stone-950">
-              {initialTaste.source === "saved"
+              {resolvedTaste.source === "saved"
                 ? "Saved taste"
-                : initialTaste.source === "default"
+                : resolvedTaste.source === "default"
                   ? "Default taste"
-                  : initialTaste.source === "recent"
+                  : resolvedTaste.source === "recent"
                     ? "Latest taste"
                     : "New setup"}
             </p>
@@ -846,22 +976,22 @@ export default function BookPage({ params }: BookPageProps) {
             </div>
           </div>
           <div className="space-y-5 p-6">
-            {initialTaste.source !== "none" ? (
+            {resolvedTaste.source !== "none" ? (
               <div className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#faf8f4_0%,#ffffff_100%)] px-4 py-4 text-sm text-stone-800 shadow-sm">
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="rounded-full bg-stone-900 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-white">
-                    {initialTaste.source === "saved"
+                    {resolvedTaste.source === "saved"
                       ? "Saved taste"
-                      : initialTaste.source === "default"
+                      : resolvedTaste.source === "default"
                         ? "Default taste"
                         : "Latest taste"}
                   </span>
                   <p className="font-medium text-stone-950">
-                    {initialTaste.source === "saved" && savedListeningProfile
+                    {resolvedTaste.source === "saved" && savedListeningProfile
                       ? `This book is using its saved taste: ${savedListeningProfile.narratorName} in ${savedListeningProfile.mode}.`
-                      : initialTaste.source === "default" && defaultListeningProfile
+                      : resolvedTaste.source === "default" && defaultListeningProfile
                         ? `This new book is starting from your default taste: ${defaultListeningProfile.narratorName} in ${defaultListeningProfile.mode}.`
-                        : initialTaste.source === "recent" && initialListeningProfile
+                        : resolvedTaste.source === "recent" && initialListeningProfile
                           ? `No default is saved, so this book is starting from your latest taste: ${initialListeningProfile.narratorName} in ${initialListeningProfile.mode}.`
                           : ""}
                   </p>

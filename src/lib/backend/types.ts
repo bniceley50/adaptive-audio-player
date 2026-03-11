@@ -1,6 +1,7 @@
 import type {
   LocalLibraryBook,
   LocalListeningProfile,
+  RemovedLocalLibraryBook,
   LocalSampleRequest,
 } from "@/lib/library/local-library";
 import type {
@@ -20,6 +21,7 @@ export interface SyncedPlaybackStateRecord {
 
 export interface LibrarySyncSnapshot {
   libraryBooks: LocalLibraryBook[];
+  removedBooks?: RemovedLocalLibraryBook[];
   draftTexts: SyncedDraftText[];
   listeningProfiles: LocalListeningProfile[];
   defaultListeningProfile: LocalListeningProfile | null;

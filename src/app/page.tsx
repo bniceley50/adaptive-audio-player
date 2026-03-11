@@ -243,7 +243,7 @@ export default async function HomePage() {
             </div>
           </section>
 
-          <ContinueListeningRow />
+          <ContinueListeningRow initialSnapshot={backendLibrarySnapshot} />
         </div>
 
           <div id="account-context" className="space-y-4">
@@ -284,14 +284,18 @@ export default async function HomePage() {
           <div className="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm text-stone-600 shadow-sm">
             Preferences on the left, restore and queue state on the right.
           </div>
-        </div>
+          </div>
         <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
           <div className="space-y-6">
           <div id="default-taste">
-            <DefaultTasteCard />
+            <DefaultTasteCard
+              initialProfile={backendLibrarySnapshot?.defaultListeningProfile ?? null}
+            />
           </div>
           <div id="default-playback">
-            <DefaultPlaybackCard />
+            <DefaultPlaybackCard
+              initialDefaults={backendLibrarySnapshot?.playbackDefaults ?? null}
+            />
           </div>
           <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-white shadow-[0_22px_60px_-42px_rgba(28,25,23,0.4)]">
             <div className="border-b border-stone-200/80 bg-[linear-gradient(135deg,#fffdf7_0%,#f7f3ea_52%,#eef4ff_100%)] p-6">

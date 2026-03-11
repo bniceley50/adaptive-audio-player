@@ -17,8 +17,13 @@ import {
   readLocalLibraryBookTitle,
   readRemovedLocalLibraryBook,
   readLocalSampleRequest,
+  writeLocalGenerationOutput,
+  writeLocalSampleRequest,
 } from "@/lib/library/local-library";
-import { readPersistedPlaybackState } from "@/lib/playback/local-playback";
+import {
+  readPersistedPlaybackState,
+  type PlaybackDefaults,
+} from "@/lib/playback/local-playback";
 import { parseChapters } from "@/lib/parser/parse-chapters";
 import type { Chapter, ListeningMode } from "@/lib/types/models";
 
@@ -59,7 +64,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
   const { bookId } = use(params);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [resolvedTaste] = useState(() =>
+  const [resolvedTaste, setResolvedTaste] = useState(() =>
     typeof window !== "undefined"
       ? resolveListeningTaste(bookId)
       : { profile: null, source: "none" as const },
@@ -91,18 +96,24 @@ export default function PlayerPage({ params }: PlayerPageProps) {
   const [removedBook] = useState(() =>
     typeof window !== "undefined" ? readRemovedLocalLibraryBook(bookId) : null,
   );
-  const [generatedSample] = useState(() =>
+  const [hydratedRemovedBook, setHydratedRemovedBook] = useState(removedBook);
+  const [generatedSample, setGeneratedSample] = useState(() =>
     typeof window !== "undefined" ? readLocalSampleRequest() : null,
   );
   const [persistedPlaybackState] = useState(() =>
     typeof window !== "undefined" ? readPersistedPlaybackState(bookId) : null,
   );
-  const [sampleOutput] = useState(() =>
+  const [hydratedPlaybackState, setHydratedPlaybackState] = useState(
+    persistedPlaybackState,
+  );
+  const [hydratedPlaybackDefaults, setHydratedPlaybackDefaults] =
+    useState<PlaybackDefaults | null>(null);
+  const [sampleOutput, setSampleOutput] = useState(() =>
     typeof window !== "undefined"
       ? readLocalGenerationOutput(bookId, "sample-generation")
       : null,
   );
-  const [fullBookOutput] = useState(() =>
+  const [fullBookOutput, setFullBookOutput] = useState(() =>
     typeof window !== "undefined"
       ? readLocalGenerationOutput(bookId, "full-book-generation")
       : null,
@@ -292,7 +303,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
   ] as const;
 
   useEffect(() => {
-    if (removedBook || draftText) {
+    if (hydratedRemovedBook || draftText) {
       return;
     }
 
@@ -302,6 +313,12 @@ export default function PlayerPage({ params }: PlayerPageProps) {
       setRecoveryState("recovering");
       const result = await restoreBookFromBackendSnapshot(bookId);
       if (cancelled) {
+        return;
+      }
+
+      if (result === "removed") {
+        setHydratedRemovedBook(readRemovedLocalLibraryBook(bookId));
+        setRecoveryState("idle");
         return;
       }
 
@@ -319,12 +336,170 @@ export default function PlayerPage({ params }: PlayerPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [bookId, draftText, removedBook, router]);
+  }, [bookId, draftText, hydratedRemovedBook, router]);
 
-  if (!draftText && removedBook) {
+  useEffect(() => {
+    if (resolvedTaste.source !== "none") {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function hydrateTasteFromBackend() {
+      const response = await fetch("/api/sync/library").catch(() => null);
+      const payload = response
+        ? ((await response.json().catch(() => null)) as
+            | {
+                snapshot?: import("@/lib/backend/types").LibrarySyncSnapshot | null;
+              }
+            | null)
+        : null;
+
+      if (cancelled || !payload?.snapshot) {
+        return;
+      }
+
+      const snapshot = payload.snapshot;
+      const savedProfile =
+        snapshot.listeningProfiles.find((profile) => profile.bookId === bookId) ?? null;
+      const backendTaste = savedProfile
+        ? { profile: savedProfile, source: "saved" as const }
+        : snapshot.defaultListeningProfile
+          ? {
+              profile: snapshot.defaultListeningProfile,
+              source: "default" as const,
+            }
+          : snapshot.listeningProfiles[0]
+            ? { profile: snapshot.listeningProfiles[0], source: "recent" as const }
+            : { profile: null, source: "none" as const };
+
+      if (backendTaste.source === "none" || !backendTaste.profile) {
+        return;
+      }
+
+      setResolvedTaste(backendTaste);
+    }
+
+    void hydrateTasteFromBackend();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookId, resolvedTaste.source]);
+
+  useEffect(() => {
+    if (hydratedRemovedBook || !draftText || (hydratedPlaybackState && hydratedPlaybackDefaults)) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function hydratePlaybackStateFromBackend() {
+      const response = await fetch("/api/sync/library").catch(() => null);
+      const payload = response
+        ? ((await response.json().catch(() => null)) as
+            | {
+                snapshot?: import("@/lib/backend/types").LibrarySyncSnapshot | null;
+              }
+            | null)
+        : null;
+
+      if (cancelled || !payload?.snapshot) {
+        return;
+      }
+
+      const syncedPlayback =
+        payload.snapshot.playbackStates.find((entry) => entry.bookId === bookId)?.state ??
+        null;
+      const syncedPlaybackDefaults = payload.snapshot.playbackDefaults ?? null;
+
+      if (syncedPlayback) {
+        setHydratedPlaybackState(syncedPlayback);
+      }
+
+      if (syncedPlaybackDefaults) {
+        setHydratedPlaybackDefaults(syncedPlaybackDefaults);
+      }
+    }
+
+    void hydratePlaybackStateFromBackend();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookId, draftText, hydratedPlaybackDefaults, hydratedPlaybackState, hydratedRemovedBook]);
+
+  useEffect(() => {
+    if (hydratedRemovedBook || !draftText) {
+      return;
+    }
+
+    if (generatedSample && sampleOutput && fullBookOutput) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function hydrateGenerationStateFromBackend() {
+      const response = await fetch("/api/sync/library").catch(() => null);
+      const payload = response
+        ? ((await response.json().catch(() => null)) as
+            | {
+                snapshot?: import("@/lib/backend/types").LibrarySyncSnapshot | null;
+              }
+            | null)
+        : null;
+
+      if (cancelled || !payload?.snapshot) {
+        return;
+      }
+
+      const snapshot = payload.snapshot;
+      const backendSampleRequest =
+        snapshot.sampleRequest?.bookId === bookId ? snapshot.sampleRequest : null;
+      const backendSampleOutput =
+        snapshot.generationOutputs?.find(
+          (output) =>
+            output.bookId === bookId && output.kind === "sample-generation",
+        ) ?? null;
+      const backendFullBookOutput =
+        snapshot.generationOutputs?.find(
+          (output) =>
+            output.bookId === bookId && output.kind === "full-book-generation",
+        ) ?? null;
+
+      if (!generatedSample && backendSampleRequest) {
+        const hydratedRequest = {
+          bookId: backendSampleRequest.bookId,
+          narratorId: backendSampleRequest.narratorId,
+          mode: backendSampleRequest.mode as ListeningMode,
+        };
+        writeLocalSampleRequest(hydratedRequest);
+        setGeneratedSample(hydratedRequest);
+      }
+
+      if (!sampleOutput && backendSampleOutput) {
+        writeLocalGenerationOutput(backendSampleOutput);
+        setSampleOutput(backendSampleOutput);
+      }
+
+      if (!fullBookOutput && backendFullBookOutput) {
+        writeLocalGenerationOutput(backendFullBookOutput);
+        setFullBookOutput(backendFullBookOutput);
+      }
+    }
+
+    void hydrateGenerationStateFromBackend();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookId, draftText, fullBookOutput, generatedSample, hydratedRemovedBook, sampleOutput]);
+
+  if (!draftText && hydratedRemovedBook) {
     return (
-      <AppShell eyebrow="Player" title={`${removedBook.book.title} needs recovery`}>
-        <RemovedBookRecoveryCard removedBook={removedBook} returnHref="/" />
+      <AppShell eyebrow="Player" title={`${hydratedRemovedBook.book.title} needs recovery`}>
+        <RemovedBookRecoveryCard removedBook={hydratedRemovedBook} returnHref="/" />
       </AppShell>
     );
   }
@@ -617,6 +792,8 @@ export default function PlayerPage({ params }: PlayerPageProps) {
         bookId={bookId}
         bookTitle={bookTitle}
         chapters={playerChapters}
+        initialPlaybackDefaults={hydratedPlaybackDefaults}
+        initialPlaybackState={hydratedPlaybackState}
         mode={mode}
         narratorName={narratorName}
         playbackIsReady={preferredAudioKind !== null}

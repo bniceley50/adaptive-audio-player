@@ -705,8 +705,6 @@ describe("backend sqlite library sync", () => {
       status: "completed",
       bookId: "book-1",
       bookTitle: "Storm Harbor",
-      narratorId: "marlowe",
-      mode: "classic",
       playableArtifactKind: "sample-generation",
       resumePath: "/player/book-1?artifact=sample",
     });

@@ -208,6 +208,35 @@ function writeRemovedLocalLibraryBooks(removedBooks: RemovedLocalLibraryBook[]):
   window.dispatchEvent(new Event(removedBooksChangedEvent));
 }
 
+export function replaceRemovedLocalLibraryBooks(
+  removedBooks: RemovedLocalLibraryBook[],
+): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const removedBookIds = new Set(removedBooks.map((removedBook) => removedBook.book.bookId));
+
+  if (removedBookIds.size > 0) {
+    const nextBooks = readLocalLibraryBooks().filter(
+      (book) => !removedBookIds.has(book.bookId),
+    );
+    window.localStorage.setItem(libraryStorageKey, JSON.stringify(nextBooks));
+
+    for (const bookId of removedBookIds) {
+      clearLocalDraftText(bookId);
+      removeLocalListeningProfile(bookId);
+      clearLocalSampleRequest(bookId);
+      clearPersistedPlaybackState(bookId);
+      clearLocalGenerationOutputs(bookId);
+    }
+
+    window.dispatchEvent(new Event(libraryChangedEvent));
+  }
+
+  writeRemovedLocalLibraryBooks(removedBooks);
+}
+
 export function createNextLocalLibraryBook(
   title: string,
   chapterCount: number,

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/shared/app-shell";
 import { extractImportText } from "@/lib/import/extract-text";
@@ -21,10 +21,16 @@ export default function ImportPage() {
   const [sourceText, setSourceText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [fileLabel, setFileLabel] = useState<string>("Paste text or upload a file");
-  const [defaultListeningProfile] = useState(() =>
+  const [defaultListeningProfile, setDefaultListeningProfile] = useState(() =>
     typeof window !== "undefined" ? readDefaultListeningProfile() : null,
   );
-  const [libraryTotals] = useState(() =>
+  const [startingTasteSource, setStartingTasteSource] = useState<"default" | "recent" | "none">(
+    () =>
+      typeof window !== "undefined" && readDefaultListeningProfile()
+        ? "default"
+        : "none",
+  );
+  const [libraryTotals, setLibraryTotals] = useState(() =>
     typeof window !== "undefined"
       ? readLibraryTotals()
       : { totalBooks: 0, booksWithSavedTaste: 0, latestSampleBookId: null },
@@ -72,7 +78,60 @@ export default function ImportPage() {
             accent:
               "border-stone-200 bg-[linear-gradient(135deg,#faf7ef_0%,#ffffff_100%)] text-stone-950",
             badge: "border-stone-200 bg-white/80 text-stone-600",
-          };
+        };
+
+  useEffect(() => {
+    if (defaultListeningProfile) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function hydrateStartingTaste() {
+      const response = await fetch("/api/sync/library").catch(() => null);
+      const payload = response
+        ? ((await response.json().catch(() => null)) as
+            | {
+                snapshot?: import("@/lib/backend/types").LibrarySyncSnapshot | null;
+              }
+            | null)
+        : null;
+
+      if (cancelled || !payload?.snapshot) {
+        return;
+      }
+
+      const syncedDefault = payload.snapshot.defaultListeningProfile ?? null;
+      const syncedRecent = payload.snapshot.listeningProfiles[0] ?? null;
+
+      if (syncedDefault) {
+        setDefaultListeningProfile(syncedDefault);
+        setStartingTasteSource("default");
+      } else if (syncedRecent) {
+        setDefaultListeningProfile(syncedRecent);
+        setStartingTasteSource("recent");
+      }
+
+      setLibraryTotals((currentTotals) =>
+        currentTotals.totalBooks > 0
+          ? currentTotals
+          : {
+              totalBooks: payload.snapshot?.libraryBooks.length ?? 0,
+              booksWithSavedTaste: payload.snapshot?.listeningProfiles.length ?? 0,
+              latestSampleBookId:
+                payload.snapshot?.generationOutputs?.find(
+                  (output) => output.kind === "sample-generation",
+                )?.bookId ?? null,
+            },
+      );
+    }
+
+    void hydrateStartingTaste();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [defaultListeningProfile]);
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -254,12 +313,18 @@ export default function ImportPage() {
             </div>
           </div>
 
-          {defaultListeningProfile ? (
+          {defaultListeningProfile && startingTasteSource === "default" ? (
             <div className="mt-5 rounded-2xl border border-violet-200 bg-[linear-gradient(135deg,#f6f0ff_0%,#fbf8ff_100%)] px-4 py-4 text-sm text-violet-900 shadow-sm">
               New books will start from your default taste:{" "}
               {defaultListeningProfile.narratorName} in{" "}
               <span className="capitalize">{defaultListeningProfile.mode}</span>. Existing
               books keep their own saved taste.
+            </div>
+          ) : defaultListeningProfile && startingTasteSource === "recent" ? (
+            <div className="mt-5 rounded-2xl border border-sky-200 bg-[linear-gradient(135deg,#eff6ff_0%,#f8fbff_100%)] px-4 py-4 text-sm text-sky-900 shadow-sm">
+              No default taste is saved yet, so new books will start from your latest
+              synced taste: {defaultListeningProfile.narratorName} in{" "}
+              <span className="capitalize">{defaultListeningProfile.mode}</span>.
             </div>
           ) : null}
 
@@ -436,7 +501,9 @@ export default function ImportPage() {
                           : "Latest taste fallback"}
                       </p>
                       <p className="mt-1 text-xs leading-5 text-emerald-900">
-                        Book-specific saved taste will override this after the first setup pass.
+                        {startingTasteSource === "default"
+                          ? "Book-specific saved taste will override this after the first setup pass."
+                          : "This comes from your latest synced listening taste until you save a default or a book-specific profile."}
                       </p>
                     </div>
                   </div>
