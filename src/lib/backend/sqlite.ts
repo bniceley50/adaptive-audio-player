@@ -1972,6 +1972,31 @@ export function retryGenerationJob(
   });
 }
 
+export function cancelGenerationJob(
+  jobId: string,
+  workspaceId?: string | null,
+): SyncJobSummary | null {
+  const job = getGenerationJob(jobId, workspaceId);
+  if (!job || (job.status !== "queued" && job.status !== "running")) {
+    return null;
+  }
+
+  const completedAt = new Date().toISOString();
+  const db = getDatabase();
+  db.prepare(
+    `
+      update sync_jobs
+      set status = 'cancelled',
+          completed_at = ?,
+          error_message = 'Cancelled by user.'
+      where id = ?
+        ${workspaceId ? "and workspace_id = ?" : ""}
+    `,
+  ).run(...(workspaceId ? [completedAt, jobId, workspaceId] : [completedAt, jobId]));
+
+  return getGenerationJob(jobId, workspaceId);
+}
+
 export function listRecentSyncJobsForUser(
   userId: string,
   limit = 5,

@@ -281,3 +281,14 @@ Why:
 Alternatives rejected:
 - Inferring worker health only from queued/running jobs
 - Keeping worker liveness as console-only logs with no product surface
+
+## 2026-03-10 - Allow queued and running generation jobs to be cancelled
+
+Why:
+- Once the queue became observable, it also needed an operator control path.
+- Users should be able to stop accidental or no-longer-needed renders without waiting for them to finish.
+- The worker now rechecks claimed jobs before synthesis so a cancelled running job can be skipped safely instead of finishing blindly.
+
+Alternatives rejected:
+- Forcing users to wait for every queued/running render to complete
+- Supporting cancellation only for queued jobs and not the already-claimed worker path

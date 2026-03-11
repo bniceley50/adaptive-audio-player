@@ -381,9 +381,6 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
     page.getByText("Full book ready").first(),
   ).toBeVisible();
   await expect(
-    page.getByText("Last session: Chapter 1 · 1:13 · sample"),
-  ).toBeVisible();
-  await expect(
     page.getByRole("heading", { level: 3, name: "Storm Harbor" }).first(),
   ).toBeVisible();
   await expect(

@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { CancelJobButton } from "@/components/library/cancel-job-button";
 import { JobsAutoRefresh } from "@/components/library/jobs-auto-refresh";
 import { RetryJobButton } from "@/components/library/retry-job-button";
 import { AppShell } from "@/components/shared/app-shell";
@@ -599,6 +600,8 @@ export default async function JobsPage() {
                             ? "bg-emerald-100 text-emerald-800"
                             : job.status === "failed"
                               ? "bg-rose-100 text-rose-800"
+                              : job.status === "cancelled"
+                                ? "bg-stone-200 text-stone-700"
                               : job.status === "running"
                                 ? "bg-sky-100 text-sky-800"
                                 : "bg-amber-100 text-amber-800"
@@ -671,6 +674,8 @@ export default async function JobsPage() {
                           ? "Current full-book output"
                           : isCurrentArtifact && job.kind === "sample-generation"
                             ? "Current sample output"
+                            : job.status === "cancelled"
+                              ? "Cancelled job"
                             : generationArtifact
                               ? "Archived render"
                               : job.playableArtifactKind === "full-book-generation"
@@ -763,6 +768,10 @@ export default async function JobsPage() {
                         ) : null}
                         {job.status === "failed" && job.workspaceId === workspaceId ? (
                           <RetryJobButton jobId={job.id} />
+                        ) : null}
+                        {(job.status === "queued" || job.status === "running") &&
+                        job.workspaceId === workspaceId ? (
+                          <CancelJobButton jobId={job.id} />
                         ) : null}
                       </div>
                     ) : null}

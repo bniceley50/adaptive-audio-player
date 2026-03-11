@@ -3,6 +3,7 @@ import {
   claimNextGenerationJob,
   completeGenerationJob,
   failGenerationJob,
+  getGenerationJob,
   getSyncedBookDraftText,
   recordWorkerHeartbeat,
 } from "../src/lib/backend/sqlite.ts";
@@ -92,6 +93,18 @@ async function runWorkerLoop() {
         lastJobStatus: "running",
       });
       await sleep(resolveJobDuration(job));
+
+      const refreshedJob = getGenerationJob(job.id, job.workspaceId);
+      if (!refreshedJob || refreshedJob.status !== "running") {
+        recordWorkerHeartbeat({
+          workerName,
+          status: "idle",
+          lastJobId: job.id,
+          lastJobKind: job.kind,
+          lastJobStatus: null,
+        });
+        continue;
+      }
 
       if (stopping) {
         break;
