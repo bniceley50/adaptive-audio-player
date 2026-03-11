@@ -1,6 +1,6 @@
 "use client";
 
-import type { LibrarySyncSnapshot } from "@/lib/backend/types";
+import type { LibrarySyncSnapshot } from "./types.ts";
 import {
   upsertLocalLibraryBook,
   writeDefaultListeningProfile,

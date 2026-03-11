@@ -1,3 +1,5 @@
+import { getOpenAIApiKey } from "./env.ts";
+
 function narratorToVoice(narratorId: string | null) {
   switch (narratorId) {
     case "sloane":
@@ -78,7 +80,7 @@ export async function synthesizeAudio(input: {
     };
   }
 
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  const apiKey = getOpenAIApiKey();
   if (!apiKey) {
     return {
       data: generateMockWav(trimmedText),

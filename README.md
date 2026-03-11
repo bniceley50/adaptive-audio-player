@@ -140,6 +140,7 @@ Best pages for a quick portfolio review:
 
 ```bash
 pnpm install
+cp .env.example .env.local
 pnpm dev:all
 ```
 
@@ -181,6 +182,7 @@ pnpm lint && pnpm typecheck && pnpm test
 - If `OPENAI_API_KEY` is set, the worker uses the OpenAI speech API for generated sample/full-book audio.
 - If the key is missing, the worker falls back to deterministic local mock audio so the app and tests still run.
 - Generated audio is stored under `data/generated-audio/` and streamed through secured app routes.
+- Session signing now reads from `ADAPTIVE_AUDIO_PLAYER_SESSION_SECRET`; in production this must be set explicitly.
 
 ## Architecture Highlights
 

@@ -3,6 +3,7 @@ import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
+import { getDatabasePath } from "./env.ts";
 import type {
   BackendAccountSession,
   BackendUser,
@@ -16,7 +17,7 @@ import type {
   UserAccountSessionSummary,
   UserWorkspaceSummary,
   WorkspaceSyncSummary,
-} from "@/lib/backend/types";
+} from "./types.ts";
 
 declare global {
   var __adaptiveAudioPlayerDb: DatabaseSync | undefined;
@@ -52,15 +53,6 @@ function buildPlayerResumePath(
   }
 
   return `/player/${bookId}`;
-}
-
-function resolveDbPath() {
-  const configuredPath = process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH;
-  if (configuredPath && configuredPath.trim()) {
-    return configuredPath;
-  }
-
-  return path.join(process.cwd(), "data", "adaptive-audio-player.sqlite");
 }
 
 function ensureDbSchema(db: DatabaseSync) {
@@ -318,7 +310,7 @@ export function getDatabase() {
     return globalThis.__adaptiveAudioPlayerDb;
   }
 
-  const dbPath = resolveDbPath();
+  const dbPath = getDatabasePath();
   const dbDir = path.dirname(dbPath);
   if (!existsSync(dbDir)) {
     mkdirSync(dbDir, { recursive: true });

@@ -1,4 +1,4 @@
-import type { LibrarySyncSnapshot } from "@/lib/backend/types";
+import type { LibrarySyncSnapshot } from "./types.ts";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;

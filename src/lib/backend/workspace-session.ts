@@ -2,29 +2,22 @@ import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 
+import { getSessionSecret } from "./env.ts";
 import {
   createAccountSession,
   getAccountSessionById,
   getWorkspaceUser,
   revokeAccountSession,
   touchAccountSession,
-} from "@/lib/backend/sqlite";
+} from "./sqlite.ts";
 
 export const workspaceCookieName = "adaptive-audio-player.workspace";
 export const accountCookieName = "adaptive-audio-player.account";
-const developmentSessionSecret = "adaptive-audio-player-dev-session-secret";
 const accountSessionMaxAgeSeconds = 60 * 60 * 24 * 30;
 const workspaceCookieMaxAgeSeconds = 60 * 60 * 24 * 365;
 
 export function createWorkspaceId() {
   return `workspace-${randomUUID()}`;
-}
-
-function getSessionSecret() {
-  return (
-    process.env.ADAPTIVE_AUDIO_PLAYER_SESSION_SECRET ||
-    developmentSessionSecret
-  );
 }
 
 function signSessionPayload(payload: string) {

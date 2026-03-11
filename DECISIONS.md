@@ -259,3 +259,14 @@ Why:
 Alternatives rejected:
 - Replacing the latest-output table entirely with history-only lookups
 - Keeping only the most recent output per kind and losing render history
+
+## 2026-03-10 - Centralize backend environment handling
+
+Why:
+- Session signing, SQLite path resolution, worker timing, and TTS provider access were spread across multiple files with ad hoc `process.env` reads.
+- A real SaaS foundation needs one place to validate critical runtime configuration and one committed example of the required env surface.
+- Centralizing env access reduces drift between local development, tests, and future production deployment.
+
+Alternatives rejected:
+- Leaving direct `process.env` reads scattered across the worker, session helpers, SQLite bootstrap, and TTS module
+- Waiting for a later hosted-infrastructure migration before adding explicit env validation

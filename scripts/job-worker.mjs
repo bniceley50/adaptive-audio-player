@@ -1,3 +1,4 @@
+import { getWorkerConfig } from "../src/lib/backend/env.ts";
 import {
   claimNextGenerationJob,
   completeGenerationJob,
@@ -8,13 +9,7 @@ import { writeGeneratedAudioAsset } from "../src/lib/backend/audio-storage.ts";
 import { synthesizeAudio } from "../src/lib/backend/tts.ts";
 import { parseChapters } from "../src/lib/parser/parse-chapters.ts";
 
-const pollMs = Number(process.env.ADAPTIVE_AUDIO_PLAYER_WORKER_POLL_MS ?? 150);
-const sampleJobDurationMs = Number(
-  process.env.ADAPTIVE_AUDIO_PLAYER_SAMPLE_JOB_DURATION_MS ?? 350,
-);
-const fullBookJobDurationMs = Number(
-  process.env.ADAPTIVE_AUDIO_PLAYER_FULL_BOOK_JOB_DURATION_MS ?? 550,
-);
+const { pollMs, sampleJobDurationMs, fullBookJobDurationMs } = getWorkerConfig();
 
 let stopping = false;
 
