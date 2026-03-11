@@ -259,6 +259,37 @@ export default function PlayerPage({ params }: PlayerPageProps) {
     href: "/import",
     cta: "Import another draft",
   };
+  const playerJourneyIndex = preferredAudioKind === "full-book-generation"
+    ? 3
+    : preferredAudioKind === "sample-generation"
+      ? 2
+      : 1;
+  const playerJourney = [
+    {
+      id: "import",
+      label: "01",
+      title: "Import",
+      detail: "Bring in the manuscript",
+    },
+    {
+      id: "taste",
+      label: "02",
+      title: "Taste",
+      detail: "Choose narrator and mode",
+    },
+    {
+      id: "sample",
+      label: "03",
+      title: "Sample",
+      detail: "Judge the preview render",
+    },
+    {
+      id: "listen",
+      label: "04",
+      title: "Listen",
+      detail: "Play the approved version",
+    },
+  ] as const;
 
   useEffect(() => {
     if (removedBook || draftText) {
@@ -316,6 +347,96 @@ export default function PlayerPage({ params }: PlayerPageProps) {
 
   return (
     <AppShell eyebrow="Player" title={`Now playing ${bookTitle}`}>
+      <section className="rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#fffdf8_0%,#ffffff_42%,#eef4ff_100%)] p-6 shadow-[0_22px_60px_-42px_rgba(28,25,23,0.38)]">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-2xl">
+            <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
+              Journey
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold text-stone-950">
+              Import, shape, preview, then listen
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-stone-600">
+              Playback is the last step of the adaptive audiobook loop. From here,
+              you can keep listening, compare preserved renders, or return to setup
+              when you need to reshape the taste.
+            </p>
+          </div>
+          <div className="rounded-[1.4rem] border border-white/80 bg-white/85 px-4 py-3 shadow-sm backdrop-blur">
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
+              You are here
+            </p>
+            <p className="mt-2 text-lg font-semibold text-stone-950">
+              {playerJourney[playerJourneyIndex]?.title}
+            </p>
+          </div>
+        </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-4">
+          {playerJourney.map((step, index) => {
+            const state =
+              index < playerJourneyIndex
+                ? "complete"
+                : index === playerJourneyIndex
+                  ? "active"
+                  : "upcoming";
+            return (
+              <article
+                key={step.id}
+                className={`rounded-[1.4rem] border px-4 py-4 shadow-sm transition ${
+                  state === "active"
+                    ? "border-stone-900 bg-stone-950 text-white"
+                    : state === "complete"
+                      ? "border-emerald-200 bg-emerald-50/80"
+                      : "border-stone-200/80 bg-white/80"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span
+                    className={`inline-flex rounded-full px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] ${
+                      state === "active"
+                        ? "bg-white/15 text-white"
+                        : state === "complete"
+                          ? "bg-emerald-600 text-white"
+                          : "bg-stone-200 text-stone-700"
+                    }`}
+                  >
+                    {step.label}
+                  </span>
+                  <span
+                    className={`text-[0.65rem] font-semibold uppercase tracking-[0.18em] ${
+                      state === "active"
+                        ? "text-white/70"
+                        : state === "complete"
+                          ? "text-emerald-700"
+                          : "text-stone-500"
+                    }`}
+                  >
+                    {state === "active"
+                      ? "Current"
+                      : state === "complete"
+                        ? "Done"
+                        : "Next"}
+                  </span>
+                </div>
+                <p
+                  className={`mt-4 text-base font-semibold ${
+                    state === "active" ? "text-white" : "text-stone-950"
+                  }`}
+                >
+                  {step.title}
+                </p>
+                <p
+                  className={`mt-1 text-sm leading-6 ${
+                    state === "active" ? "text-white/75" : "text-stone-600"
+                  }`}
+                >
+                  {step.detail}
+                </p>
+              </article>
+            );
+          })}
+        </div>
+      </section>
       <section className="rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#fffefb_0%,#ffffff_42%,#eef4ff_100%)] p-6 shadow-[0_24px_70px_-46px_rgba(28,25,23,0.42)]">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl">
