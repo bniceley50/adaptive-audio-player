@@ -247,6 +247,14 @@ export function DemoModeCard() {
             >
               Reset local demo
             </button>
+            {demoReady ? (
+              <Link
+                className="rounded-full border border-white/20 bg-amber-300 px-5 py-3 text-sm font-semibold text-stone-950 transition hover:bg-amber-200"
+                href="/player/demo-book-1?artifact=full&renderState=current"
+              >
+                Start guided tour
+              </Link>
+            ) : null}
           </div>
         </div>
 
