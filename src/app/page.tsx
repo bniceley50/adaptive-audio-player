@@ -9,6 +9,7 @@ import { WorkspaceAccountCard } from "@/components/library/workspace-account-car
 import { AppShell } from "@/components/shared/app-shell";
 import {
   getUserById,
+  getWorkerHeartbeat,
   getWorkspaceLibrarySnapshot,
   listAccountSessionsForUser,
   listEndedAccountSessionsForUser,
@@ -31,6 +32,7 @@ export default async function HomePage() {
   const backendSummary = workspaceId
     ? getWorkspaceSyncSummary(workspaceId)
     : null;
+  const workerHeartbeat = getWorkerHeartbeat();
   const currentUser = accountId ? getUserById(accountId) : null;
   const backendLibrarySnapshot = workspaceId
     ? getWorkspaceLibrarySnapshot(workspaceId)
@@ -344,12 +346,14 @@ export default async function HomePage() {
               </p>
             </div>
             <BackendLibraryPreview snapshot={backendLibrarySnapshot} />
-        <BackendSyncCard
-          summary={backendSummary}
-          recentJobs={recentBackendJobs}
-          latestSession={currentLatestSession}
-          recentSessions={recentSessions}
-        />
+            <BackendSyncCard
+              summary={backendSummary}
+              recentJobs={recentBackendJobs}
+              latestSession={currentLatestSession}
+              recentSessions={recentSessions}
+              workerHeartbeat={workerHeartbeat}
+              renderedAt={renderedAt}
+            />
           </div>
         </div>
       </section>

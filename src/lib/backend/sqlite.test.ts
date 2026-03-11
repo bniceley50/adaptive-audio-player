@@ -13,6 +13,7 @@ import {
   getAccountSessionById,
   getGenerationArtifactForJob,
   getGenerationOutputsForBook,
+  getWorkerHeartbeat,
   listGenerationOutputHistoryForBook,
   getGenerationJob,
   getUserById,
@@ -27,6 +28,7 @@ import {
   listAccountSessionsForUser,
   listEndedAccountSessionsForUser,
   revokeAccountSession,
+  recordWorkerHeartbeat,
   resetDatabaseForTests,
   rotateUserSessionVersion,
   retryGenerationJob,
@@ -324,6 +326,47 @@ describe("backend sqlite library sync", () => {
         endedReason: "expired",
       }),
     ]);
+  });
+
+  it("stores and updates worker heartbeat state", () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), "adaptive-audio-player-"));
+    createdDirs.push(tempDir);
+    process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
+
+    recordWorkerHeartbeat({
+      workerName: "generation-worker",
+      status: "idle",
+      now: "2026-03-10T20:00:00.000Z",
+    });
+
+    expect(getWorkerHeartbeat()).toEqual({
+      workerName: "generation-worker",
+      status: "idle",
+      startedAt: "2026-03-10T20:00:00.000Z",
+      lastHeartbeatAt: "2026-03-10T20:00:00.000Z",
+      lastJobId: null,
+      lastJobKind: null,
+      lastJobStatus: null,
+    });
+
+    recordWorkerHeartbeat({
+      workerName: "generation-worker",
+      status: "processing",
+      lastJobId: "job-123",
+      lastJobKind: "sample-generation",
+      lastJobStatus: "running",
+      now: "2026-03-10T20:01:00.000Z",
+    });
+
+    expect(getWorkerHeartbeat()).toEqual({
+      workerName: "generation-worker",
+      status: "processing",
+      startedAt: "2026-03-10T20:00:00.000Z",
+      lastHeartbeatAt: "2026-03-10T20:01:00.000Z",
+      lastJobId: "job-123",
+      lastJobKind: "sample-generation",
+      lastJobStatus: "running",
+    });
   });
 
   it("includes the latest synced book for each linked workspace", () => {

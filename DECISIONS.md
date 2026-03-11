@@ -270,3 +270,14 @@ Why:
 Alternatives rejected:
 - Leaving direct `process.env` reads scattered across the worker, session helpers, SQLite bootstrap, and TTS module
 - Waiting for a later hosted-infrastructure migration before adding explicit env validation
+
+## 2026-03-10 - Persist background worker heartbeat in SQLite
+
+Why:
+- The queue needed an explicit worker-liveness signal instead of inferring health only from job state.
+- Storing heartbeat state in SQLite lets the jobs console and home dashboard show whether generation infrastructure is healthy, active, or stale.
+- This keeps the current local-worker architecture simple while making the backend feel like a real operated system.
+
+Alternatives rejected:
+- Inferring worker health only from queued/running jobs
+- Keeping worker liveness as console-only logs with no product surface

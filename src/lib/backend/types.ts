@@ -40,6 +40,16 @@ export interface WorkspaceSyncSummary {
   lastJobStatus: string | null;
 }
 
+export interface WorkerHeartbeatSummary {
+  workerName: string;
+  status: "idle" | "processing" | "stopped";
+  lastHeartbeatAt: string;
+  startedAt: string;
+  lastJobId: string | null;
+  lastJobKind: GenerationJobKind | null;
+  lastJobStatus: "running" | "completed" | "failed" | null;
+}
+
 export interface BackendUser {
   id: string;
   email: string;

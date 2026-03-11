@@ -8,6 +8,7 @@ import {
   getGenerationOutputForBookKind,
   getSyncedBookDisplayMeta,
   getUserById,
+  getWorkerHeartbeat,
   listRecentSyncJobsForUser,
   listRecentSyncJobsForWorkspace,
 } from "@/lib/backend/sqlite";
@@ -105,9 +106,11 @@ function getBookInitials(title: string) {
 }
 
 export default async function JobsPage() {
+  const renderedAt = new Date().toISOString();
   const workspaceId = await readWorkspaceIdFromRequest();
   const accountId = await readAccountIdFromRequest();
   const currentUser = accountId ? getUserById(accountId) : null;
+  const workerHeartbeat = getWorkerHeartbeat();
   const jobs = currentUser
     ? listRecentSyncJobsForUser(currentUser.id, 25)
     : workspaceId
@@ -259,6 +262,36 @@ export default async function JobsPage() {
               "No jobs are active yet. The next generation or sync event will show up here with full backend history.",
             action: "Create a sample or full-book render from a book setup page",
           };
+  const workerLagMs = workerHeartbeat
+    ? new Date(renderedAt).getTime() - new Date(workerHeartbeat.lastHeartbeatAt).getTime()
+    : null;
+  const workerState = !workerHeartbeat
+    ? {
+        label: "Worker not seen yet",
+        detail:
+          "No heartbeat has been recorded yet. Start the worker to process generation jobs reliably.",
+        tone: "border-amber-200 bg-amber-50 text-amber-900",
+      }
+    : workerLagMs !== null && workerLagMs > 30_000
+      ? {
+          label: "Worker looks offline",
+          detail:
+            "Queue state is preserved, but the background worker has not checked in recently.",
+          tone: "border-rose-200 bg-rose-50 text-rose-900",
+        }
+      : workerHeartbeat.status === "processing"
+        ? {
+            label: "Worker is processing",
+            detail:
+              "Background generation is active right now and jobs should keep moving automatically.",
+            tone: "border-sky-200 bg-sky-50 text-sky-900",
+          }
+        : {
+            label: "Worker is healthy",
+            detail:
+              "The background worker is online and ready to claim the next generation job.",
+            tone: "border-emerald-200 bg-emerald-50 text-emerald-900",
+          };
 
   return (
     <AppShell eyebrow="Backend jobs" title="Generation and sync history">
@@ -367,6 +400,22 @@ export default async function JobsPage() {
               </p>
               <p className="mt-2 text-2xl font-semibold text-stone-950">{failedJobs}</p>
               <p className="mt-1 text-sm text-stone-600">Recovery-ready jobs that need attention.</p>
+            </div>
+          </div>
+          <div className={`mt-4 rounded-[1.4rem] border px-4 py-4 shadow-sm ${workerState.tone}`}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em]">
+                  Background worker
+                </p>
+                <p className="mt-2 text-base font-semibold">{workerState.label}</p>
+                <p className="mt-1 max-w-3xl text-sm leading-6 opacity-90">{workerState.detail}</p>
+              </div>
+              {workerHeartbeat ? (
+                <div className="rounded-full border border-current/15 bg-white/70 px-4 py-2 text-xs font-medium uppercase tracking-[0.18em] shadow-sm">
+                  Last heartbeat {new Date(workerHeartbeat.lastHeartbeatAt).toLocaleTimeString()}
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

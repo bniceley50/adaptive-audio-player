@@ -17,6 +17,7 @@ import type {
   UserAccountSessionSummary,
   UserWorkspaceSummary,
   WorkspaceSyncSummary,
+  WorkerHeartbeatSummary,
 } from "./types.ts";
 
 declare global {
@@ -168,6 +169,16 @@ function ensureDbSchema(db: DatabaseSync) {
       created_at text not null,
       completed_at text,
       foreign key (workspace_id) references workspaces(id) on delete cascade
+    );
+
+    create table if not exists worker_heartbeats (
+      worker_name text primary key,
+      status text not null,
+      started_at text not null,
+      last_heartbeat_at text not null,
+      last_job_id text,
+      last_job_kind text,
+      last_job_status text
     );
   `);
 
@@ -1352,6 +1363,93 @@ export function getWorkspaceSyncSummary(
     generatedOutputCount,
     lastSyncedAt: workspaceRow.last_synced_at,
     lastJobStatus: lastJob?.status ?? null,
+  };
+}
+
+export function recordWorkerHeartbeat(input: {
+  workerName: string;
+  status: "idle" | "processing" | "stopped";
+  lastJobId?: string | null;
+  lastJobKind?: GenerationJobKind | null;
+  lastJobStatus?: "running" | "completed" | "failed" | null;
+  now?: string;
+}) {
+  const db = getDatabase();
+  const timestamp = input.now ?? new Date().toISOString();
+
+  db.prepare(
+    `
+      insert into worker_heartbeats (
+        worker_name,
+        status,
+        started_at,
+        last_heartbeat_at,
+        last_job_id,
+        last_job_kind,
+        last_job_status
+      )
+      values (?, ?, ?, ?, ?, ?, ?)
+      on conflict(worker_name) do update set
+        status = excluded.status,
+        last_heartbeat_at = excluded.last_heartbeat_at,
+        last_job_id = excluded.last_job_id,
+        last_job_kind = excluded.last_job_kind,
+        last_job_status = excluded.last_job_status
+    `,
+  ).run(
+    input.workerName,
+    input.status,
+    timestamp,
+    timestamp,
+    input.lastJobId ?? null,
+    input.lastJobKind ?? null,
+    input.lastJobStatus ?? null,
+  );
+}
+
+export function getWorkerHeartbeat(
+  workerName = "generation-worker",
+): WorkerHeartbeatSummary | null {
+  const db = getDatabase();
+  const row = db
+    .prepare(
+      `
+        select
+          worker_name,
+          status,
+          started_at,
+          last_heartbeat_at,
+          last_job_id,
+          last_job_kind,
+          last_job_status
+        from worker_heartbeats
+        where worker_name = ?
+      `,
+    )
+    .get(workerName) as
+    | {
+        worker_name: string;
+        status: "idle" | "processing" | "stopped";
+        started_at: string;
+        last_heartbeat_at: string;
+        last_job_id: string | null;
+        last_job_kind: GenerationJobKind | null;
+        last_job_status: "running" | "completed" | "failed" | null;
+      }
+    | undefined;
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    workerName: row.worker_name,
+    status: row.status,
+    startedAt: row.started_at,
+    lastHeartbeatAt: row.last_heartbeat_at,
+    lastJobId: row.last_job_id,
+    lastJobKind: row.last_job_kind,
+    lastJobStatus: row.last_job_status,
   };
 }
 
