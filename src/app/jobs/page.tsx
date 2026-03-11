@@ -441,6 +441,43 @@ export default async function JobsPage() {
                   preserved renders
                 </div>
               </div>
+              <div className="mt-5 rounded-[1.4rem] border border-sky-200/60 bg-[linear-gradient(135deg,#eff6ff_0%,#ffffff_100%)] px-4 py-4">
+                <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-sky-700">
+                  Compare current vs archived
+                </p>
+                <p className="mt-3 text-sm leading-6 text-stone-600">
+                  Each book keeps its active sample or full-book render marked as
+                  current. Older preserved outputs remain archived so you can reopen,
+                  download, and compare previous versions without losing the live one.
+                </p>
+                <div className="mt-4 grid gap-3 md:grid-cols-3">
+                  <article className="rounded-[1.1rem] border border-stone-200/80 bg-white px-4 py-3 shadow-sm">
+                    <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                      Current
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-stone-700">
+                      Use these for the best listening path right now.
+                    </p>
+                  </article>
+                  <article className="rounded-[1.1rem] border border-stone-200/80 bg-white px-4 py-3 shadow-sm">
+                    <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                      Archived
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-stone-700">
+                      Keep these for review, download, or side-by-side comparison.
+                    </p>
+                  </article>
+                  <article className="rounded-[1.1rem] border border-stone-200/80 bg-white px-4 py-3 shadow-sm">
+                    <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                      Best use
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-stone-700">
+                      Open the book timeline when you want the clearest title-by-title
+                      history, and use this page to scan the whole queue at once.
+                    </p>
+                  </article>
+                </div>
+              </div>
               <div className="mt-5 grid gap-4 xl:grid-cols-2">
                 {renderTimelines.map((timeline) => (
                   <article

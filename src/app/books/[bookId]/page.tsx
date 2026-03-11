@@ -1366,6 +1366,46 @@ export default function BookPage({ params }: BookPageProps) {
                   {artifactHistory.length === 1 ? "" : "s"}
                 </span>
               </div>
+              {renderGroups.currentRenders.length > 0 && renderGroups.archivedRenders.length > 0 ? (
+                <div className="mt-5 rounded-[1.4rem] border border-sky-200/25 bg-[linear-gradient(135deg,rgba(125,211,252,0.14)_0%,rgba(255,255,255,0.05)_100%)] px-4 py-4">
+                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-sky-100">
+                    Compare current vs archived
+                  </p>
+                  <p className="mt-3 text-sm leading-6 text-stone-200">
+                    The current section shows the renders this book should use right now.
+                    The archived section keeps older versions available for playback and
+                    download, so you can compare how the taste changed over time without
+                    losing the earlier work.
+                  </p>
+                  <div className="mt-4 grid gap-3 md:grid-cols-3">
+                    <article className="rounded-[1.1rem] border border-white/10 bg-white/6 px-4 py-3">
+                      <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-300">
+                        Current renders
+                      </p>
+                      <p className="mt-2 text-lg font-semibold text-white">
+                        {renderGroups.currentRenders.length}
+                      </p>
+                    </article>
+                    <article className="rounded-[1.1rem] border border-white/10 bg-white/6 px-4 py-3">
+                      <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-300">
+                        Archived renders
+                      </p>
+                      <p className="mt-2 text-lg font-semibold text-white">
+                        {renderGroups.archivedRenders.length}
+                      </p>
+                    </article>
+                    <article className="rounded-[1.1rem] border border-white/10 bg-white/6 px-4 py-3">
+                      <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-300">
+                        Best use
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-white">
+                        Listen from current. Use archived renders only when you want to
+                        review or compare previous versions.
+                      </p>
+                    </article>
+                  </div>
+                </div>
+              ) : null}
               {renderGroups.currentRenders.length > 0 ? (
                 <div className="mt-5">
                   <div className="mb-3 flex items-center gap-3">
