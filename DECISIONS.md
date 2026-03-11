@@ -292,3 +292,14 @@ Why:
 Alternatives rejected:
 - Forcing users to wait for every queued/running render to complete
 - Supporting cancellation only for queued jobs and not the already-claimed worker path
+
+## 2026-03-10 - Reuse matching active generation jobs instead of enqueueing duplicates
+
+Why:
+- Repeated clicks on sample or full-book generation should not create duplicate queued/running jobs for the same book and taste.
+- Reusing the active job keeps the queue smaller and makes the product feel more deliberate under repeated user input.
+- This is the simplest backend-side control that improves cost, throughput, and operator clarity without changing the frontend flow.
+
+Alternatives rejected:
+- Letting the queue accept duplicate renders and relying on users not to click twice
+- Solving duplication only in the UI instead of at the backend boundary

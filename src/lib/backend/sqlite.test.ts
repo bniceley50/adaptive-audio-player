@@ -369,6 +369,48 @@ describe("backend sqlite library sync", () => {
     });
   });
 
+  it("reuses an active matching generation job instead of enqueuing a duplicate", () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), "adaptive-audio-player-"));
+    createdDirs.push(tempDir);
+    process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
+
+    syncWorkspaceLibrarySnapshot("workspace-dedupe", {
+      libraryBooks: [
+        {
+          bookId: "book-1",
+          title: "Storm Harbor",
+          chapterCount: 2,
+          updatedAt: "2026-03-10T20:00:00.000Z",
+        },
+      ],
+      draftTexts: [{ bookId: "book-1", text: "Chapter 1\nStorm Harbor" }],
+      listeningProfiles: [],
+      defaultListeningProfile: null,
+      sampleRequest: null,
+      playbackStates: [],
+      playbackDefaults: null,
+      syncedAt: "2026-03-10T20:01:00.000Z",
+    });
+
+    const firstJob = enqueueGenerationJob({
+      workspaceId: "workspace-dedupe",
+      kind: "sample-generation",
+      bookId: "book-1",
+      narratorId: "sloane",
+      mode: "immersive",
+    });
+    const duplicateJob = enqueueGenerationJob({
+      workspaceId: "workspace-dedupe",
+      kind: "sample-generation",
+      bookId: "book-1",
+      narratorId: "sloane",
+      mode: "immersive",
+    });
+
+    expect(duplicateJob?.id).toBe(firstJob?.id);
+    expect(listRecentGenerationJobsForBook("workspace-dedupe", "book-1")).toHaveLength(1);
+  });
+
   it("includes the latest synced book for each linked workspace", () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), "adaptive-audio-player-"));
     createdDirs.push(tempDir);

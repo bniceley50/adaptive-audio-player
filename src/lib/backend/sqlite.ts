@@ -1770,6 +1770,57 @@ export function enqueueGenerationJob(input: {
 }) {
   const db = getDatabase();
   const timestamp = new Date().toISOString();
+
+  const existingJob = db
+    .prepare(
+      `
+        select id, workspace_id, kind, status, stats_json, created_at, completed_at, error_message
+             ,
+             (
+               select synced_books.title
+               from synced_books
+               where synced_books.workspace_id = sync_jobs.workspace_id
+                 and synced_books.book_id = json_extract(sync_jobs.stats_json, '$.bookId')
+               limit 1
+             ) as book_title,
+             (
+               select generated_outputs.kind
+               from generated_outputs
+               where generated_outputs.workspace_id = sync_jobs.workspace_id
+                 and generated_outputs.book_id = json_extract(sync_jobs.stats_json, '$.bookId')
+                 and json_extract(generated_outputs.output_json, '$.assetPath') != ''
+               order by case generated_outputs.kind
+                 when 'full-book-generation' then 0
+                 when 'sample-generation' then 1
+                 else 2
+               end asc
+               limit 1
+             ) as playable_artifact_kind
+        from sync_jobs
+        where workspace_id = ?
+          and kind = ?
+          and status in ('queued', 'running')
+          and json_extract(stats_json, '$.bookId') = ?
+          and coalesce(json_extract(stats_json, '$.narratorId'), '') = ?
+          and coalesce(json_extract(stats_json, '$.mode'), '') = ?
+          and coalesce(json_extract(stats_json, '$.chapterCount'), -1) = ?
+        order by created_at desc
+        limit 1
+      `,
+    )
+    .get(
+      input.workspaceId,
+      input.kind,
+      input.bookId,
+      input.narratorId ?? "",
+      input.mode ?? "",
+      input.chapterCount ?? -1,
+    ) as SyncJobRow | undefined;
+
+  if (existingJob) {
+    return mapSyncJobRows([existingJob])[0] ?? null;
+  }
+
   const jobId = `job-${randomUUID()}`;
 
   ensureWorkspace(db, input.workspaceId, timestamp);
