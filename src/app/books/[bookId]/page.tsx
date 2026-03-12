@@ -74,6 +74,15 @@ function getBookInitials(title: string) {
     .join("");
 }
 
+function getUpdatedAtWeight(updatedAt: string | null | undefined): number {
+  if (!updatedAt) {
+    return 0;
+  }
+
+  const timestamp = new Date(updatedAt).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
 export default function BookPage({ params }: BookPageProps) {
   const { bookId } = use(params);
   const router = useRouter();
@@ -374,10 +383,6 @@ export default function BookPage({ params }: BookPageProps) {
   }, [bookId]);
 
   useEffect(() => {
-    if (hydratedBookMeta) {
-      return;
-    }
-
     let cancelled = false;
 
     async function hydrateBookMetaFromBackend() {
@@ -397,7 +402,11 @@ export default function BookPage({ params }: BookPageProps) {
       const syncedBook =
         payload.snapshot.libraryBooks.find((book) => book.bookId === bookId) ?? null;
 
-      if (syncedBook) {
+      if (
+        syncedBook &&
+        getUpdatedAtWeight(syncedBook.updatedAt) >=
+          getUpdatedAtWeight(hydratedBookMeta?.updatedAt)
+      ) {
         setHydratedBookMeta(syncedBook);
       }
     }
@@ -407,7 +416,7 @@ export default function BookPage({ params }: BookPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [bookId, hydratedBookMeta]);
+  }, [bookId, hydratedBookMeta?.updatedAt]);
 
   useEffect(() => {
     if (hydratedRemovedBook) {

@@ -10,6 +10,7 @@ import {
   getPlaybackPercent,
   readPlaybackDefaults,
   readPersistedPlaybackState,
+  resolvePreferredPlaybackState,
   writePlaybackDefaults,
   writePersistedPlaybackState,
   type PlaybackDefaults,
@@ -43,7 +44,7 @@ export function NowPlaying({
 }) {
   const persistedState = useMemo(() => {
     const localState = readPersistedPlaybackState(bookId);
-    return localState ?? initialPlaybackState ?? null;
+    return resolvePreferredPlaybackState(localState, initialPlaybackState ?? null);
   }, [bookId, initialPlaybackState]);
   const playbackDefaults = useMemo(
     () => readPlaybackDefaults() ?? initialPlaybackDefaults ?? null,

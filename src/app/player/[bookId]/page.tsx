@@ -22,6 +22,8 @@ import {
 } from "@/lib/library/local-library";
 import {
   readPersistedPlaybackState,
+  resolvePreferredPlaybackState,
+  writePersistedPlaybackState,
   type PlaybackDefaults,
 } from "@/lib/playback/local-playback";
 import { parseChapters } from "@/lib/parser/parse-chapters";
@@ -58,6 +60,15 @@ function getBookInitials(title: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? "")
     .join("");
+}
+
+function getUpdatedAtWeight(updatedAt: string | null | undefined): number {
+  if (!updatedAt) {
+    return 0;
+  }
+
+  const timestamp = new Date(updatedAt).getTime();
+  return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
 export default function PlayerPage({ params }: PlayerPageProps) {
@@ -299,10 +310,6 @@ export default function PlayerPage({ params }: PlayerPageProps) {
   ] as const;
 
   useEffect(() => {
-    if (hydratedBookMeta) {
-      return;
-    }
-
     let cancelled = false;
 
     async function hydrateBookMetaFromBackend() {
@@ -322,7 +329,11 @@ export default function PlayerPage({ params }: PlayerPageProps) {
       const syncedBook =
         payload.snapshot.libraryBooks.find((book) => book.bookId === bookId) ?? null;
 
-      if (syncedBook) {
+      if (
+        syncedBook &&
+        getUpdatedAtWeight(syncedBook.updatedAt) >=
+          getUpdatedAtWeight(hydratedBookMeta?.updatedAt)
+      ) {
         setHydratedBookMeta(syncedBook);
       }
     }
@@ -332,7 +343,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [bookId, hydratedBookMeta]);
+  }, [bookId, hydratedBookMeta?.updatedAt]);
 
   useEffect(() => {
     if (hydratedRemovedBook) {
@@ -460,7 +471,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
   }, [bookId, resolvedTaste.source]);
 
   useEffect(() => {
-    if (hydratedRemovedBook || !draftText || (hydratedPlaybackState && hydratedPlaybackDefaults)) {
+    if (hydratedRemovedBook || !draftText) {
       return;
     }
 
@@ -484,12 +495,20 @@ export default function PlayerPage({ params }: PlayerPageProps) {
         payload.snapshot.playbackStates.find((entry) => entry.bookId === bookId)?.state ??
         null;
       const syncedPlaybackDefaults = payload.snapshot.playbackDefaults ?? null;
+      const preferredPlaybackState = resolvePreferredPlaybackState(
+        hydratedPlaybackState,
+        syncedPlayback,
+      );
 
-      if (syncedPlayback) {
-        setHydratedPlaybackState(syncedPlayback);
+      if (
+        preferredPlaybackState &&
+        preferredPlaybackState !== hydratedPlaybackState
+      ) {
+        setHydratedPlaybackState(preferredPlaybackState);
+        writePersistedPlaybackState(bookId, preferredPlaybackState);
       }
 
-      if (syncedPlaybackDefaults) {
+      if (syncedPlaybackDefaults && !hydratedPlaybackDefaults) {
         setHydratedPlaybackDefaults(syncedPlaybackDefaults);
       }
     }

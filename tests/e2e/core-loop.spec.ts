@@ -523,6 +523,16 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
     .click();
   await expect(page.getByTestId("shelf-book-demo-book-1")).toBeVisible();
   await expect(page.getByTestId("shelf-book-demo-book-2")).not.toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByRole("heading", {
+      level: 3,
+      name: "Cloud removals stay authoritative",
+    }),
+  ).toBeVisible();
+  await expect(
+    page.locator("#system-intelligence").getByText("Quiet Harbor Revised"),
+  ).toBeVisible();
   await page.goto("/books/demo-book-2");
   await expect(
     page.getByRole("heading", { level: 1, name: /needs recovery/i }),

@@ -93,6 +93,24 @@ export function readPersistedPlaybackState(
   }
 }
 
+export function resolvePreferredPlaybackState(
+  localState: PersistedPlaybackState | null,
+  backendState: PersistedPlaybackState | null,
+): PersistedPlaybackState | null {
+  if (!localState) {
+    return backendState;
+  }
+
+  if (!backendState) {
+    return localState;
+  }
+
+  const localUpdatedAt = new Date(localState.updatedAt ?? 0).getTime();
+  const backendUpdatedAt = new Date(backendState.updatedAt ?? 0).getTime();
+
+  return backendUpdatedAt > localUpdatedAt ? backendState : localState;
+}
+
 export function writePersistedPlaybackState(
   bookId: string,
   payload: PersistedPlaybackState,

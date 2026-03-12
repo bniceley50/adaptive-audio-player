@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+
+import { pushClientLibrarySyncSnapshot } from "@/lib/backend/client-sync";
 import type { LibrarySyncSnapshot } from "@/lib/backend/types";
 import {
   clearRemovedLocalLibraryBook,
@@ -31,6 +33,7 @@ import {
   getPlaybackPercent,
   playbackChangedEvent,
   readPersistedPlaybackState,
+  resolvePreferredPlaybackState,
 } from "@/lib/playback/local-playback";
 
 type ShelfGroupKey =
@@ -246,10 +249,10 @@ export function ContinueListeningRow({
   const shelfBooks = useMemo(() => {
     return libraryBooks
       .map((book) => {
-        const playbackState =
-          readPersistedPlaybackState(book.bookId) ??
-          initialPlaybackStatesByBook.get(book.bookId) ??
-          null;
+        const playbackState = resolvePreferredPlaybackState(
+          readPersistedPlaybackState(book.bookId),
+          initialPlaybackStatesByBook.get(book.bookId) ?? null,
+        );
         const localResolvedTaste = resolveListeningTaste(book.bookId);
         const resolvedTaste =
           localResolvedTaste.source !== "none"
@@ -298,8 +301,14 @@ export function ContinueListeningRow({
         };
       })
       .sort((left, right) => {
-        const leftPlayback = readPersistedPlaybackState(left.book.bookId);
-        const rightPlayback = readPersistedPlaybackState(right.book.bookId);
+        const leftPlayback = resolvePreferredPlaybackState(
+          readPersistedPlaybackState(left.book.bookId),
+          initialPlaybackStatesByBook.get(left.book.bookId) ?? null,
+        );
+        const rightPlayback = resolvePreferredPlaybackState(
+          readPersistedPlaybackState(right.book.bookId),
+          initialPlaybackStatesByBook.get(right.book.bookId) ?? null,
+        );
         const leftActivity =
           leftPlayback?.updatedAt ?? left.book.updatedAt ?? new Date(0).toISOString();
         const rightActivity =
@@ -367,6 +376,7 @@ export function ContinueListeningRow({
     renameLocalLibraryBook(book.bookId, nextTitle);
     setEditingBookId(null);
     setTitleDraft("");
+    void pushClientLibrarySyncSnapshot().catch(() => null);
   }
 
   function confirmDelete(bookId: string) {
@@ -386,14 +396,17 @@ export function ContinueListeningRow({
     setExpandedBookId((current) => (current === bookId ? null : current));
     setEditingBookId((current) => (current === bookId ? null : current));
     setTitleDraft("");
+    void pushClientLibrarySyncSnapshot().catch(() => null);
   }
 
   function restoreBook(bookId: string) {
     restoreRemovedLocalLibraryBook(bookId);
+    void pushClientLibrarySyncSnapshot().catch(() => null);
   }
 
   function dismissRemovedBook(bookId: string) {
     clearRemovedLocalLibraryBook(bookId);
+    void pushClientLibrarySyncSnapshot().catch(() => null);
   }
 
   return (
@@ -539,10 +552,10 @@ export function ContinueListeningRow({
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   {groupBooks.map(({ book }, index) => {
-                    const playbackState =
-                      readPersistedPlaybackState(book.bookId) ??
-                      initialPlaybackStatesByBook.get(book.bookId) ??
-                      null;
+                    const playbackState = resolvePreferredPlaybackState(
+                      readPersistedPlaybackState(book.bookId),
+                      initialPlaybackStatesByBook.get(book.bookId) ?? null,
+                    );
                     const sampleOutput =
                       readLocalGenerationOutput(book.bookId, "sample-generation") ??
                       initialGenerationOutputsByKey.get(

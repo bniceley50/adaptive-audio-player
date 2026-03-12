@@ -35,7 +35,7 @@ export default function ImportPage() {
       ? readLibraryTotals()
       : { totalBooks: 0, booksWithSavedTaste: 0, latestSampleBookId: null },
   );
-  const [removedBooks] = useState(() =>
+  const [removedBooks, setRemovedBooks] = useState(() =>
     typeof window !== "undefined" ? readRemovedLocalLibraryBooks() : [],
   );
 
@@ -81,10 +81,6 @@ export default function ImportPage() {
         };
 
   useEffect(() => {
-    if (defaultListeningProfile) {
-      return;
-    }
-
     let cancelled = false;
 
     async function hydrateStartingTaste() {
@@ -104,25 +100,35 @@ export default function ImportPage() {
       const syncedDefault = payload.snapshot.defaultListeningProfile ?? null;
       const syncedRecent = payload.snapshot.listeningProfiles[0] ?? null;
 
-      if (syncedDefault) {
+      if (!defaultListeningProfile && syncedDefault) {
         setDefaultListeningProfile(syncedDefault);
         setStartingTasteSource("default");
-      } else if (syncedRecent) {
+      } else if (!defaultListeningProfile && syncedRecent) {
         setDefaultListeningProfile(syncedRecent);
         setStartingTasteSource("recent");
       }
 
-      setLibraryTotals((currentTotals) =>
-        currentTotals.totalBooks > 0
-          ? currentTotals
-          : {
-              totalBooks: payload.snapshot?.libraryBooks.length ?? 0,
-              booksWithSavedTaste: payload.snapshot?.listeningProfiles.length ?? 0,
-              latestSampleBookId:
-                payload.snapshot?.generationOutputs?.find(
-                  (output) => output.kind === "sample-generation",
-                )?.bookId ?? null,
-            },
+      setLibraryTotals((currentTotals) => ({
+        totalBooks: Math.max(
+          currentTotals.totalBooks,
+          payload.snapshot?.libraryBooks.length ?? 0,
+        ),
+        booksWithSavedTaste: Math.max(
+          currentTotals.booksWithSavedTaste,
+          payload.snapshot?.listeningProfiles.length ?? 0,
+        ),
+        latestSampleBookId:
+          currentTotals.latestSampleBookId ??
+          payload.snapshot?.generationOutputs?.find(
+            (output) => output.kind === "sample-generation",
+          )?.bookId ??
+          null,
+      }));
+
+      setRemovedBooks((currentRemovedBooks) =>
+        currentRemovedBooks.length > 0
+          ? currentRemovedBooks
+          : payload.snapshot?.removedBooks ?? [],
       );
     }
 
