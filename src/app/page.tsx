@@ -5,6 +5,7 @@ import { ContinueListeningRow } from "@/components/library/continue-listening-ro
 import { DefaultPlaybackCard } from "@/components/library/default-playback-card";
 import { DefaultTasteCard } from "@/components/library/default-taste-card";
 import { DemoModeCard } from "@/components/library/demo-mode-card";
+import { FavoritesHubCard } from "@/components/library/favorites-hub-card";
 import { LibraryHero } from "@/components/library/library-hero";
 import { ListeningStatsCard } from "@/components/library/listening-stats-card";
 import { RecentQuotesCard } from "@/components/library/recent-quotes-card";
@@ -356,6 +357,7 @@ export default async function HomePage() {
           </section>
 
           <ListeningStatsCard initialStats={listeningStats} />
+          <FavoritesHubCard />
           <ContinueListeningRow initialSnapshot={backendLibrarySnapshot} />
           <RecentQuotesCard />
           {circleBook ? (
