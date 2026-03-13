@@ -4,6 +4,7 @@ import type {
   WorkspaceSyncSummary,
 } from "@/lib/backend/types";
 import Link from "next/link";
+import { CloudListeningSessionCard } from "@/components/library/cloud-listening-session-card";
 import { ManualSyncButton } from "@/components/library/manual-sync-button";
 import {
   getBookCoverTheme,
@@ -35,31 +36,6 @@ function formatRelativeSync(updatedAt: string | null) {
   return `Synced ${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
 }
 
-function formatRelativeUpdate(updatedAt: string | null) {
-  if (!updatedAt) {
-    return null;
-  }
-
-  const diffMs = Date.now() - new Date(updatedAt).getTime();
-  const diffMinutes = Math.max(Math.floor(diffMs / 60000), 0);
-
-  if (diffMinutes < 1) {
-    return "Updated just now";
-  }
-
-  if (diffMinutes < 60) {
-    return `Updated ${diffMinutes} minute${diffMinutes === 1 ? "" : "s"} ago`;
-  }
-
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) {
-    return `Updated ${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
-  }
-
-  const diffDays = Math.floor(diffHours / 24);
-  return `Updated ${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
-}
-
 function describeRecentJob(job: SyncJobSummary) {
   const label =
     job.kind === "sample-generation"
@@ -83,38 +59,6 @@ function describeJobTarget(job: SyncJobSummary) {
   }
 
   return `Books ${job.books} · Profiles ${job.profiles} · Playback ${job.playbackStates}`;
-}
-
-function formatPlaybackTime(totalSeconds: number) {
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-}
-
-function describeSessionArtifact(
-  artifactKind: "sample-generation" | "full-book-generation" | null,
-) {
-  if (artifactKind === "full-book-generation") {
-    return {
-      badge: "Full book",
-      detail: "Full-book audio",
-      action: "Resume full book",
-    };
-  }
-
-  if (artifactKind === "sample-generation") {
-    return {
-      badge: "Sample",
-      detail: "Sample audio",
-      action: "Resume sample",
-    };
-  }
-
-  return {
-    badge: "Player",
-    detail: "Player session",
-    action: "Resume player",
-  };
 }
 
 export function BackendSyncCard({
@@ -328,53 +272,7 @@ export function BackendSyncCard({
       </div>
 
       {latestSession ? (
-        <div className="mt-6 overflow-hidden rounded-[1.5rem] border border-emerald-200 bg-[linear-gradient(135deg,#ecfdf5_0%,#f6fffb_100%)] p-5 text-sm text-emerald-950 shadow-sm">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-start gap-4">
-              <div
-                className={`flex h-24 w-20 shrink-0 flex-col justify-between overflow-hidden rounded-[1.2rem] border border-emerald-200 bg-gradient-to-br ${latestSession.coverTheme ?? getBookCoverTheme(latestSession.bookTitle)} p-3 shadow-sm`}
-              >
-                <p className="text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-stone-600">
-                  {latestSession.coverLabel ?? "Session"}
-                </p>
-                <p className="text-xl font-semibold tracking-tight text-stone-950">
-                  {latestSession.coverGlyph ?? getBookInitials(latestSession.bookTitle)}
-                </p>
-              </div>
-              <div>
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="rounded-full border border-emerald-200 bg-white/75 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-emerald-700">
-                  Continue anywhere
-                </span>
-                {latestSession.genreLabel ? (
-                  <span className="rounded-full border border-fuchsia-200 bg-fuchsia-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-fuchsia-700">
-                    {latestSession.genreLabel}
-                  </span>
-                ) : null}
-              </div>
-              <p className="mt-3 text-xs font-medium uppercase tracking-[0.18em] text-emerald-700">
-                Latest cloud listening
-              </p>
-              <p className="mt-3 text-base font-medium">
-                {latestSession.bookTitle} · Chapter {latestSession.chapterIndex + 1} ·{" "}
-                {formatPlaybackTime(latestSession.progressSeconds)}
-              </p>
-              <p className="mt-2 text-emerald-800">
-                {describeSessionArtifact(latestSession.artifactKind).detail}
-                {latestSession.updatedAt
-                  ? ` · ${formatRelativeUpdate(latestSession.updatedAt)}`
-                  : ""}
-              </p>
-              </div>
-            </div>
-            <Link
-              className="rounded-full border border-emerald-300 bg-white px-4 py-2 text-sm font-medium text-emerald-900 shadow-sm transition hover:border-emerald-400 hover:bg-emerald-100"
-              href={latestSession.href}
-            >
-              {describeSessionArtifact(latestSession.artifactKind).action}
-            </Link>
-          </div>
-        </div>
+        <CloudListeningSessionCard session={latestSession} variant="hero" />
       ) : null}
       {recentSessions.length > 0 ? (
         <div className="mt-6">
@@ -398,56 +296,11 @@ export function BackendSyncCard({
           </div>
           <div className="mt-4 grid gap-3">
             {recentSessions.map((session) => (
-              <article
+              <CloudListeningSessionCard
                 key={`${session.bookId}-${session.updatedAt ?? "session"}`}
-                className="rounded-[1.4rem] border border-stone-200 bg-[linear-gradient(180deg,#faf8f4_0%,#ffffff_100%)] px-4 py-4 text-sm text-stone-700 shadow-sm"
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-start gap-4">
-                    <div
-                      className={`flex h-20 w-16 shrink-0 flex-col justify-between overflow-hidden rounded-[1rem] border border-stone-200 bg-gradient-to-br ${session.coverTheme ?? getBookCoverTheme(session.bookTitle)} p-2.5 shadow-sm`}
-                    >
-                      <p className="text-[0.58rem] font-semibold uppercase tracking-[0.14em] text-stone-600">
-                        {session.coverLabel ?? "Listen"}
-                      </p>
-                      <p className="text-lg font-semibold tracking-tight text-stone-950">
-                        {session.coverGlyph ?? getBookInitials(session.bookTitle)}
-                      </p>
-                    </div>
-                    <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium text-stone-950">
-                        {session.bookTitle} · Chapter {session.chapterIndex + 1}
-                      </p>
-                      {session.genreLabel ? (
-                        <span className="rounded-full border border-fuchsia-200 bg-fuchsia-50 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.16em] text-fuchsia-700">
-                          {session.genreLabel}
-                        </span>
-                      ) : null}
-                      <span className="rounded-full border border-stone-200 bg-stone-100 px-2 py-1 text-[10px] font-medium uppercase tracking-[0.18em] text-stone-600">
-                        {describeSessionArtifact(session.artifactKind).badge}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-stone-500">
-                      {formatPlaybackTime(session.progressSeconds)}
-                      {" · "}
-                      {describeSessionArtifact(session.artifactKind).detail}
-                    </p>
-                    </div>
-                  </div>
-                  <Link
-                    className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 shadow-sm transition hover:border-stone-400 hover:text-stone-950"
-                    href={session.href}
-                  >
-                    {describeSessionArtifact(session.artifactKind).action}
-                  </Link>
-                </div>
-                {session.updatedAt ? (
-                  <p className="mt-2 text-stone-500">
-                    {formatRelativeUpdate(session.updatedAt)}
-                  </p>
-                ) : null}
-              </article>
+                session={session}
+                variant="list"
+              />
             ))}
           </div>
         </div>

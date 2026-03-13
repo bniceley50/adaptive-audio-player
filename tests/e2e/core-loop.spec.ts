@@ -584,6 +584,10 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
   await page.waitForURL("**/");
   await expect(page.getByTestId("shelf-book-demo-book-2")).toBeVisible();
   const restoredQuietHarborShelfCard = page.getByTestId("shelf-book-demo-book-2");
+  await restoredQuietHarborShelfCard.scrollIntoViewIfNeeded();
+  await expect(
+    restoredQuietHarborShelfCard.getByRole("button", { name: "Delete book" }),
+  ).toBeVisible();
   await restoredQuietHarborShelfCard.getByRole("button", { name: "Delete book" }).click();
   await restoredQuietHarborShelfCard
     .getByRole("button", { name: "Confirm delete" })
