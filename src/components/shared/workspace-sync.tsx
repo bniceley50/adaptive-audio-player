@@ -28,7 +28,10 @@ import {
   writePersistedPlaybackState,
 } from "@/lib/playback/local-playback";
 import type { LibrarySyncSnapshot } from "@/lib/backend/types";
-import { workspaceContextChangedEvent } from "@/lib/library/local-state";
+import {
+  clearAdaptiveAudioPlayerLocalState,
+  workspaceContextChangedEvent,
+} from "@/lib/library/local-state";
 
 export function WorkspaceSync() {
   const timeoutRef = useRef<number | null>(null);
@@ -126,6 +129,10 @@ export function WorkspaceSync() {
         : null;
 
       const backendSnapshot = payload?.snapshot ?? null;
+
+      if (workspaceTransitionRef.current) {
+        clearAdaptiveAudioPlayerLocalState();
+      }
 
       if (backendSnapshot && hasBackendSnapshotState(backendSnapshot)) {
         restoreSnapshot(backendSnapshot);
