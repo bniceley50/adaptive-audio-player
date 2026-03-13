@@ -165,7 +165,13 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
   await expect(
     page.getByRole("heading", { level: 2, name: "Imported chapters" }),
   ).toBeVisible({ timeout: 15000 });
-  await page.getByRole("button", { name: "Immersive" }).click();
+  await page
+    .locator("article")
+    .filter({
+      has: page.getByRole("heading", { level: 2, name: "Listening mode" }),
+    })
+    .getByRole("button", { name: /^immersive/i })
+    .click();
   await page.getByLabel("Sloane").check();
   await page.getByRole("button", { name: "Save as default taste" }).click();
   await expect(
@@ -320,7 +326,12 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
   ).toBeVisible();
   await expect(page.getByLabel("Sloane")).toBeChecked();
   await expect(
-    page.getByRole("button", { name: "Immersive" }),
+    page
+      .locator("article")
+      .filter({
+        has: page.getByRole("heading", { level: 2, name: "Listening mode" }),
+      })
+      .getByRole("button", { name: /^immersive/i }),
   ).toHaveClass(/border-stone-950/);
   await page.goto("/player/demo-book-1");
   await expect(
@@ -368,7 +379,12 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
   ).toBeVisible();
   await expect(page.getByLabel("Sloane")).toBeChecked();
   await expect(
-    page.getByRole("button", { name: "Immersive" }),
+    page
+      .locator("article")
+      .filter({
+        has: page.getByRole("heading", { level: 2, name: "Listening mode" }),
+      })
+      .getByRole("button", { name: /^immersive/i }),
   ).toHaveClass(/border-stone-950/);
   await page.goto("/");
   await expect(page.getByText("Books: 2")).toBeVisible();
@@ -544,6 +560,7 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
     }),
   });
   await bookRecoveryCard.getByRole("button", { name: "Restore this book" }).click();
+  await page.waitForURL("**/");
   await expect(page.getByTestId("shelf-book-demo-book-2")).toBeVisible();
   await renamedQuietHarborShelfCard.getByRole("button", { name: "Delete book" }).click();
   await renamedQuietHarborShelfCard
