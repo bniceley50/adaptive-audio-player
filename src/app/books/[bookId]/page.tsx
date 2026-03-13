@@ -52,6 +52,37 @@ const narratorOptions = [
   },
 ];
 
+const tastePresets = [
+  {
+    id: "storytime",
+    title: "Storytime",
+    detail: "Warm and cinematic for fiction that should feel rich right away.",
+    narratorId: "marlowe",
+    mode: "immersive" as ListeningMode,
+  },
+  {
+    id: "focus",
+    title: "Focus",
+    detail: "Clean and steady for long listening sessions with minimal distraction.",
+    narratorId: "sloane",
+    mode: "classic" as ListeningMode,
+  },
+  {
+    id: "night",
+    title: "Night",
+    detail: "Soft pacing with atmosphere for winding down or late-night listening.",
+    narratorId: "sloane",
+    mode: "ambient" as ListeningMode,
+  },
+  {
+    id: "bright",
+    title: "Bright",
+    detail: "Lighter energy for upbeat listening and fast-moving samples.",
+    narratorId: "jules",
+    mode: "ambient" as ListeningMode,
+  },
+] as const;
+
 function getBookCoverTheme(title: string) {
   const themes = [
     "from-amber-200 via-orange-100 to-stone-50",
@@ -129,6 +160,11 @@ export default function BookPage({ params }: BookPageProps) {
   const selectedNarratorMeta =
     narratorOptions.find((narrator) => narrator.id === selectedNarrator) ??
     narratorOptions[0];
+  const activeTastePreset =
+    tastePresets.find(
+      (preset) =>
+        preset.narratorId === selectedNarrator && preset.mode === selectedMode,
+    ) ?? null;
   const [generatedSample, setGeneratedSample] = useState<{
     bookId: string;
     narratorId: string;
@@ -1089,6 +1125,73 @@ export default function BookPage({ params }: BookPageProps) {
             </div>
           </div>
           <div className="space-y-5 p-6">
+            <div className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-4 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="max-w-2xl">
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
+                    Quick starts
+                  </p>
+                  <h3 className="mt-2 text-lg font-semibold text-stone-950">
+                    Pick a taste preset
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-stone-600">
+                    Start from a ready-made listening personality, then fine-tune the
+                    narrator and mood below if you want something custom.
+                  </p>
+                </div>
+                <div className="rounded-[1.2rem] border border-stone-200 bg-white px-4 py-3 shadow-sm">
+                  <p className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-stone-500">
+                    Active preset
+                  </p>
+                  <p className="mt-2 text-base font-semibold text-stone-950">
+                    {activeTastePreset?.title ?? "Custom mix"}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {tastePresets.map((preset) => {
+                  const isActive = activeTastePreset?.id === preset.id;
+                  return (
+                    <button
+                      key={preset.id}
+                      className={`rounded-[1.4rem] border px-4 py-4 text-left shadow-sm transition ${
+                        isActive
+                          ? "border-stone-950 bg-[linear-gradient(135deg,#fff8ed_0%,#f5eee0_100%)] shadow-[0_20px_40px_-32px_rgba(41,37,36,0.65)]"
+                          : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50/70"
+                      }`}
+                      type="button"
+                      onClick={() => {
+                        setSelectedNarrator(preset.narratorId);
+                        setSelectedMode(preset.mode);
+                      }}
+                    >
+                      <span className="flex flex-wrap items-center gap-3">
+                        <span className="text-base font-semibold text-stone-950">
+                          {preset.title}
+                        </span>
+                        {isActive ? (
+                          <span className="rounded-full bg-stone-950 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white">
+                            Active
+                          </span>
+                        ) : null}
+                      </span>
+                      <p className="mt-2 text-sm leading-6 text-stone-600">
+                        {preset.detail}
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                        <span className="rounded-full bg-stone-100 px-2.5 py-1">
+                          {narratorOptions.find((narrator) => narrator.id === preset.narratorId)
+                            ?.name ?? preset.narratorId}
+                        </span>
+                        <span className="rounded-full bg-stone-100 px-2.5 py-1 capitalize">
+                          {preset.mode}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             {resolvedTaste.source !== "none" ? (
               <div className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#faf8f4_0%,#ffffff_100%)] px-4 py-4 text-sm text-stone-800 shadow-sm">
                 <div className="flex flex-wrap items-center gap-3">
