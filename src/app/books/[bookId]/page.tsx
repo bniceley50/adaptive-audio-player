@@ -6,11 +6,10 @@ import { useRouter } from "next/navigation";
 import { RemovedBookRecoveryCard } from "@/components/library/removed-book-recovery-card";
 import { RetryJobButton } from "@/components/library/retry-job-button";
 import { AppShell } from "@/components/shared/app-shell";
+import { BookIdentityCard } from "@/components/shared/book-identity-card";
 import { JourneyRail } from "@/components/shared/journey-rail";
 import { StateSummaryPanel } from "@/components/shared/state-summary-panel";
 import {
-  getBookCoverTheme,
-  getBookInitials,
   getUpdatedAtWeight,
   tastePresets,
 } from "@/features/reader/shared-support";
@@ -907,34 +906,15 @@ export default function BookPage({ params }: BookPageProps) {
         action={setupStage.action}
         statsClassName="mt-5 grid gap-3 md:grid-cols-[1.15fr_0.85fr_0.85fr]"
       >
-          <article className="rounded-[1.5rem] border border-stone-200/80 bg-white/85 p-4 shadow-sm">
-            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
-              Book identity
-            </p>
-            <div className="mt-3 flex items-start gap-4">
-              <div
-                className={`flex h-24 w-20 shrink-0 flex-col justify-between overflow-hidden rounded-[1.2rem] border border-stone-200 bg-gradient-to-br ${hydratedBookMeta?.coverTheme ?? getBookCoverTheme(bookTitle)} p-3 shadow-sm`}
-              >
-                <p className="text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-stone-600">
-                  {hydratedBookMeta?.coverLabel ?? "Setup"}
-                </p>
-                <p className="text-xl font-semibold tracking-tight text-stone-950">
-                  {hydratedBookMeta?.coverGlyph ?? getBookInitials(bookTitle)}
-                </p>
-              </div>
-              <div className="min-w-0">
-                <p className="text-lg font-semibold text-stone-950">{bookTitle}</p>
-                <p className="mt-2 text-sm text-stone-600">
-                  {chapters.length} parsed chapter{chapters.length === 1 ? "" : "s"}
-                </p>
-                {hydratedBookMeta?.genreLabel ? (
-                  <span className="mt-3 inline-flex rounded-full border border-fuchsia-200 bg-fuchsia-50 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-fuchsia-700">
-                    {hydratedBookMeta.genreLabel}
-                  </span>
-                ) : null}
-              </div>
-            </div>
-          </article>
+          <BookIdentityCard
+            title={bookTitle}
+            subtitle={`${chapters.length} parsed chapter${chapters.length === 1 ? "" : "s"}`}
+            fallbackLabel="Setup"
+            coverTheme={hydratedBookMeta?.coverTheme}
+            coverLabel={hydratedBookMeta?.coverLabel}
+            coverGlyph={hydratedBookMeta?.coverGlyph}
+            genreLabel={hydratedBookMeta?.genreLabel}
+          />
           <article className="rounded-[1.5rem] border border-stone-200/80 bg-white/85 p-4 shadow-sm">
             <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
               Taste source
