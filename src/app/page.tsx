@@ -1,5 +1,6 @@
 import { BackendSyncCard } from "@/components/library/backend-sync-card";
 import { BackendLibraryPreview } from "@/components/library/backend-library-preview";
+import { BookCircleCard } from "@/components/library/book-circle-card";
 import { ContinueListeningRow } from "@/components/library/continue-listening-row";
 import { DefaultPlaybackCard } from "@/components/library/default-playback-card";
 import { DefaultTasteCard } from "@/components/library/default-taste-card";
@@ -106,6 +107,18 @@ export default async function HomePage() {
   const recentSessions = latestSession.slice(0, 3);
   const currentLatestSession = recentSessions[0] ?? null;
   const latestSyncedBook = backendLibrarySnapshot?.libraryBooks[0] ?? null;
+  const circleBook =
+    (currentLatestSession
+      ? backendLibrarySnapshot?.libraryBooks.find(
+          (book) => book.bookId === currentLatestSession.bookId,
+        ) ?? null
+      : null) ??
+    latestSyncedBook;
+  const circleProfile = circleBook
+    ? backendLibrarySnapshot?.listeningProfiles.find(
+        (profile) => profile.bookId === circleBook.bookId,
+      ) ?? backendLibrarySnapshot?.defaultListeningProfile ?? null
+    : backendLibrarySnapshot?.defaultListeningProfile ?? null;
   const listeningStats = backendLibrarySnapshot
     ? {
         activeBooks: backendLibrarySnapshot.playbackStates.filter(
@@ -345,6 +358,22 @@ export default async function HomePage() {
           <ListeningStatsCard initialStats={listeningStats} />
           <ContinueListeningRow initialSnapshot={backendLibrarySnapshot} />
           <RecentQuotesCard />
+          {circleBook ? (
+            <BookCircleCard
+              bookTitle={circleBook.title}
+              coverGlyph={circleBook.coverGlyph ?? null}
+              coverLabel={circleBook.coverLabel ?? null}
+              coverTheme={circleBook.coverTheme ?? null}
+              genreLabel={circleBook.genreLabel ?? null}
+              href={
+                currentLatestSession && currentLatestSession.bookId === circleBook.bookId
+                  ? currentLatestSession.href
+                  : `/player/${circleBook.bookId}`
+              }
+              mode={circleProfile?.mode ?? null}
+              narratorName={circleProfile?.narratorName ?? null}
+            />
+          ) : null}
         </div>
 
           <div id="account-context" className="space-y-4">
