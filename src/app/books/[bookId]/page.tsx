@@ -7,7 +7,7 @@ import { RemovedBookRecoveryCard } from "@/components/library/removed-book-recov
 import { RetryJobButton } from "@/components/library/retry-job-button";
 import { AppShell } from "@/components/shared/app-shell";
 import { BookIdentityCard } from "@/components/shared/book-identity-card";
-import { JourneyRail } from "@/components/shared/journey-rail";
+import { JourneyHero } from "@/components/shared/journey-hero";
 import { StateSummaryPanel } from "@/components/shared/state-summary-panel";
 import {
   getUpdatedAtWeight,
@@ -874,32 +874,14 @@ export default function BookPage({ params }: BookPageProps) {
 
   return (
     <AppShell eyebrow="Book setup" title={bookTitle}>
-      <section className="rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#fffdf8_0%,#ffffff_42%,#eef4ff_100%)] p-6 shadow-[0_22px_60px_-42px_rgba(28,25,23,0.38)]">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-2xl">
-            <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-              Journey
-            </p>
-            <h2 className="mt-2 text-2xl font-semibold text-stone-950">
-              Import, shape, preview, then promote
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-stone-600">
-              This setup screen is the middle of the audiobook workflow: lock the
-              taste, validate it with a sample, then promote it into the full-book
-              render when it feels right.
-            </p>
-          </div>
-          <div className="rounded-[1.4rem] border border-white/80 bg-white/85 px-4 py-3 shadow-sm backdrop-blur">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
-              You are here
-            </p>
-            <p className="mt-2 text-lg font-semibold text-stone-950">
-              {setupJourney[setupJourneyIndex]?.title}
-            </p>
-          </div>
-        </div>
-        <JourneyRail currentIndex={setupJourneyIndex} steps={setupJourney} />
-      </section>
+      <JourneyHero
+        eyebrow="Journey"
+        title="Import, shape, preview, then promote"
+        detail="This setup screen is the middle of the audiobook workflow: lock the taste, validate it with a sample, then promote it into the full-book render when it feels right."
+        currentIndex={setupJourneyIndex}
+        currentTitle={setupJourney[setupJourneyIndex]?.title}
+        steps={setupJourney}
+      />
       <StateSummaryPanel
         label={setupStage.label}
         detail={setupStage.detail}

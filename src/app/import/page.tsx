@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/shared/app-shell";
-import { JourneyRail } from "@/components/shared/journey-rail";
+import { JourneyHero } from "@/components/shared/journey-hero";
 import { extractImportText } from "@/lib/import/extract-text";
 import {
   createNextLocalLibraryBook,
@@ -15,6 +15,33 @@ import {
   writeLocalDraftText,
 } from "@/lib/library/local-library";
 import { parseChapters } from "@/lib/parser/parse-chapters";
+
+const importJourney = [
+  {
+    id: "import",
+    label: "01",
+    title: "Import the source",
+    detail: "Paste text or upload a file to start the listening workflow.",
+  },
+  {
+    id: "taste",
+    label: "02",
+    title: "Design the taste",
+    detail: "Pick the narrator and listening mode that fit this title.",
+  },
+  {
+    id: "sample",
+    label: "03",
+    title: "Generate the sample",
+    detail: "Create the first preview before you commit to a full render.",
+  },
+  {
+    id: "listen",
+    label: "04",
+    title: "Listen and promote",
+    detail: "Open the player, then move into a full-book render when it feels right.",
+  },
+] as const;
 
 export default function ImportPage() {
   const router = useRouter();
@@ -185,56 +212,23 @@ export default function ImportPage() {
     <AppShell eyebrow="Step 1" title="Import a book">
       <section className="overflow-hidden rounded-[1.75rem] border border-stone-200 bg-white shadow-sm">
         <div className="border-b border-stone-200 bg-[linear-gradient(135deg,#f7f0df_0%,#fffdf7_45%,#edf4ff_100%)] p-8">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-                Import flow
-              </p>
-              <h2 className="mt-2 text-xl font-semibold text-stone-950">
-                Import your manuscript
-              </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-                Start with pasted text or a plain text file. EPUB, PDF, and DOCX extraction
-                will layer onto this same flow next.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2 text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
-              <span className="rounded-full border border-white/80 bg-white/80 px-3 py-2 backdrop-blur">
-                Guided intake
-              </span>
-              <span className="rounded-full border border-white/80 bg-white/80 px-3 py-2 backdrop-blur">
-                Private import
-              </span>
-            </div>
-          </div>
-          <JourneyRail
+          <JourneyHero
+            eyebrow="Import flow"
+            title="Import your manuscript"
+            detail="Start with pasted text or a plain text file. EPUB, PDF, and DOCX extraction will layer onto this same flow next."
             currentIndex={0}
-            steps={[
-              {
-                id: "import",
-                label: "01",
-                title: "Import the source",
-                detail: "Paste text or upload a file to start the listening workflow.",
-              },
-              {
-                id: "taste",
-                label: "02",
-                title: "Design the taste",
-                detail: "Pick the narrator and listening mode that fit this title.",
-              },
-              {
-                id: "sample",
-                label: "03",
-                title: "Generate the sample",
-                detail: "Create the first preview before you commit to a full render.",
-              },
-              {
-                id: "listen",
-                label: "04",
-                title: "Listen and promote",
-                detail: "Open the player, then move into a full-book render when it feels right.",
-              },
-            ]}
+            steps={importJourney}
+            sectionClassName="border-0 bg-transparent p-0 shadow-none"
+            aside={
+              <div className="flex flex-wrap gap-2 text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
+                <span className="rounded-full border border-white/80 bg-white/80 px-3 py-2 backdrop-blur">
+                  Guided intake
+                </span>
+                <span className="rounded-full border border-white/80 bg-white/80 px-3 py-2 backdrop-blur">
+                  Private import
+                </span>
+              </div>
+            }
           />
         </div>
 
