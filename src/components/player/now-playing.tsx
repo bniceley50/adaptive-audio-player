@@ -96,6 +96,9 @@ export function NowPlaying({
   const [shareFeedback, setShareFeedback] = useState<"idle" | "shared" | "copied">(
     "idle",
   );
+  const [circleFeedback, setCircleFeedback] = useState<"idle" | "shared" | "copied">(
+    "idle",
+  );
   const [defaultTasteFeedback, setDefaultTasteFeedback] = useState<"idle" | "saved">(
     "idle",
   );
@@ -374,6 +377,33 @@ export function NowPlaying({
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
       setShareFeedback("copied");
+    }
+  }
+
+  async function shareBookCircleInvite() {
+    const inviteText = latestQuote
+      ? `Join my book circle for ${bookTitle}. Start with ${narratorName} in ${mode} mode, then jump to this saved moment: “${latestQuote.text}”`
+      : `Join my book circle for ${bookTitle}. Start with ${narratorName} in ${mode} mode and listen together on Adaptive Audio Player.`;
+    const shareUrl =
+      typeof window !== "undefined" ? window.location.href : "https://github.com/bniceley50/adaptive-audio-player";
+
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({
+          title: `${bookTitle} · Book circle`,
+          text: inviteText,
+          url: shareUrl,
+        });
+        setCircleFeedback("shared");
+        return;
+      } catch {
+        // Fall through to clipboard copy when native share is dismissed or unavailable.
+      }
+    }
+
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      await navigator.clipboard.writeText(`${inviteText}\n${shareUrl}`);
+      setCircleFeedback("copied");
     }
   }
 
@@ -690,6 +720,62 @@ export function NowPlaying({
                 {shareFeedback === "shared"
                   ? "Taste shared."
                   : "Taste copied to clipboard."}
+              </p>
+            ) : null}
+          </div>
+        </div>
+        <div className="mt-5 rounded-[1.4rem] border border-sky-300/20 bg-[linear-gradient(135deg,rgba(14,165,233,0.14)_0%,rgba(255,255,255,0.06)_100%)] p-4 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="max-w-xl">
+              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-sky-100">
+                Book circle
+              </p>
+              <p className="mt-2 text-lg font-semibold text-white">
+                Invite friends into this edition
+              </p>
+              <p className="mt-2 text-sm leading-6 text-stone-200">
+                Share this title with the current narrator and mode so everyone starts
+                from the same listening setup.
+              </p>
+            </div>
+            <button
+              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-stone-950 shadow-sm transition hover:bg-sky-50"
+              type="button"
+              onClick={() => {
+                void shareBookCircleInvite();
+              }}
+            >
+              {typeof navigator !== "undefined" && typeof navigator.share === "function"
+                ? "Share book circle"
+                : "Copy circle invite"}
+            </button>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-100">
+            <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5">
+              {bookTitle}
+            </span>
+            <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5">
+              {narratorName}
+            </span>
+            <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5 capitalize">
+              {mode}
+            </span>
+            {latestQuote ? (
+              <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5">
+                Includes a saved moment
+              </span>
+            ) : null}
+          </div>
+          <div className="mt-3 space-y-1 text-sm text-sky-100">
+            <p>
+              Start with this listening edition, then compare notes, saved moments,
+              and favorite scenes together.
+            </p>
+            {circleFeedback !== "idle" ? (
+              <p>
+                {circleFeedback === "shared"
+                  ? "Book circle invite shared."
+                  : "Book circle invite copied to clipboard."}
               </p>
             ) : null}
           </div>
