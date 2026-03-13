@@ -6,6 +6,7 @@ import { DefaultTasteCard } from "@/components/library/default-taste-card";
 import { DemoModeCard } from "@/components/library/demo-mode-card";
 import { LibraryHero } from "@/components/library/library-hero";
 import { ListeningStatsCard } from "@/components/library/listening-stats-card";
+import { RecentTastesCard } from "@/components/library/recent-tastes-card";
 import { WorkspaceAccountCard } from "@/components/library/workspace-account-card";
 import { AppShell } from "@/components/shared/app-shell";
 import {
@@ -390,6 +391,7 @@ export default async function HomePage() {
               initialProfile={backendLibrarySnapshot?.defaultListeningProfile ?? null}
             />
           </div>
+          <RecentTastesCard />
           <div id="default-playback">
             <DefaultPlaybackCard
               initialDefaults={backendLibrarySnapshot?.playbackDefaults ?? null}
