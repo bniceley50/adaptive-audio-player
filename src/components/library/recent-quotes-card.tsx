@@ -26,6 +26,9 @@ export function RecentQuotesCard() {
   const [shareFeedback, setShareFeedback] = useState<"idle" | "copied" | "shared">(
     "idle",
   );
+  const [circleFeedback, setCircleFeedback] = useState<"idle" | "copied" | "shared">(
+    "idle",
+  );
 
   useEffect(() => {
     function refreshQuotes() {
@@ -74,6 +77,33 @@ export function RecentQuotesCard() {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       await navigator.clipboard.writeText(shareText);
       setShareFeedback("copied");
+    }
+  }
+
+  async function shareBookCircleFromQuote(quote: QuoteWithBookMeta) {
+    const shareText = `Join my book circle for ${quote.bookTitle ?? quote.bookId}. Start with this moment: “${quote.text}”`;
+    const shareUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/player/${quote.bookId}?quoteChapter=${quote.chapterIndex}&quoteProgress=${quote.progressSeconds}`
+        : `https://github.com/bniceley50/adaptive-audio-player`;
+
+    if (typeof navigator !== "undefined" && "share" in navigator) {
+      try {
+        await navigator.share({
+          title: `${quote.bookTitle ?? "Saved quote"} · Book circle`,
+          text: shareText,
+          url: shareUrl,
+        });
+        setCircleFeedback("shared");
+        return;
+      } catch {
+        // Fall through to clipboard copy.
+      }
+    }
+
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+      setCircleFeedback("copied");
     }
   }
 
@@ -134,6 +164,19 @@ export function RecentQuotesCard() {
                 : shareFeedback === "copied"
                   ? "Copied"
                   : "Share quote"}
+            </button>
+            <button
+              className="rounded-full border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-800 transition hover:border-rose-400 hover:bg-rose-100"
+              type="button"
+              onClick={() => {
+                void shareBookCircleFromQuote(latestQuote);
+              }}
+            >
+              {circleFeedback === "shared"
+                ? "Circle shared"
+                : circleFeedback === "copied"
+                  ? "Invite copied"
+                  : "Start book circle"}
             </button>
           </div>
         </div>
