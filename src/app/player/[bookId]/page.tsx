@@ -422,10 +422,6 @@ export default function PlayerPage({ params }: PlayerPageProps) {
   }, [bookId, draftText, hydratedRemovedBook, router]);
 
   useEffect(() => {
-    if (resolvedTaste.source !== "none") {
-      return;
-    }
-
     let cancelled = false;
 
     async function hydrateTasteFromBackend() {
@@ -460,6 +456,21 @@ export default function PlayerPage({ params }: PlayerPageProps) {
         return;
       }
 
+      const shouldPreferBackendSavedTaste =
+        backendTaste.source === "saved" &&
+        (
+          resolvedTaste.source !== "saved" ||
+          resolvedTaste.profile?.narratorId !== backendTaste.profile.narratorId ||
+          resolvedTaste.profile?.mode !== backendTaste.profile.mode
+        );
+      const shouldHydrateMissingTaste =
+        resolvedTaste.source === "none" &&
+        (backendTaste.source === "default" || backendTaste.source === "recent");
+
+      if (!shouldPreferBackendSavedTaste && !shouldHydrateMissingTaste) {
+        return;
+      }
+
       setResolvedTaste(backendTaste);
     }
 
@@ -468,7 +479,12 @@ export default function PlayerPage({ params }: PlayerPageProps) {
     return () => {
       cancelled = true;
     };
-  }, [bookId, resolvedTaste.source]);
+  }, [
+    bookId,
+    resolvedTaste.profile?.mode,
+    resolvedTaste.profile?.narratorId,
+    resolvedTaste.source,
+  ]);
 
   useEffect(() => {
     if (hydratedRemovedBook || !draftText) {
