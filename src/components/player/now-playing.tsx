@@ -75,9 +75,26 @@ export function NowPlaying({
   const [defaultTasteFeedback, setDefaultTasteFeedback] = useState<"idle" | "saved">(
     "idle",
   );
+  const [chapterQuery, setChapterQuery] = useState("");
 
   const totalSeconds = chapterDurationSeconds;
   const currentChapter = chapters[currentChapterIndex];
+  const filteredChapters = useMemo(() => {
+    const normalizedQuery = chapterQuery.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return chapters.map((chapter, index) => ({ chapter, index }));
+    }
+
+    return chapters
+      .map((chapter, index) => ({ chapter, index }))
+      .filter(({ chapter, index }) => {
+        const chapterNumber = `chapter ${index + 1}`;
+        return (
+          chapter.title.toLowerCase().includes(normalizedQuery) ||
+          chapterNumber.includes(normalizedQuery)
+        );
+      });
+  }, [chapterQuery, chapters]);
   const latestBookmark = bookmarks[0] ?? null;
   const progressPercent = getPlaybackPercent(progressSeconds);
   const remainingSeconds = Math.max(totalSeconds - progressSeconds, 0);
@@ -609,8 +626,31 @@ export function NowPlaying({
             />
           </div>
         ) : null}
-        <div className="mt-5 flex flex-wrap gap-3">
-          {chapters.map((chapter, index) => (
+        <div className="mt-5 rounded-[1.4rem] border border-stone-200 bg-stone-50/80 p-4 shadow-sm">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
+                Quick chapter jump
+              </p>
+              <p className="mt-2 text-sm text-stone-600">
+                Search by title or chapter number to move through longer books faster.
+              </p>
+            </div>
+            <div className="min-w-[16rem] flex-1 max-w-sm">
+              <label className="block text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                Find chapter
+              </label>
+              <input
+                className="mt-2 w-full rounded-full border border-stone-300 bg-white px-4 py-2.5 text-sm text-stone-900 shadow-sm outline-none transition focus:border-stone-500"
+                placeholder="Search chapter title"
+                type="text"
+                value={chapterQuery}
+                onChange={(event) => setChapterQuery(event.target.value)}
+              />
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {filteredChapters.map(({ chapter, index }) => (
             <button
               key={chapter.id}
               className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
@@ -623,7 +663,13 @@ export function NowPlaying({
             >
               {chapter.title}
             </button>
-          ))}
+            ))}
+            {filteredChapters.length === 0 ? (
+              <p className="rounded-full border border-dashed border-stone-300 px-4 py-2 text-sm text-stone-500">
+                No chapters match that search yet.
+              </p>
+            ) : null}
+          </div>
         </div>
         <h3 className="mt-6 text-2xl font-semibold text-stone-950">
           {currentChapter?.title ?? "No chapter loaded"}
