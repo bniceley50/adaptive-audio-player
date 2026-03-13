@@ -12,6 +12,7 @@ import {
 import { AppShell } from "@/components/shared/app-shell";
 import { BookIdentityCard } from "@/components/shared/book-identity-card";
 import { JourneyHero } from "@/components/shared/journey-hero";
+import { RenderArtifactCard } from "@/components/shared/render-artifact-card";
 import { RenderHistorySummary } from "@/components/shared/render-history-summary";
 import { StateSummaryPanel } from "@/components/shared/state-summary-panel";
 import {
@@ -1625,51 +1626,43 @@ export default function BookPage({ params }: BookPageProps) {
                   </div>
                   <div className="grid gap-3">
                     {renderGroups.currentRenders.map((artifact) => (
-                      <article
+                      <RenderArtifactCard
                         key={artifact.id}
                         className="rounded-[1.35rem] border border-amber-300/30 bg-[linear-gradient(180deg,rgba(252,211,77,0.14)_0%,rgba(255,255,255,0.06)_100%)] px-4 py-4"
-                      >
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-semibold text-white">
-                              {artifact.kind === "full-book-generation"
-                                ? "Current full-book render"
-                                : "Current sample render"}
-                            </p>
-                            <p className="mt-2 text-sm text-stone-300">
-                              {artifact.narratorId ? `Narrator ${artifact.narratorId} · ` : ""}
-                              {artifact.mode ? `Mode ${artifact.mode} · ` : ""}
-                              {artifact.provider === "openai" ? "OpenAI TTS" : "Local mock TTS"}
-                            </p>
-                          </div>
-                          <span className="rounded-full border border-amber-300/40 bg-amber-300/15 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-amber-100">
-                            {new Date(artifact.generatedAt).toLocaleString()}
-                          </span>
-                        </div>
-                        <div className="mt-4 flex flex-wrap gap-3">
-                          <Link
-                            className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
-                            href={`/player/${bookId}?artifactId=${artifact.id}&artifactKind=${artifact.kind}&renderState=current${
-                              artifact.narratorId ? `&narrator=${artifact.narratorId}` : ""
-                            }${artifact.mode ? `&mode=${artifact.mode}` : ""}`}
-                          >
-                            {artifact.kind === "full-book-generation"
-                              ? "Listen current full book"
-                              : "Open current sample"}
-                          </Link>
-                          {artifact.assetPath ? (
+                        generatedAt={artifact.generatedAt}
+                        meta={`${artifact.narratorId ? `Narrator ${artifact.narratorId} · ` : ""}${artifact.mode ? `Mode ${artifact.mode} · ` : ""}${artifact.provider === "openai" ? "OpenAI TTS" : "Local mock TTS"}`}
+                        timestampClassName="rounded-full border border-amber-300/40 bg-amber-300/15 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-amber-100"
+                        title={
+                          artifact.kind === "full-book-generation"
+                            ? "Current full-book render"
+                            : "Current sample render"
+                        }
+                        actions={
+                          <>
                             <Link
                               className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
-                              href={`/api/audio/generated/artifacts/${artifact.id}`}
-                              target="_blank"
+                              href={`/player/${bookId}?artifactId=${artifact.id}&artifactKind=${artifact.kind}&renderState=current${
+                                artifact.narratorId ? `&narrator=${artifact.narratorId}` : ""
+                              }${artifact.mode ? `&mode=${artifact.mode}` : ""}`}
                             >
                               {artifact.kind === "full-book-generation"
-                                ? "Download current full book"
-                                : "Download current sample"}
+                                ? "Listen current full book"
+                                : "Open current sample"}
                             </Link>
-                          ) : null}
-                        </div>
-                      </article>
+                            {artifact.assetPath ? (
+                              <Link
+                                className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+                                href={`/api/audio/generated/artifacts/${artifact.id}`}
+                                target="_blank"
+                              >
+                                {artifact.kind === "full-book-generation"
+                                  ? "Download current full book"
+                                  : "Download current sample"}
+                              </Link>
+                            ) : null}
+                          </>
+                        }
+                      />
                     ))}
                   </div>
                 </div>
@@ -1686,52 +1679,40 @@ export default function BookPage({ params }: BookPageProps) {
                   </div>
                   <div className="grid gap-3">
                     {renderGroups.archivedRenders.map((artifact) => (
-                      <article
+                      <RenderArtifactCard
                         key={artifact.id}
-                        className="rounded-[1.35rem] border border-white/10 bg-black/10 px-4 py-4"
-                      >
-                        <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div>
-                            <p className="text-sm font-semibold text-white">
-                              {artifact.kind === "full-book-generation"
-                                ? "Archived full-book render"
-                                : "Archived sample render"}
-                            </p>
-                            <p className="mt-2 text-sm text-stone-300">
-                              {artifact.narratorId ? `Narrator ${artifact.narratorId} · ` : ""}
-                              {artifact.mode ? `Mode ${artifact.mode} · ` : ""}
-                              {artifact.provider === "openai" ? "OpenAI TTS" : "Local mock TTS"}
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-full border border-white/15 bg-white/8 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-200">
-                              {new Date(artifact.generatedAt).toLocaleString()}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="mt-4 flex flex-wrap gap-3">
-                          <Link
-                            className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
-                            href={`/player/${bookId}?artifactId=${artifact.id}&artifactKind=${artifact.kind}&renderState=archived${
-                              artifact.narratorId ? `&narrator=${artifact.narratorId}` : ""
-                            }${artifact.mode ? `&mode=${artifact.mode}` : ""}`}
-                          >
-                            Open archived render
-                          </Link>
-                          {artifact.assetPath ? (
+                        generatedAt={artifact.generatedAt}
+                        meta={`${artifact.narratorId ? `Narrator ${artifact.narratorId} · ` : ""}${artifact.mode ? `Mode ${artifact.mode} · ` : ""}${artifact.provider === "openai" ? "OpenAI TTS" : "Local mock TTS"}`}
+                        title={
+                          artifact.kind === "full-book-generation"
+                            ? "Archived full-book render"
+                            : "Archived sample render"
+                        }
+                        actions={
+                          <>
                             <Link
                               className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
-                              href={`/api/audio/generated/artifacts/${artifact.id}`}
-                              target="_blank"
+                              href={`/player/${bookId}?artifactId=${artifact.id}&artifactKind=${artifact.kind}&renderState=archived${
+                                artifact.narratorId ? `&narrator=${artifact.narratorId}` : ""
+                              }${artifact.mode ? `&mode=${artifact.mode}` : ""}`}
                             >
-                              Download archived render
+                              Open archived render
                             </Link>
-                          ) : null}
-                          <span className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-stone-300">
-                            Job {artifact.jobId.slice(0, 12)}…
-                          </span>
-                        </div>
-                      </article>
+                            {artifact.assetPath ? (
+                              <Link
+                                className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
+                                href={`/api/audio/generated/artifacts/${artifact.id}`}
+                                target="_blank"
+                              >
+                                Download archived render
+                              </Link>
+                            ) : null}
+                            <span className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-medium text-stone-300">
+                              Job {artifact.jobId.slice(0, 12)}…
+                            </span>
+                          </>
+                        }
+                      />
                     ))}
                   </div>
                 </div>
