@@ -40,6 +40,37 @@ const narratorNames: Record<string, string> = {
   jules: "Jules",
 };
 
+const tastePresets = [
+  {
+    id: "storytime",
+    title: "Storytime",
+    detail: "Warm and cinematic for fiction that should feel rich right away.",
+    narratorId: "marlowe",
+    mode: "immersive" as ListeningMode,
+  },
+  {
+    id: "focus",
+    title: "Focus",
+    detail: "Clean and steady for long listening sessions with minimal distraction.",
+    narratorId: "sloane",
+    mode: "classic" as ListeningMode,
+  },
+  {
+    id: "night",
+    title: "Night",
+    detail: "Soft pacing with atmosphere for winding down or late-night listening.",
+    narratorId: "sloane",
+    mode: "ambient" as ListeningMode,
+  },
+  {
+    id: "bright",
+    title: "Bright",
+    detail: "Lighter energy for upbeat listening and fast-moving samples.",
+    narratorId: "jules",
+    mode: "ambient" as ListeningMode,
+  },
+] as const;
+
 function getBookCoverTheme(title: string) {
   const themes = [
     "from-amber-200 via-orange-100 to-stone-50",
@@ -134,6 +165,10 @@ export default function PlayerPage({ params }: PlayerPageProps) {
 
   const chapters = useMemo(() => parseChapters(draftText), [draftText]);
   const narratorName = narratorNames[narratorId] ?? narratorNames.marlowe;
+  const activeTastePreset =
+    tastePresets.find(
+      (preset) => preset.narratorId === narratorId && preset.mode === mode,
+    ) ?? null;
   const resolvedTasteMeta = describeListeningTasteSource(resolvedTaste);
   const sampleIsReady =
     (!!sampleOutput &&
@@ -808,6 +843,63 @@ export default function PlayerPage({ params }: PlayerPageProps) {
               {narratorName} in {mode}
             </p>
           </article>
+        </div>
+        <div className="mt-5 rounded-[1.5rem] border border-stone-200/80 bg-white/85 p-4 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-2xl">
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
+                Quick taste presets
+              </p>
+              <p className="mt-2 text-sm leading-6 text-stone-600">
+                Switch the player into a known listening personality without going back
+                to setup.
+              </p>
+            </div>
+            <div className="rounded-[1.1rem] border border-stone-200 bg-stone-50 px-4 py-3 shadow-sm">
+              <p className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-stone-500">
+                Active preset
+              </p>
+              <p className="mt-2 text-base font-semibold text-stone-950">
+                {activeTastePreset?.title ?? "Custom mix"}
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {tastePresets.map((preset) => {
+              const isActive = activeTastePreset?.id === preset.id;
+              return (
+                <Link
+                  key={preset.id}
+                  className={`rounded-[1.3rem] border px-4 py-4 shadow-sm transition ${
+                    isActive
+                      ? "border-stone-950 bg-[linear-gradient(135deg,#fff8ed_0%,#f5eee0_100%)] shadow-[0_18px_36px_-30px_rgba(41,37,36,0.55)]"
+                      : "border-stone-200 bg-stone-50/70 hover:border-stone-300 hover:bg-white"
+                  }`}
+                  href={`/player/${bookId}?artifact=${preferredAudioKind === "full-book-generation" ? "full" : "sample"}&narrator=${preset.narratorId}&mode=${preset.mode}&renderState=current`}
+                >
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-base font-semibold text-stone-950">
+                      {preset.title}
+                    </span>
+                    {isActive ? (
+                      <span className="rounded-full bg-stone-950 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white">
+                        Active
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-stone-600">{preset.detail}</p>
+                  <div className="mt-3 flex flex-wrap gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                    <span className="rounded-full bg-stone-100 px-2.5 py-1">
+                      {narratorNames[preset.narratorId] ?? preset.narratorId}
+                    </span>
+                    <span className="rounded-full bg-stone-100 px-2.5 py-1 capitalize">
+                      {preset.mode}
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
         </div>
       </section>
       {sampleIsReady && fullBookIsReady ? (
