@@ -276,10 +276,13 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
   await expect(
     page.getByRole("heading", { level: 2, name: "Memorable lines, ready when you are" }),
   ).toBeVisible();
+  const recentQuotesCard = page
+    .getByRole("heading", { level: 2, name: "Memorable lines, ready when you are" })
+    .locator("xpath=ancestor::section[1]");
   await expect(
-    page.getByText("“The city woke late.”", { exact: true }),
+    recentQuotesCard.getByText("“The city woke late.”", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Jump to quote" }).first().click();
+  await recentQuotesCard.getByRole("link", { name: "Jump to quote" }).first().click();
   await page.waitForURL("**/player/demo-book-1**");
   await expect(
     page.getByRole("heading", { level: 2, name: "Chapter 2" }),

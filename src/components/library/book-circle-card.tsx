@@ -165,6 +165,22 @@ export function BookCircleCard({
                 </p>
               </div>
             ) : null}
+            <div className="mt-4 flex flex-wrap gap-3">
+              <a
+                className="rounded-full bg-stone-950 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-stone-800"
+                href={href}
+              >
+                Open live edition
+              </a>
+              {latestQuote ? (
+                <a
+                  className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-semibold text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                  href={`/player/${bookId}?quoteChapter=${latestQuote.chapterIndex}&quoteProgress=${latestQuote.progressSeconds}`}
+                >
+                  Open latest moment
+                </a>
+              ) : null}
+            </div>
           </div>
           <div className="grid gap-3 md:grid-cols-3">
             {[
