@@ -181,6 +181,18 @@ export default function PlayerPage({ params }: PlayerPageProps) {
   const fullBookIsReady = !!fullBookOutput?.assetPath;
   const persistedArtifactKind = persistedPlaybackState?.playbackArtifactKind ?? null;
   const historicalArtifactId = searchParams.get("artifactId");
+  const jumpChapterIndex = Number(searchParams.get("quoteChapter"));
+  const jumpProgressSeconds = Number(searchParams.get("quoteProgress"));
+  const initialJumpTarget =
+    Number.isInteger(jumpChapterIndex) &&
+    jumpChapterIndex >= 0 &&
+    Number.isFinite(jumpProgressSeconds) &&
+    jumpProgressSeconds >= 0
+      ? {
+          chapterIndex: jumpChapterIndex,
+          progressSeconds: jumpProgressSeconds,
+        }
+      : null;
   const historicalArtifactKind =
     searchParams.get("artifactKind") === "full-book-generation"
       ? "full-book-generation"
@@ -1007,6 +1019,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
         bookId={bookId}
         bookTitle={bookTitle}
         chapters={playerChapters}
+        initialJumpTarget={initialJumpTarget}
         initialPlaybackDefaults={hydratedPlaybackDefaults}
         initialPlaybackState={hydratedPlaybackState}
         mode={mode}
