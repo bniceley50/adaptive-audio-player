@@ -23,6 +23,9 @@ function readQuotesWithMeta(): QuoteWithBookMeta[] {
 
 export function RecentQuotesCard() {
   const [quotes, setQuotes] = useState<QuoteWithBookMeta[]>(() => readQuotesWithMeta());
+  const [shareFeedback, setShareFeedback] = useState<"idle" | "copied" | "shared">(
+    "idle",
+  );
 
   useEffect(() => {
     function refreshQuotes() {
@@ -51,6 +54,28 @@ export function RecentQuotesCard() {
 
     return `${quoteCount} saved moments are ready to revisit.`;
   }, [quoteCount]);
+
+  async function shareQuote(quote: QuoteWithBookMeta) {
+    const shareText = `“${quote.text}”\n\n${quote.bookTitle ?? quote.bookId} · Chapter ${quote.chapterIndex + 1}`;
+
+    if (typeof navigator !== "undefined" && "share" in navigator) {
+      try {
+        await navigator.share({
+          title: quote.bookTitle ?? "Saved quote",
+          text: shareText,
+        });
+        setShareFeedback("shared");
+        return;
+      } catch {
+        // Fall through to clipboard copy.
+      }
+    }
+
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      await navigator.clipboard.writeText(shareText);
+      setShareFeedback("copied");
+    }
+  }
 
   return (
     <section className="rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#fffaf7_0%,#ffffff_52%,#fff1f2_100%)] p-6 shadow-[0_22px_70px_-46px_rgba(28,25,23,0.42)]">
@@ -97,6 +122,19 @@ export function RecentQuotesCard() {
             >
               Jump to quote
             </Link>
+            <button
+              className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+              type="button"
+              onClick={() => {
+                void shareQuote(latestQuote);
+              }}
+            >
+              {shareFeedback === "shared"
+                ? "Shared"
+                : shareFeedback === "copied"
+                  ? "Copied"
+                  : "Share quote"}
+            </button>
           </div>
         </div>
       ) : null}
