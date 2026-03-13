@@ -78,6 +78,7 @@ export function NowPlaying({
 
   const totalSeconds = chapterDurationSeconds;
   const currentChapter = chapters[currentChapterIndex];
+  const latestBookmark = bookmarks[0] ?? null;
   const progressPercent = getPlaybackPercent(progressSeconds);
   const remainingSeconds = Math.max(totalSeconds - progressSeconds, 0);
   const remainingBookSeconds =
@@ -659,6 +660,34 @@ export function NowPlaying({
               >
                 Clear playback defaults
               </button>
+            </div>
+          ) : null}
+          {latestBookmark ? (
+            <div className="mt-4 rounded-[1.4rem] border border-amber-200 bg-[linear-gradient(135deg,#fff7ed_0%,#ffffff_100%)] px-4 py-4 text-sm text-stone-700 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="max-w-xl">
+                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-amber-700">
+                    Jump back in
+                  </p>
+                  <p className="mt-2 text-lg font-semibold text-stone-950">
+                    {formatBookmarkLabel(
+                      chapters[latestBookmark.chapterIndex]?.title ??
+                        `Chapter ${latestBookmark.chapterIndex + 1}`,
+                      latestBookmark.progressSeconds,
+                    )}
+                  </p>
+                  <p className="mt-2 leading-6 text-stone-600">
+                    Your most recent saved moment is ready to resume instantly.
+                  </p>
+                </div>
+                <button
+                  className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
+                  type="button"
+                  onClick={() => jumpToBookmark(latestBookmark)}
+                >
+                  Resume from bookmark
+                </button>
+              </div>
             </div>
           ) : null}
           {bookmarks.length > 0 ? (
