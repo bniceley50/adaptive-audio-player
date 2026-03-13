@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { RemovedBookRecoveryCard } from "@/components/library/removed-book-recovery-card";
 import { RetryJobButton } from "@/components/library/retry-job-button";
 import { AppShell } from "@/components/shared/app-shell";
+import { JourneyRail } from "@/components/shared/journey-rail";
 import {
   getBookCoverTheme,
   getBookInitials,
@@ -897,71 +898,7 @@ export default function BookPage({ params }: BookPageProps) {
             </p>
           </div>
         </div>
-        <div className="mt-5 grid gap-3 md:grid-cols-4">
-          {setupJourney.map((step, index) => {
-            const state =
-              index < setupJourneyIndex
-                ? "complete"
-                : index === setupJourneyIndex
-                  ? "active"
-                  : "upcoming";
-            return (
-              <article
-                key={step.id}
-                className={`rounded-[1.4rem] border px-4 py-4 shadow-sm transition ${
-                  state === "active"
-                    ? "border-stone-900 bg-stone-950 text-white"
-                    : state === "complete"
-                      ? "border-emerald-200 bg-emerald-50/80"
-                      : "border-stone-200/80 bg-white/80"
-                }`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span
-                    className={`inline-flex rounded-full px-2.5 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] ${
-                      state === "active"
-                        ? "bg-white/15 text-white"
-                        : state === "complete"
-                          ? "bg-emerald-600 text-white"
-                          : "bg-stone-200 text-stone-700"
-                    }`}
-                  >
-                    {step.label}
-                  </span>
-                  <span
-                    className={`text-[0.65rem] font-semibold uppercase tracking-[0.18em] ${
-                      state === "active"
-                        ? "text-white/70"
-                        : state === "complete"
-                          ? "text-emerald-700"
-                          : "text-stone-500"
-                    }`}
-                  >
-                    {state === "active"
-                      ? "Current"
-                      : state === "complete"
-                        ? "Done"
-                        : "Next"}
-                  </span>
-                </div>
-                <p
-                  className={`mt-4 text-base font-semibold ${
-                    state === "active" ? "text-white" : "text-stone-950"
-                  }`}
-                >
-                  {step.title}
-                </p>
-                <p
-                  className={`mt-1 text-sm leading-6 ${
-                    state === "active" ? "text-white/75" : "text-stone-600"
-                  }`}
-                >
-                  {step.detail}
-                </p>
-              </article>
-            );
-          })}
-        </div>
+        <JourneyRail currentIndex={setupJourneyIndex} steps={setupJourney} />
       </section>
       <section className="rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#fffefb_0%,#ffffff_42%,#eef4ff_100%)] p-6 shadow-[0_24px_70px_-46px_rgba(28,25,23,0.42)]">
         <div className="flex flex-wrap items-start justify-between gap-4">
