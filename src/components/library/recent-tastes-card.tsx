@@ -18,8 +18,27 @@ type RecentTaste = {
   mode: string;
 };
 
+const pinnedTasteStorageKey = "adaptive-audio-player.pinned-taste";
+
+function readPinnedTasteBookId(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return window.localStorage.getItem(pinnedTasteStorageKey);
+}
+
 function readRecentTastes(): RecentTaste[] {
-  return readLocalListeningProfiles()
+  const pinnedBookId = readPinnedTasteBookId();
+  const profiles = readLocalListeningProfiles();
+  const orderedProfiles = pinnedBookId
+    ? [
+        ...profiles.filter((profile) => profile.bookId === pinnedBookId),
+        ...profiles.filter((profile) => profile.bookId !== pinnedBookId),
+      ]
+    : profiles;
+
+  return orderedProfiles
     .slice(0, 4)
     .map((profile) => {
       const book = readLocalLibraryBook(profile.bookId);
@@ -37,10 +56,14 @@ export function RecentTastesCard() {
     typeof window === "undefined" ? [] : readRecentTastes(),
   );
   const [feedbackBookId, setFeedbackBookId] = useState<string | null>(null);
+  const [pinnedBookId, setPinnedBookId] = useState<string | null>(() =>
+    typeof window === "undefined" ? null : readPinnedTasteBookId(),
+  );
 
   useEffect(() => {
     function refresh() {
       setRecentTastes(readRecentTastes());
+      setPinnedBookId(readPinnedTasteBookId());
     }
 
     refresh();
@@ -110,9 +133,34 @@ export function RecentTastesCard() {
                       <span className="rounded-full bg-stone-100 px-2.5 py-1 capitalize">
                         {taste.mode}
                       </span>
+                      {pinnedBookId === taste.bookId ? (
+                        <span className="rounded-full bg-amber-100 px-2.5 py-1 text-amber-800">
+                          Pinned
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    <button
+                      className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                      type="button"
+                      onClick={() => {
+                        if (typeof window === "undefined") {
+                          return;
+                        }
+
+                        if (pinnedBookId === taste.bookId) {
+                          window.localStorage.removeItem(pinnedTasteStorageKey);
+                          setPinnedBookId(null);
+                        } else {
+                          window.localStorage.setItem(pinnedTasteStorageKey, taste.bookId);
+                          setPinnedBookId(taste.bookId);
+                        }
+                        setRecentTastes(readRecentTastes());
+                      }}
+                    >
+                      {pinnedBookId === taste.bookId ? "Unpin" : "Pin taste"}
+                    </button>
                     <button
                       className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
                       type="button"
