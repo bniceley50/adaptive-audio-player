@@ -147,6 +147,49 @@ export default async function HomePage() {
         recentBooks: backendLibrarySnapshot.playbackStates.filter(
           (entry) => Boolean(entry.state.updatedAt),
         ).length,
+        listeningStreakDays: (() => {
+          const dayKeys = [...new Set(
+            backendLibrarySnapshot.playbackStates
+              .map((entry) => entry.state.updatedAt)
+              .filter(Boolean)
+              .map((value) => {
+                const normalized = new Date(value as string);
+                if (Number.isNaN(normalized.getTime())) {
+                  return null;
+                }
+
+                normalized.setHours(0, 0, 0, 0);
+                return normalized.getTime();
+              })
+              .filter((value): value is number => value !== null),
+          )].sort((left, right) => right - left);
+
+          if (dayKeys.length === 0) {
+            return 0;
+          }
+
+          let streak = 0;
+          let cursor = new Date();
+          cursor.setHours(0, 0, 0, 0);
+
+          for (const dayKey of dayKeys) {
+            if (dayKey === cursor.getTime()) {
+              streak += 1;
+              cursor = new Date(cursor.getTime() - 1000 * 60 * 60 * 24);
+              continue;
+            }
+
+            if (streak === 0 && dayKey === cursor.getTime() - 1000 * 60 * 60 * 24) {
+              streak += 1;
+              cursor = new Date(dayKey - 1000 * 60 * 60 * 24);
+              continue;
+            }
+
+            break;
+          }
+
+          return streak;
+        })(),
       }
     : {
         activeBooks: 0,
@@ -155,6 +198,7 @@ export default async function HomePage() {
         activeChapters: 0,
         topBookTitle: null,
         recentBooks: 0,
+        listeningStreakDays: 0,
       };
   const primaryAction = latestSyncedBook
     ? {

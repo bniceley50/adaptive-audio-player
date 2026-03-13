@@ -15,6 +15,46 @@ interface ListeningStats {
   activeChapters: number;
   topBookTitle: string | null;
   recentBooks: number;
+  listeningStreakDays: number;
+}
+
+function calculateListeningStreak(updatedAtValues: string[]): number {
+  const dayKeys = [...new Set(
+    updatedAtValues
+      .map((value) => new Date(value))
+      .filter((value) => !Number.isNaN(value.getTime()))
+      .map((value) => {
+        const normalized = new Date(value);
+        normalized.setHours(0, 0, 0, 0);
+        return normalized.getTime();
+      }),
+  )].sort((left, right) => right - left);
+
+  if (dayKeys.length === 0) {
+    return 0;
+  }
+
+  let streak = 0;
+  let cursor = new Date();
+  cursor.setHours(0, 0, 0, 0);
+
+  for (const dayKey of dayKeys) {
+    if (dayKey === cursor.getTime()) {
+      streak += 1;
+      cursor = new Date(cursor.getTime() - 1000 * 60 * 60 * 24);
+      continue;
+    }
+
+    if (streak === 0 && dayKey === cursor.getTime() - 1000 * 60 * 60 * 24) {
+      streak += 1;
+      cursor = new Date(dayKey - 1000 * 60 * 60 * 24);
+      continue;
+    }
+
+    break;
+  }
+
+  return streak;
 }
 
 function deriveListeningPulse(stats: ListeningStats) {
@@ -70,6 +110,7 @@ function computeLocalListeningStats(): ListeningStats {
   let recentBooks = 0;
   let topBookTitle: string | null = null;
   let topBookScore = -1;
+  const updatedAtValues: string[] = [];
 
   for (const book of books) {
     const playback = readPersistedPlaybackState(book.bookId);
@@ -89,6 +130,9 @@ function computeLocalListeningStats(): ListeningStats {
     if (Date.now() - updatedAt < 1000 * 60 * 60 * 24 * 7) {
       recentBooks += 1;
     }
+    if (playback.updatedAt) {
+      updatedAtValues.push(playback.updatedAt);
+    }
 
     const score =
       playback.progressSeconds + (playback.bookmarks?.length ?? 0) * 60;
@@ -105,6 +149,7 @@ function computeLocalListeningStats(): ListeningStats {
     activeChapters,
     topBookTitle,
     recentBooks,
+    listeningStreakDays: calculateListeningStreak(updatedAtValues),
   };
 }
 
@@ -198,6 +243,14 @@ export function ListeningStatsCard({
             Chapters touched
           </p>
           <p className="mt-2 text-2xl font-semibold text-stone-950">{stats.activeChapters}</p>
+        </article>
+        <article className="rounded-[1.4rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-4 shadow-sm">
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
+            Listening streak
+          </p>
+          <p className="mt-2 text-2xl font-semibold text-stone-950">
+            {stats.listeningStreakDays} day{stats.listeningStreakDays === 1 ? "" : "s"}
+          </p>
         </article>
       </div>
       <div className="mt-5 grid gap-3 lg:grid-cols-2">
