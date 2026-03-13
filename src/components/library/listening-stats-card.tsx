@@ -13,6 +13,52 @@ interface ListeningStats {
   totalBookmarks: number;
   listenedMinutes: number;
   activeChapters: number;
+  topBookTitle: string | null;
+  recentBooks: number;
+}
+
+function deriveListeningPulse(stats: ListeningStats) {
+  if (stats.listenedMinutes >= 180 || stats.activeBooks >= 4) {
+    return {
+      label: "Deep in the stack",
+      detail:
+        "You are actively moving through multiple books. This is a great moment to lock in a default taste and keep your library consistent.",
+      hint: "Try promoting your favorite narrator + mode as the default for new imports.",
+      accent: "from-amber-100 via-orange-50 to-white",
+      badge: "High momentum",
+    };
+  }
+
+  if (stats.totalBookmarks >= 3 || stats.activeChapters >= 6) {
+    return {
+      label: "Exploring with intent",
+      detail:
+        "You are sampling, bookmarking, and moving around books like a serious listener. The app is starting to understand your rhythm.",
+      hint: "Use bookmarks and sample/full-book compare to decide which taste deserves a full render.",
+      accent: "from-sky-100 via-cyan-50 to-white",
+      badge: "Discovery mode",
+    };
+  }
+
+  if (stats.activeBooks >= 1 || stats.listenedMinutes > 0) {
+    return {
+      label: "Getting your bearings",
+      detail:
+        "You have started listening, which is enough to shape smarter defaults and better resume behavior across the library.",
+      hint: "Generate one strong sample, then save that taste as your default for the next import.",
+      accent: "from-emerald-100 via-lime-50 to-white",
+      badge: "Building taste",
+    };
+  }
+
+  return {
+    label: "Fresh library",
+    detail:
+      "You have a clean slate. Load the guided demo or import a book to start building a listening profile worth syncing everywhere.",
+    hint: "A single finished sample is enough to make the dashboard feel alive.",
+    accent: "from-stone-100 via-stone-50 to-white",
+    badge: "Ready to start",
+  };
 }
 
 function computeLocalListeningStats(): ListeningStats {
@@ -21,6 +67,9 @@ function computeLocalListeningStats(): ListeningStats {
   let totalBookmarks = 0;
   let listenedSeconds = 0;
   let activeChapters = 0;
+  let recentBooks = 0;
+  let topBookTitle: string | null = null;
+  let topBookScore = -1;
 
   for (const book of books) {
     const playback = readPersistedPlaybackState(book.bookId);
@@ -35,6 +84,18 @@ function computeLocalListeningStats(): ListeningStats {
     totalBookmarks += playback.bookmarks?.length ?? 0;
     listenedSeconds += playback.progressSeconds;
     activeChapters += playback.currentChapterIndex + 1;
+
+    const updatedAt = new Date(playback.updatedAt ?? 0).getTime();
+    if (Date.now() - updatedAt < 1000 * 60 * 60 * 24 * 7) {
+      recentBooks += 1;
+    }
+
+    const score =
+      playback.progressSeconds + (playback.bookmarks?.length ?? 0) * 60;
+    if (score > topBookScore) {
+      topBookScore = score;
+      topBookTitle = book.title;
+    }
   }
 
   return {
@@ -42,6 +103,8 @@ function computeLocalListeningStats(): ListeningStats {
     totalBookmarks,
     listenedMinutes: Math.max(0, Math.round(listenedSeconds / 60)),
     activeChapters,
+    topBookTitle,
+    recentBooks,
   };
 }
 
@@ -51,6 +114,7 @@ export function ListeningStatsCard({
   initialStats: ListeningStats;
 }) {
   const [stats, setStats] = useState<ListeningStats>(initialStats);
+  const pulse = deriveListeningPulse(stats);
 
   useEffect(() => {
     function refreshStats() {
@@ -86,6 +150,30 @@ export function ListeningStatsCard({
           Updated from your current library state
         </div>
       </div>
+      <div
+        className={`mt-5 rounded-[1.6rem] border border-stone-200 bg-[linear-gradient(135deg,var(--tw-gradient-stops))] ${pulse.accent} p-5 shadow-sm`}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-2xl">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="rounded-full bg-stone-950 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-white">
+                Listening pulse
+              </span>
+              <span className="rounded-full border border-stone-200 bg-white/80 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-700 shadow-sm">
+                {pulse.badge}
+              </span>
+            </div>
+            <h3 className="mt-3 text-xl font-semibold text-stone-950">{pulse.label}</h3>
+            <p className="mt-2 text-sm leading-6 text-stone-700">{pulse.detail}</p>
+          </div>
+          <div className="max-w-sm rounded-[1.25rem] border border-stone-200 bg-white/85 px-4 py-4 text-sm text-stone-700 shadow-sm backdrop-blur">
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+              Best next move
+            </p>
+            <p className="mt-2 leading-6">{pulse.hint}</p>
+          </div>
+        </div>
+      </div>
       <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <article className="rounded-[1.4rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-4 shadow-sm">
           <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
@@ -110,6 +198,34 @@ export function ListeningStatsCard({
             Chapters touched
           </p>
           <p className="mt-2 text-2xl font-semibold text-stone-950">{stats.activeChapters}</p>
+        </article>
+      </div>
+      <div className="mt-5 grid gap-3 lg:grid-cols-2">
+        <article className="rounded-[1.4rem] border border-stone-200 bg-[linear-gradient(180deg,#fcfbf8_0%,#ffffff_100%)] p-4 shadow-sm">
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
+            Most active title
+          </p>
+          <p className="mt-2 text-lg font-semibold text-stone-950">
+            {stats.topBookTitle ?? "No standout title yet"}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-stone-600">
+            {stats.topBookTitle
+              ? "This is the title your current progress and bookmarks are clustering around."
+              : "Finish one sample or start a listening session and your dashboard will spotlight the book carrying the most momentum."}
+          </p>
+        </article>
+        <article className="rounded-[1.4rem] border border-stone-200 bg-[linear-gradient(180deg,#fcfbf8_0%,#ffffff_100%)] p-4 shadow-sm">
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
+            Active this week
+          </p>
+          <p className="mt-2 text-lg font-semibold text-stone-950">
+            {stats.recentBooks} {stats.recentBooks === 1 ? "book" : "books"}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-stone-600">
+            {stats.recentBooks > 0
+              ? "These titles have recent listening activity, which is why the dashboard feels alive and ready to resume."
+              : "No recent listening yet. Load the guided demo or finish one sample to start building weekly momentum."}
+          </p>
         </article>
       </div>
     </section>

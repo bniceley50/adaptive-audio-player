@@ -128,12 +128,33 @@ export default async function HomePage() {
           (sum, entry) => sum + entry.state.currentChapterIndex + 1,
           0,
         ),
+        topBookTitle:
+          [...backendLibrarySnapshot.playbackStates]
+            .sort((left, right) => {
+              const leftScore =
+                left.state.progressSeconds + (left.state.bookmarks?.length ?? 0) * 60;
+              const rightScore =
+                right.state.progressSeconds + (right.state.bookmarks?.length ?? 0) * 60;
+              return rightScore - leftScore;
+            })
+            .map(
+              (entry) =>
+                backendLibrarySnapshot.libraryBooks.find(
+                  (book) => book.bookId === entry.bookId,
+                )?.title,
+            )
+            .find(Boolean) ?? null,
+        recentBooks: backendLibrarySnapshot.playbackStates.filter(
+          (entry) => Boolean(entry.state.updatedAt),
+        ).length,
       }
     : {
         activeBooks: 0,
         totalBookmarks: 0,
         listenedMinutes: 0,
         activeChapters: 0,
+        topBookTitle: null,
+        recentBooks: 0,
       };
   const primaryAction = latestSyncedBook
     ? {
