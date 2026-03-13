@@ -17,7 +17,10 @@ import {
   type PersistedBookmark,
   type PersistedPlaybackState,
 } from "@/lib/playback/local-playback";
-import { touchLocalLibraryBook } from "@/lib/library/local-library";
+import {
+  touchLocalLibraryBook,
+  writeDefaultListeningProfile,
+} from "@/lib/library/local-library";
 
 export function NowPlaying({
   audioKind,
@@ -67,6 +70,9 @@ export function NowPlaying({
     persistedState?.sleepTimerMinutes ?? playbackDefaults?.sleepTimerMinutes ?? null,
   );
   const [shareFeedback, setShareFeedback] = useState<"idle" | "shared" | "copied">(
+    "idle",
+  );
+  const [defaultTasteFeedback, setDefaultTasteFeedback] = useState<"idle" | "saved">(
     "idle",
   );
 
@@ -236,6 +242,17 @@ export function NowPlaying({
       await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
       setShareFeedback("copied");
     }
+  }
+
+  function saveAsDefaultTaste() {
+    writeDefaultListeningProfile({
+      bookId,
+      narratorId: narratorName.toLowerCase().replace(/\s+/g, "-"),
+      narratorName,
+      mode,
+    });
+    setDefaultTasteFeedback("saved");
+    window.setTimeout(() => setDefaultTasteFeedback("idle"), 1800);
   }
 
   const handleKeyboardShortcut = useEffectEvent((event: KeyboardEvent) => {
@@ -499,17 +516,26 @@ export function NowPlaying({
                 Turn your current listening setup into a shareable card-worthy moment.
               </p>
             </div>
-            <button
-              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-stone-950 shadow-sm transition hover:bg-fuchsia-50"
-              type="button"
-              onClick={() => {
-                void shareTasteCard();
-              }}
-            >
-              {typeof navigator !== "undefined" && typeof navigator.share === "function"
-                ? "Share taste"
-                : "Copy taste"}
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button
+                className="rounded-full border border-white/20 bg-black/15 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-black/25"
+                type="button"
+                onClick={saveAsDefaultTaste}
+              >
+                Make this my default
+              </button>
+              <button
+                className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-stone-950 shadow-sm transition hover:bg-fuchsia-50"
+                type="button"
+                onClick={() => {
+                  void shareTasteCard();
+                }}
+              >
+                {typeof navigator !== "undefined" && typeof navigator.share === "function"
+                  ? "Share taste"
+                  : "Copy taste"}
+              </button>
+            </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-fuchsia-100">
             <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5">
@@ -522,13 +548,18 @@ export function NowPlaying({
               {mode}
             </span>
           </div>
-          {shareFeedback !== "idle" ? (
-            <p className="mt-3 text-sm text-fuchsia-100">
-              {shareFeedback === "shared"
-                ? "Taste shared."
-                : "Taste copied to clipboard."}
-            </p>
-          ) : null}
+          <div className="mt-3 space-y-1 text-sm text-fuchsia-100">
+            {defaultTasteFeedback === "saved" ? (
+              <p>This listening taste is now your default for new imports.</p>
+            ) : null}
+            {shareFeedback !== "idle" ? (
+              <p>
+                {shareFeedback === "shared"
+                  ? "Taste shared."
+                  : "Taste copied to clipboard."}
+              </p>
+            ) : null}
+          </div>
         </div>
       </section>
 
