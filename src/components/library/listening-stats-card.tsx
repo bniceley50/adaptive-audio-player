@@ -159,6 +159,9 @@ export function ListeningStatsCard({
   initialStats: ListeningStats;
 }) {
   const [stats, setStats] = useState<ListeningStats>(initialStats);
+  const [shareFeedback, setShareFeedback] = useState<"idle" | "shared" | "copied">(
+    "idle",
+  );
   const pulse = deriveListeningPulse(stats);
   const weeklyGoalMinutes = 120;
   const weeklyGoalProgress = Math.min(
@@ -181,6 +184,41 @@ export function ListeningStatsCard({
       window.removeEventListener(workspaceContextChangedEvent, refreshStats);
     };
   }, []);
+
+  async function shareWeeklyRecap() {
+    const recapText = [
+      "My Adaptive Audio Player weekly recap",
+      `${stats.listenedMinutes} minutes listened`,
+      `${stats.listeningStreakDays} day${stats.listeningStreakDays === 1 ? "" : "s"} listening streak`,
+      stats.topBookTitle ? `Most active title: ${stats.topBookTitle}` : null,
+      `${weeklyGoalProgress}% of my weekly goal`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    const shareUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/`
+        : "https://github.com/bniceley50/adaptive-audio-player";
+
+    if (typeof navigator !== "undefined" && "share" in navigator) {
+      try {
+        await navigator.share({
+          title: "Adaptive Audio Player weekly recap",
+          text: recapText,
+          url: shareUrl,
+        });
+        setShareFeedback("shared");
+        return;
+      } catch {
+        // fall through to clipboard copy
+      }
+    }
+
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      await navigator.clipboard.writeText(`${recapText}\n${shareUrl}`);
+      setShareFeedback("copied");
+    }
+  }
 
   return (
     <section className="rounded-[1.75rem] border border-stone-200 bg-white p-6 shadow-sm">
@@ -311,6 +349,46 @@ export function ListeningStatsCard({
               ? "These titles have recent listening activity, which is why the dashboard feels alive and ready to resume."
               : "No recent listening yet. Load the guided demo or finish one sample to start building weekly momentum."}
           </p>
+        </article>
+        <article className="rounded-[1.4rem] border border-stone-200 bg-[linear-gradient(180deg,#eef4ff_0%,#ffffff_100%)] p-4 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
+                Weekly recap
+              </p>
+              <p className="mt-2 text-lg font-semibold text-stone-950">
+                Share your listening rhythm
+              </p>
+              <p className="mt-2 text-sm leading-6 text-stone-600">
+                Turn your listening stats into a clean recap you can send to friends or a
+                book circle.
+              </p>
+            </div>
+            <button
+              className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+              type="button"
+              onClick={() => {
+                void shareWeeklyRecap();
+              }}
+            >
+              {shareFeedback === "shared"
+                ? "Recap shared"
+                : shareFeedback === "copied"
+                  ? "Recap copied"
+                  : "Share recap"}
+            </button>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-700">
+            <span className="rounded-full border border-stone-200 bg-white px-3 py-1.5">
+              {stats.listenedMinutes} min
+            </span>
+            <span className="rounded-full border border-stone-200 bg-white px-3 py-1.5">
+              {stats.listeningStreakDays} day streak
+            </span>
+            <span className="rounded-full border border-stone-200 bg-white px-3 py-1.5">
+              {weeklyGoalProgress}% goal
+            </span>
+          </div>
         </article>
       </div>
     </section>
