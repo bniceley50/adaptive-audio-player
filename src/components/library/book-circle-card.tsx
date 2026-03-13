@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { readSavedQuotes, type SavedQuote } from "@/lib/library/local-quotes";
 
 export function BookCircleCard({
+  bookId,
   bookTitle,
   coverGlyph,
   coverLabel,
@@ -12,6 +14,7 @@ export function BookCircleCard({
   mode,
   narratorName,
 }: {
+  bookId: string;
   bookTitle: string;
   coverGlyph?: string | null;
   coverLabel?: string | null;
@@ -21,9 +24,11 @@ export function BookCircleCard({
   mode?: string | null;
   narratorName?: string | null;
 }) {
+  const [savedQuotes] = useState<SavedQuote[]>(() => readSavedQuotes(bookId));
   const [shareFeedback, setShareFeedback] = useState<"idle" | "shared" | "copied">(
     "idle",
   );
+  const latestQuote = useMemo(() => savedQuotes[0] ?? null, [savedQuotes]);
 
   const accentClass =
     coverTheme === "storm"
@@ -39,7 +44,10 @@ export function BookCircleCard({
       narratorName && mode
         ? `Start with ${narratorName} in ${mode} mode.`
         : "Start with the current listening edition.";
-    const shareText = `Join my book circle for ${bookTitle}. ${tasteLine}`;
+    const momentLine = latestQuote
+      ? `A saved moment to start from: “${latestQuote.text}”`
+      : "Bring your reactions, quotes, and favorite scenes.";
+    const shareText = `Join my book circle for ${bookTitle}. ${tasteLine} ${momentLine}`;
     const shareUrl =
       typeof window !== "undefined"
         ? `${window.location.origin}${href}`
@@ -137,11 +145,26 @@ export function BookCircleCard({
               <span className="rounded-full border border-stone-200 bg-stone-100 px-3 py-1.5">
                 Invite by link
               </span>
+              {latestQuote ? (
+                <span className="rounded-full border border-stone-200 bg-stone-100 px-3 py-1.5">
+                  Quote ready
+                </span>
+              ) : null}
             </div>
             <p className="mt-4 text-sm leading-6 text-stone-600">
               Start with one trusted edition, then let friends react, compare moments,
               and keep the conversation around the same listening experience.
             </p>
+            {latestQuote ? (
+              <div className="mt-4 rounded-[1.2rem] border border-stone-200 bg-stone-50/80 p-4">
+                <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
+                  Circle opener
+                </p>
+                <p className="mt-2 text-sm italic leading-6 text-stone-800">
+                  “{latestQuote.text}”
+                </p>
+              </div>
+            ) : null}
           </div>
           <div className="grid gap-3 md:grid-cols-3">
             {[

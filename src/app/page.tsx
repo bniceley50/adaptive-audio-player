@@ -360,6 +360,7 @@ export default async function HomePage() {
           <RecentQuotesCard />
           {circleBook ? (
             <BookCircleCard
+              bookId={circleBook.bookId}
               bookTitle={circleBook.title}
               coverGlyph={circleBook.coverGlyph ?? null}
               coverLabel={circleBook.coverLabel ?? null}
