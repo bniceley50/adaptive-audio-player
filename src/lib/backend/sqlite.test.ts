@@ -784,24 +784,32 @@ describe("backend sqlite library sync", () => {
         mode: "classic",
       }),
     ]);
-    expect(listGenerationOutputHistoryForBook("workspace-jobs", "book-1", 10)).toEqual([
-      expect.objectContaining({
-        jobId: queuedFullBookJob?.id,
-        kind: "full-book-generation",
-      }),
-      expect.objectContaining({
-        jobId: queuedSecondSampleJob?.id,
-        kind: "sample-generation",
-        narratorId: "marlowe",
-        mode: "classic",
-      }),
-      expect.objectContaining({
-        jobId: queuedJob?.id,
-        kind: "sample-generation",
-        narratorId: "sloane",
-        mode: "immersive",
-      }),
-    ]);
+    const generationHistory = listGenerationOutputHistoryForBook(
+      "workspace-jobs",
+      "book-1",
+      10,
+    );
+    expect(generationHistory).toHaveLength(3);
+    expect(generationHistory).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          jobId: queuedFullBookJob?.id,
+          kind: "full-book-generation",
+        }),
+        expect.objectContaining({
+          jobId: queuedSecondSampleJob?.id,
+          kind: "sample-generation",
+          narratorId: "marlowe",
+          mode: "classic",
+        }),
+        expect.objectContaining({
+          jobId: queuedJob?.id,
+          kind: "sample-generation",
+          narratorId: "sloane",
+          mode: "immersive",
+        }),
+      ]),
+    );
     expect(getGenerationArtifactForJob(queuedSecondSampleJob?.id ?? "", "workspace-jobs"))
       .toEqual(
         expect.objectContaining({

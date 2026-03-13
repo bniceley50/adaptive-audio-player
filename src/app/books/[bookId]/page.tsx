@@ -12,6 +12,7 @@ import {
 import { AppShell } from "@/components/shared/app-shell";
 import { BookIdentityCard } from "@/components/shared/book-identity-card";
 import { JourneyHero } from "@/components/shared/journey-hero";
+import { RenderHistorySummary } from "@/components/shared/render-history-summary";
 import { StateSummaryPanel } from "@/components/shared/state-summary-panel";
 import {
   getUpdatedAtWeight,
@@ -1583,44 +1584,34 @@ export default function BookPage({ params }: BookPageProps) {
                 </span>
               </div>
               {renderGroups.currentRenders.length > 0 && renderGroups.archivedRenders.length > 0 ? (
-                <div className="mt-5 rounded-[1.4rem] border border-sky-200/25 bg-[linear-gradient(135deg,rgba(125,211,252,0.14)_0%,rgba(255,255,255,0.05)_100%)] px-4 py-4">
-                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-sky-100">
-                    Compare current vs archived
-                  </p>
-                  <p className="mt-3 text-sm leading-6 text-stone-200">
-                    The current section shows the renders this book should use right now.
-                    The archived section keeps older versions available for playback and
-                    download, so you can compare how the taste changed over time without
-                    losing the earlier work.
-                  </p>
-                  <div className="mt-4 grid gap-3 md:grid-cols-3">
-                    <article className="rounded-[1.1rem] border border-white/10 bg-white/6 px-4 py-3">
-                      <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-300">
-                        Current renders
-                      </p>
-                      <p className="mt-2 text-lg font-semibold text-white">
-                        {renderGroups.currentRenders.length}
-                      </p>
-                    </article>
-                    <article className="rounded-[1.1rem] border border-white/10 bg-white/6 px-4 py-3">
-                      <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-300">
-                        Archived renders
-                      </p>
-                      <p className="mt-2 text-lg font-semibold text-white">
-                        {renderGroups.archivedRenders.length}
-                      </p>
-                    </article>
-                    <article className="rounded-[1.1rem] border border-white/10 bg-white/6 px-4 py-3">
-                      <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-300">
-                        Best use
-                      </p>
-                      <p className="mt-2 text-sm leading-6 text-white">
-                        Listen from current. Use archived renders only when you want to
-                        review or compare previous versions.
-                      </p>
-                    </article>
-                  </div>
-                </div>
+                <RenderHistorySummary
+                  className="mt-5 rounded-[1.4rem] border border-sky-200/25 bg-[linear-gradient(135deg,rgba(125,211,252,0.14)_0%,rgba(255,255,255,0.05)_100%)] px-4 py-4"
+                  cardClassName="rounded-[1.1rem] border border-white/10 bg-white/6 px-4 py-3"
+                  detail="The current section shows the renders this book should use right now. The archived section keeps older versions available for playback and download, so you can compare how the taste changed over time without losing the earlier work."
+                  detailClassName="mt-3 text-sm leading-6 text-stone-200"
+                  eyebrow="Compare current vs archived"
+                  eyebrowClassName="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-sky-100"
+                  labelClassName="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-300"
+                  bodyClassName="mt-2 text-sm leading-6 text-white"
+                  cards={[
+                    {
+                      id: "current",
+                      label: "Current renders",
+                      detail: String(renderGroups.currentRenders.length),
+                    },
+                    {
+                      id: "archived",
+                      label: "Archived renders",
+                      detail: String(renderGroups.archivedRenders.length),
+                    },
+                    {
+                      id: "best-use",
+                      label: "Best use",
+                      detail:
+                        "Listen from current. Use archived renders only when you want to review or compare previous versions.",
+                    },
+                  ]}
+                />
               ) : null}
               {renderGroups.currentRenders.length > 0 ? (
                 <div className="mt-5">
