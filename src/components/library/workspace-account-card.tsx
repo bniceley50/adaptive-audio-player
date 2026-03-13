@@ -4,6 +4,10 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import {
+  getBookCoverTheme,
+  getBookInitials,
+} from "@/features/reader/shared-support";
 import { pushClientLibrarySyncSnapshot } from "@/lib/backend/client-sync";
 import {
   clearAdaptiveAudioPlayerLocalState,
@@ -106,28 +110,6 @@ function parseSessionActivity(activityLabel: string | null) {
   };
 }
 
-function getBookCoverTheme(title: string) {
-  const themes = [
-    "from-amber-200 via-orange-100 to-stone-50",
-    "from-sky-200 via-cyan-100 to-white",
-    "from-rose-200 via-fuchsia-100 to-white",
-    "from-emerald-200 via-teal-100 to-white",
-    "from-violet-200 via-indigo-100 to-white",
-  ];
-  const index =
-    title.split("").reduce((sum, character) => sum + character.charCodeAt(0), 0) %
-    themes.length;
-  return themes[index];
-}
-
-function getBookInitials(title: string) {
-  return title
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
-}
 
 export function WorkspaceAccountCard({
   currentUser,

@@ -6,6 +6,10 @@ import { RetryJobButton } from "@/components/library/retry-job-button";
 import { AppShell } from "@/components/shared/app-shell";
 import { StateSummaryPanel } from "@/components/shared/state-summary-panel";
 import {
+  getBookCoverTheme,
+  getBookInitials,
+} from "@/features/reader/shared-support";
+import {
   getGenerationArtifactForJob,
   getGenerationOutputForBookKind,
   getSyncedBookDisplayMeta,
@@ -82,29 +86,6 @@ function buildArtifactPlayerHref(input: {
   }
 
   return `/player/${input.bookId}?${params.toString()}`;
-}
-
-function getBookCoverTheme(title: string) {
-  const themes = [
-    "from-amber-200 via-orange-100 to-stone-50",
-    "from-sky-200 via-cyan-100 to-white",
-    "from-rose-200 via-fuchsia-100 to-white",
-    "from-emerald-200 via-teal-100 to-white",
-    "from-violet-200 via-indigo-100 to-white",
-  ];
-  const index =
-    title.split("").reduce((sum, character) => sum + character.charCodeAt(0), 0) %
-    themes.length;
-  return themes[index];
-}
-
-function getBookInitials(title: string) {
-  return title
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
 }
 
 export default async function JobsPage() {

@@ -3,6 +3,11 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import {
+  getBookCoverTheme,
+  getBookInitials,
+  getUpdatedAtWeight,
+} from "@/features/reader/shared-support";
 import { pushClientLibrarySyncSnapshot } from "@/lib/backend/client-sync";
 import type { LibrarySyncSnapshot } from "@/lib/backend/types";
 import {
@@ -51,15 +56,6 @@ interface ShelfBookRecord {
   searchText: string;
 }
 
-function getUpdatedAtWeight(updatedAt: string | null | undefined): number {
-  if (!updatedAt) {
-    return 0;
-  }
-
-  const timestamp = new Date(updatedAt).getTime();
-  return Number.isNaN(timestamp) ? 0 : timestamp;
-}
-
 function mergeLibraryBooks(
   localBooks: LocalLibraryBook[],
   syncedBooks: LocalLibraryBook[],
@@ -94,29 +90,6 @@ function mergeLibraryBooks(
   }
 
   return [...merged.values()];
-}
-
-function getBookCoverTheme(title: string) {
-  const themes = [
-    "from-amber-200 via-orange-100 to-stone-50",
-    "from-sky-200 via-cyan-100 to-white",
-    "from-rose-200 via-fuchsia-100 to-white",
-    "from-emerald-200 via-teal-100 to-white",
-    "from-violet-200 via-indigo-100 to-white",
-  ];
-  const index =
-    title.split("").reduce((sum, character) => sum + character.charCodeAt(0), 0) %
-    themes.length;
-  return themes[index];
-}
-
-function getBookInitials(title: string) {
-  return title
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
 }
 
 function getShelfCoverTheme(book: LocalLibraryBook) {
