@@ -65,6 +65,7 @@ export function RecentTastesCard() {
   );
   const [feedbackBookId, setFeedbackBookId] = useState<string | null>(null);
   const [copiedEditionBookId, setCopiedEditionBookId] = useState<string | null>(null);
+  const [sharedEditionBookId, setSharedEditionBookId] = useState<string | null>(null);
   const [importValue, setImportValue] = useState("");
   const [importFeedback, setImportFeedback] = useState<null | "applied" | "invalid">(null);
   const [pinnedBookId, setPinnedBookId] = useState<string | null>(() =>
@@ -114,6 +115,35 @@ export function RecentTastesCard() {
     await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
     setCopiedEditionBookId(taste.bookId);
     window.setTimeout(() => setCopiedEditionBookId(null), 1800);
+  }
+
+  async function shareEdition(taste: RecentTaste) {
+    const shareText = `Try my listening edition for ${taste.bookTitle}: ${taste.narratorName} in ${taste.mode} mode.`;
+    const shareUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/books/${taste.bookId}`
+        : "https://github.com/bniceley50/adaptive-audio-player";
+
+    if (typeof navigator !== "undefined" && "share" in navigator) {
+      try {
+        await navigator.share({
+          title: `${taste.bookTitle} · Listening edition`,
+          text: shareText,
+          url: shareUrl,
+        });
+        setSharedEditionBookId(taste.bookId);
+        window.setTimeout(() => setSharedEditionBookId(null), 1800);
+        return;
+      } catch {
+        // fall through to clipboard
+      }
+    }
+
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+      setSharedEditionBookId(taste.bookId);
+      window.setTimeout(() => setSharedEditionBookId(null), 1800);
+    }
   }
 
   function importEdition() {
@@ -282,6 +312,15 @@ export function RecentTastesCard() {
                     >
                       {copiedEditionBookId === taste.bookId ? "Copied edition" : "Copy edition"}
                     </button>
+                    <button
+                      className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                      type="button"
+                      onClick={() => {
+                        void shareEdition(taste);
+                      }}
+                    >
+                      {sharedEditionBookId === taste.bookId ? "Shared edition" : "Share edition"}
+                    </button>
                     <Link
                       className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
                       href={`/books/${taste.bookId}`}
@@ -298,6 +337,11 @@ export function RecentTastesCard() {
                 {copiedEditionBookId === taste.bookId ? (
                   <p className="mt-3 text-sm text-sky-700">
                     Listening edition copied. Share it anywhere.
+                  </p>
+                ) : null}
+                {sharedEditionBookId === taste.bookId ? (
+                  <p className="mt-3 text-sm text-fuchsia-700">
+                    Listening edition shared.
                   </p>
                 ) : null}
               </article>
