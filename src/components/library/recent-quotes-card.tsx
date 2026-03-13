@@ -38,6 +38,7 @@ export function RecentQuotesCard() {
   }, []);
 
   const latestQuote = quotes[0] ?? null;
+  const pinnedQuotes = quotes.filter((quote) => quote.pinnedAt);
   const quoteCount = quotes.length;
   const helperCopy = useMemo(() => {
     if (quoteCount === 0) {
@@ -77,6 +78,11 @@ export function RecentQuotesCard() {
             “{latestQuote.text}”
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-stone-600">
+            {latestQuote.pinnedAt ? (
+              <span className="rounded-full border border-amber-300 bg-amber-100 px-3 py-1.5 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-amber-800">
+                Pinned quote
+              </span>
+            ) : null}
             <span className="rounded-full border border-stone-200 bg-white px-3 py-1.5">
               {latestQuote.bookTitle ?? latestQuote.bookId}
             </span>
@@ -87,10 +93,31 @@ export function RecentQuotesCard() {
           <div className="mt-4 flex flex-wrap gap-3">
             <Link
               className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
-              href={`/player/${latestQuote.bookId}`}
+              href={`/player/${latestQuote.bookId}?quoteChapter=${latestQuote.chapterIndex}&quoteProgress=${latestQuote.progressSeconds}`}
             >
-              Open book
+              Jump to quote
             </Link>
+          </div>
+        </div>
+      ) : null}
+
+      {pinnedQuotes.length > 1 ? (
+        <div className="mt-5 rounded-[1.4rem] border border-amber-200 bg-amber-50/70 px-4 py-4 shadow-sm">
+          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-amber-800">
+            Pinned favorites
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {pinnedQuotes.slice(1).map((quote) => (
+              <Link
+                key={quote.id}
+                className="inline-flex rounded-full border border-amber-300 bg-white px-3 py-2 text-sm font-medium text-stone-700 transition hover:border-amber-400 hover:bg-amber-50"
+                href={`/player/${quote.bookId}?quoteChapter=${quote.chapterIndex}&quoteProgress=${quote.progressSeconds}`}
+              >
+                {quote.bookTitle ?? quote.bookId}
+                {" · "}
+                Chapter {quote.chapterIndex + 1}
+              </Link>
+            ))}
           </div>
         </div>
       ) : null}
@@ -111,6 +138,14 @@ export function RecentQuotesCard() {
               <p className="mt-1 text-xs uppercase tracking-[0.16em] text-stone-500">
                 Chapter {quote.chapterIndex + 1} · {formatPlaybackTime(quote.progressSeconds)}
               </p>
+              <div className="mt-3">
+                <Link
+                  className="inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                  href={`/player/${quote.bookId}?quoteChapter=${quote.chapterIndex}&quoteProgress=${quote.progressSeconds}`}
+                >
+                  Jump to quote
+                </Link>
+              </div>
             </div>
           ))}
         </div>

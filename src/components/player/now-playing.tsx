@@ -33,6 +33,7 @@ export function NowPlaying({
   bookId,
   bookTitle,
   chapters,
+  initialJumpTarget,
   initialPlaybackDefaults,
   initialPlaybackState,
   narratorName,
@@ -44,12 +45,26 @@ export function NowPlaying({
   bookId: string;
   bookTitle: string;
   chapters: Chapter[];
+  initialJumpTarget?: { chapterIndex: number; progressSeconds: number } | null;
   initialPlaybackDefaults?: PlaybackDefaults | null;
   initialPlaybackState?: PersistedPlaybackState | null;
   narratorName: string;
   mode: string;
   playbackIsReady: boolean;
 }) {
+  function sortQuotes(quotes: SavedQuote[]) {
+    return [...quotes].sort((left, right) => {
+      const leftPinnedAt = left.pinnedAt ? new Date(left.pinnedAt).getTime() : 0;
+      const rightPinnedAt = right.pinnedAt ? new Date(right.pinnedAt).getTime() : 0;
+
+      if (leftPinnedAt !== rightPinnedAt) {
+        return rightPinnedAt - leftPinnedAt;
+      }
+
+      return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+    });
+  }
+
   const persistedState = useMemo(() => {
     const localState = readPersistedPlaybackState(bookId);
     return resolvePreferredPlaybackState(localState, initialPlaybackState ?? null);
@@ -60,10 +75,13 @@ export function NowPlaying({
   );
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentChapterIndex, setCurrentChapterIndex] = useState(
-    Math.min(persistedState?.currentChapterIndex ?? 0, Math.max(chapters.length - 1, 0)),
+    Math.min(
+      initialJumpTarget?.chapterIndex ?? persistedState?.currentChapterIndex ?? 0,
+      Math.max(chapters.length - 1, 0),
+    ),
   );
   const [progressSeconds, setProgressSeconds] = useState(
-    persistedState?.progressSeconds ?? 43,
+    initialJumpTarget?.progressSeconds ?? persistedState?.progressSeconds ?? 43,
   );
   const [speed, setSpeed] = useState(
     persistedState?.speed ?? playbackDefaults?.speed ?? 1,
@@ -131,6 +149,18 @@ export function NowPlaying({
     () => currentChapter?.text.slice(0, 180).trim() ?? "",
     [currentChapter],
   );
+
+  useEffect(() => {
+    if (!initialJumpTarget) {
+      return;
+    }
+
+    setCurrentChapterIndex(
+      Math.min(initialJumpTarget.chapterIndex, Math.max(chapters.length - 1, 0)),
+    );
+    setProgressSeconds(initialJumpTarget.progressSeconds);
+    setIsPlaying(false);
+  }, [chapters.length, initialJumpTarget]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -235,6 +265,12 @@ export function NowPlaying({
     setIsPlaying(false);
   }
 
+  function jumpToQuote(quote: SavedQuote) {
+    setCurrentChapterIndex(quote.chapterIndex);
+    setProgressSeconds(quote.progressSeconds);
+    setIsPlaying(false);
+  }
+
   function removeBookmark(bookmarkId: string) {
     setBookmarks((currentBookmarks) =>
       currentBookmarks.filter((bookmark) => bookmark.id !== bookmarkId),
@@ -252,10 +288,12 @@ export function NowPlaying({
     );
 
     if (duplicateQuote) {
-      setSavedQuotes((currentQuotes) => [
-        duplicateQuote,
-        ...currentQuotes.filter((quote) => quote.id !== duplicateQuote.id),
-      ]);
+      setSavedQuotes((currentQuotes) =>
+        sortQuotes([
+          duplicateQuote,
+          ...currentQuotes.filter((quote) => quote.id !== duplicateQuote.id),
+        ]),
+      );
       return;
     }
 
@@ -266,14 +304,32 @@ export function NowPlaying({
       progressSeconds,
       text: excerptQuoteText,
       createdAt: new Date().toISOString(),
+      pinnedAt: null,
     };
 
-    setSavedQuotes((currentQuotes) => [nextQuote, ...currentQuotes].slice(0, 12));
+    setSavedQuotes((currentQuotes) =>
+      sortQuotes([nextQuote, ...currentQuotes]).slice(0, 12),
+    );
   }
 
   function removeQuote(quoteId: string) {
     setSavedQuotes((currentQuotes) =>
       currentQuotes.filter((quote) => quote.id !== quoteId),
+    );
+  }
+
+  function togglePinnedQuote(quoteId: string) {
+    setSavedQuotes((currentQuotes) =>
+      sortQuotes(
+        currentQuotes.map((quote) =>
+          quote.id === quoteId
+            ? {
+                ...quote,
+                pinnedAt: quote.pinnedAt ? null : new Date().toISOString(),
+              }
+            : quote,
+        ),
+      ),
     );
   }
 
@@ -773,6 +829,11 @@ export function NowPlaying({
                   <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-rose-700">
                     Favorite moment
                   </p>
+                  {latestQuote.pinnedAt ? (
+                    <p className="mt-2 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-amber-700">
+                      Pinned quote
+                    </p>
+                  ) : null}
                   <p className="mt-2 text-base font-medium italic text-stone-950">
                     “{latestQuote.text}”
                   </p>
@@ -783,15 +844,31 @@ export function NowPlaying({
                     {formatPlaybackTime(latestQuote.progressSeconds)}
                   </p>
                 </div>
-                <button
-                  className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
-                  type="button"
-                  onClick={() => {
-                    void copyQuote(latestQuote.text);
-                  }}
-                >
-                  Copy quote
-                </button>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
+                    type="button"
+                    onClick={() => jumpToQuote(latestQuote)}
+                  >
+                    Jump to quote
+                  </button>
+                  <button
+                    className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                    type="button"
+                    onClick={() => {
+                      void copyQuote(latestQuote.text);
+                    }}
+                  >
+                    Copy quote
+                  </button>
+                  <button
+                    className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                    type="button"
+                    onClick={() => togglePinnedQuote(latestQuote.id)}
+                  >
+                    {latestQuote.pinnedAt ? "Unpin quote" : "Pin quote"}
+                  </button>
+                </div>
               </div>
             </div>
           ) : null}
@@ -807,12 +884,26 @@ export function NowPlaying({
                   >
                     <p className="text-base font-medium italic text-stone-950">“{quote.text}”</p>
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                      <p className="text-stone-500">
-                        {quoteChapter?.title ?? `Chapter ${quote.chapterIndex + 1}`}
-                        {" · "}
-                        {formatPlaybackTime(quote.progressSeconds)}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2 text-stone-500">
+                        <p>
+                          {quoteChapter?.title ?? `Chapter ${quote.chapterIndex + 1}`}
+                          {" · "}
+                          {formatPlaybackTime(quote.progressSeconds)}
+                        </p>
+                        {quote.pinnedAt ? (
+                          <span className="rounded-full border border-amber-300 bg-amber-100 px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-amber-800">
+                            Pinned
+                          </span>
+                        ) : null}
+                      </div>
                       <div className="flex flex-wrap gap-3">
+                        <button
+                          className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
+                          type="button"
+                          onClick={() => jumpToQuote(quote)}
+                        >
+                          Jump to quote
+                        </button>
                         <button
                           className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
                           type="button"
@@ -821,6 +912,13 @@ export function NowPlaying({
                           }}
                         >
                           Copy
+                        </button>
+                        <button
+                          className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                          type="button"
+                          onClick={() => togglePinnedQuote(quote.id)}
+                        >
+                          {quote.pinnedAt ? "Unpin" : "Pin"}
                         </button>
                         <button
                           className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"

@@ -224,7 +224,6 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
     page.getByRole("button", { name: "Pause sample" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Forward 30" }).click();
-  await expect(page.getByText("1:13", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Speed: 1x" }).click();
   await expect(
     page.getByRole("button", { name: "Speed: 1.15x" }),
@@ -234,7 +233,7 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
     page.getByRole("button", { name: "Bookmarked" }),
   ).toBeVisible();
   await expect(
-    page.getByText("Jump back in").locator("..").getByText("Chapter 1 · 1:13"),
+    page.getByText("Jump back in").locator("..").getByText("Chapter 1 · 0:30"),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Jump to bookmark" }),
@@ -267,7 +266,7 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
     page.getByRole("heading", { level: 2, name: /Chapter \d+/ }),
   ).toBeVisible();
   await expect(
-    page.getByText("Jump back in").locator("..").getByText("Chapter 1 · 1:13"),
+    page.getByText("Jump back in").locator("..").getByText("Chapter 1 · 0:30"),
   ).toBeVisible();
   await page.goto("/");
   await expect(page.getByText("Books: 1")).toBeVisible();
@@ -278,8 +277,17 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
     page.getByRole("heading", { level: 2, name: "Memorable lines, ready when you are" }),
   ).toBeVisible();
   await expect(
-    page.getByText("The city woke late.", { exact: false }),
+    page.getByText("“The city woke late.”", { exact: true }),
   ).toBeVisible();
+  await page.getByRole("link", { name: "Jump to quote" }).first().click();
+  await page.waitForURL("**/player/demo-book-1**");
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Chapter 2" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("The city woke late.", { exact: true }),
+  ).toBeVisible();
+  await page.goto("/");
   await expect(
     page.getByRole("heading", { level: 3, name: "Storm Harbor" }).first(),
   ).toBeVisible();

@@ -7,6 +7,7 @@ export interface SavedQuote {
   progressSeconds: number;
   text: string;
   createdAt: string;
+  pinnedAt?: string | null;
 }
 
 export const savedQuotesChangedEvent = "adaptive-audio-player.saved-quotes-changed";
@@ -39,7 +40,13 @@ export function readSavedQuotes(bookId: string): SavedQuote[] {
         typeof quote.progressSeconds === "number" &&
         typeof quote.text === "string" &&
         typeof quote.createdAt === "string",
-    );
+    ).map((quote) => ({
+      ...quote,
+      pinnedAt:
+        typeof quote.pinnedAt === "string" || quote.pinnedAt === null
+          ? quote.pinnedAt
+          : null,
+    }));
   } catch {
     return [];
   }
@@ -102,8 +109,14 @@ export function readAllSavedQuotes(): Array<
     }
   }
 
-  return results.sort(
-    (left, right) =>
-      new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
-  );
+  return results.sort((left, right) => {
+    const leftPinnedAt = left.pinnedAt ? new Date(left.pinnedAt).getTime() : 0;
+    const rightPinnedAt = right.pinnedAt ? new Date(right.pinnedAt).getTime() : 0;
+
+    if (leftPinnedAt !== rightPinnedAt) {
+      return rightPinnedAt - leftPinnedAt;
+    }
+
+    return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+  });
 }
