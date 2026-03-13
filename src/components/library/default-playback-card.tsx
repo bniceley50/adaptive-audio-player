@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { workspaceContextChangedEvent } from "@/lib/library/local-state";
 import {
   clearPlaybackDefaults,
   playbackDefaultsChangedEvent,
@@ -15,18 +16,35 @@ interface DefaultPlaybackCardProps {
 export function DefaultPlaybackCard({
   initialDefaults = null,
 }: DefaultPlaybackCardProps) {
-  const [defaults, setDefaults] = useState(() => initialDefaults ?? readPlaybackDefaults());
+  const [localDefaults, setLocalDefaults] = useState<
+    PlaybackDefaults | null | undefined
+  >(undefined);
 
   useEffect(() => {
     function handleDefaultsChanged() {
-      setDefaults(readPlaybackDefaults());
+      setLocalDefaults(readPlaybackDefaults());
+    }
+
+    function handleWorkspaceContextChanged() {
+      setLocalDefaults(undefined);
     }
 
     window.addEventListener(playbackDefaultsChangedEvent, handleDefaultsChanged);
+    window.addEventListener(
+      workspaceContextChangedEvent,
+      handleWorkspaceContextChanged,
+    );
     return () => {
       window.removeEventListener(playbackDefaultsChangedEvent, handleDefaultsChanged);
+      window.removeEventListener(
+        workspaceContextChangedEvent,
+        handleWorkspaceContextChanged,
+      );
     };
   }, []);
+
+  const defaults =
+    localDefaults !== undefined ? localDefaults : initialDefaults ?? readPlaybackDefaults();
 
   return (
     <section className="rounded-[1.75rem] border border-stone-200 bg-white p-6 shadow-sm">

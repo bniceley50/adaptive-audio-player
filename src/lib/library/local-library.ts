@@ -525,6 +525,32 @@ export function readLocalGenerationOutput(
   );
 }
 
+export function resolvePreferredGenerationOutput(
+  localOutput: LocalGenerationOutput | null,
+  syncedOutput: LocalGenerationOutput | null,
+): LocalGenerationOutput | null {
+  if (!localOutput) {
+    return syncedOutput;
+  }
+
+  if (!syncedOutput) {
+    return localOutput;
+  }
+
+  const localGeneratedAt = new Date(localOutput.generatedAt).getTime();
+  const syncedGeneratedAt = new Date(syncedOutput.generatedAt).getTime();
+
+  if (Number.isNaN(localGeneratedAt)) {
+    return syncedOutput;
+  }
+
+  if (Number.isNaN(syncedGeneratedAt)) {
+    return localOutput;
+  }
+
+  return localGeneratedAt >= syncedGeneratedAt ? localOutput : syncedOutput;
+}
+
 export function writeLocalGenerationOutput(output: LocalGenerationOutput): void {
   if (typeof window === "undefined") {
     return;

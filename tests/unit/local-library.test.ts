@@ -10,6 +10,7 @@ import {
   readLocalSampleRequest,
   readRemovedLocalLibraryBook,
   replaceRemovedLocalLibraryBooks,
+  resolvePreferredGenerationOutput,
   upsertLocalLibraryBook,
   writeLocalDraftText,
   writeLocalGenerationOutput,
@@ -161,6 +162,36 @@ describe("replaceRemovedLocalLibraryBooks", () => {
     ).toHaveLength(0);
     expect(readRemovedLocalLibraryBook("demo-book-2")?.book.title).toBe(
       "Quiet Harbor Revised",
+    );
+  });
+});
+
+describe("resolvePreferredGenerationOutput", () => {
+  it("prefers the fresher generated output", () => {
+    const localOutput = {
+      workspaceId: "workspace-1",
+      bookId: "demo-book-1",
+      kind: "sample-generation" as const,
+      narratorId: "marlowe",
+      mode: "ambient",
+      chapterCount: 4,
+      assetPath: "/audio/local.mp3",
+      mimeType: "audio/mpeg",
+      provider: "mock" as const,
+      generatedAt: "2026-03-13T12:00:00.000Z",
+    };
+
+    const syncedOutput = {
+      ...localOutput,
+      assetPath: "/audio/synced.mp3",
+      generatedAt: "2026-03-13T13:00:00.000Z",
+    };
+
+    expect(resolvePreferredGenerationOutput(localOutput, syncedOutput)?.assetPath).toBe(
+      "/audio/synced.mp3",
+    );
+    expect(resolvePreferredGenerationOutput(syncedOutput, localOutput)?.assetPath).toBe(
+      "/audio/synced.mp3",
     );
   });
 });

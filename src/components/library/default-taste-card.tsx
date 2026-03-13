@@ -9,29 +9,47 @@ import {
   defaultTasteChangedEvent,
   readDefaultListeningProfile,
 } from "@/lib/library/local-library";
+import { workspaceContextChangedEvent } from "@/lib/library/local-state";
 
 interface DefaultTasteCardProps {
   initialProfile?: LocalListeningProfile | null;
 }
 
 export function DefaultTasteCard({ initialProfile = null }: DefaultTasteCardProps) {
-  const [defaultProfile, setDefaultProfile] = useState(() =>
-    initialProfile ?? readDefaultListeningProfile(),
-  );
+  const [localDefaultProfile, setLocalDefaultProfile] = useState<
+    LocalListeningProfile | null | undefined
+  >(undefined);
 
   useEffect(() => {
     function handleDefaultTasteChanged() {
-      setDefaultProfile(readDefaultListeningProfile());
+      setLocalDefaultProfile(readDefaultListeningProfile());
+    }
+
+    function handleWorkspaceContextChanged() {
+      setLocalDefaultProfile(undefined);
     }
 
     window.addEventListener(defaultTasteChangedEvent, handleDefaultTasteChanged);
+    window.addEventListener(
+      workspaceContextChangedEvent,
+      handleWorkspaceContextChanged,
+    );
     return () => {
       window.removeEventListener(
         defaultTasteChangedEvent,
         handleDefaultTasteChanged,
       );
+      window.removeEventListener(
+        workspaceContextChangedEvent,
+        handleWorkspaceContextChanged,
+      );
     };
   }, []);
+
+  const defaultProfile =
+    localDefaultProfile !== undefined
+      ? localDefaultProfile
+      : initialProfile ?? readDefaultListeningProfile();
 
   function clearDefaultTaste() {
     clearDefaultListeningProfile();

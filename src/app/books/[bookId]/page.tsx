@@ -20,6 +20,7 @@ import {
   readLocalLibraryBook,
   readLocalSampleRequest,
   readRemovedLocalLibraryBook,
+  resolvePreferredGenerationOutput,
   resolveListeningTaste,
   writeDefaultListeningProfile,
   writeLocalGenerationOutput,
@@ -614,14 +615,29 @@ export default function BookPage({ params }: BookPageProps) {
         setGeneratedSample(hydratedRequest);
       }
 
-      if (!sampleOutput && backendSampleOutput) {
-        writeLocalGenerationOutput(backendSampleOutput);
-        setSampleOutput(backendSampleOutput);
+      const preferredSampleOutput = resolvePreferredGenerationOutput(
+        sampleOutput,
+        backendSampleOutput,
+      );
+      const preferredFullBookOutput = resolvePreferredGenerationOutput(
+        fullBookOutput,
+        backendFullBookOutput,
+      );
+
+      if (
+        preferredSampleOutput &&
+        preferredSampleOutput.generatedAt !== sampleOutput?.generatedAt
+      ) {
+        writeLocalGenerationOutput(preferredSampleOutput);
+        setSampleOutput(preferredSampleOutput);
       }
 
-      if (!fullBookOutput && backendFullBookOutput) {
-        writeLocalGenerationOutput(backendFullBookOutput);
-        setFullBookOutput(backendFullBookOutput);
+      if (
+        preferredFullBookOutput &&
+        preferredFullBookOutput.generatedAt !== fullBookOutput?.generatedAt
+      ) {
+        writeLocalGenerationOutput(preferredFullBookOutput);
+        setFullBookOutput(preferredFullBookOutput);
       }
     }
 

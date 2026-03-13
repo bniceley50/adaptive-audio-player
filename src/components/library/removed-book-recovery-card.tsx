@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { pushClientLibrarySyncSnapshot } from "@/lib/backend/client-sync";
 import {
   clearRemovedLocalLibraryBook,
   formatRelativeUpdatedAt,
@@ -44,8 +45,9 @@ export function RemovedBookRecoveryCard({
         <button
           className="rounded-full bg-stone-950 px-5 py-3 text-sm font-medium text-white"
           type="button"
-          onClick={() => {
+          onClick={async () => {
             restoreRemovedLocalLibraryBook(removedBook.book.bookId);
+            await pushClientLibrarySyncSnapshot().catch(() => null);
             router.push(returnHref);
           }}
         >
@@ -54,8 +56,9 @@ export function RemovedBookRecoveryCard({
         <button
           className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700"
           type="button"
-          onClick={() => {
+          onClick={async () => {
             clearRemovedLocalLibraryBook(removedBook.book.bookId);
+            await pushClientLibrarySyncSnapshot().catch(() => null);
             router.push(returnHref);
           }}
         >

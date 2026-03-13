@@ -15,6 +15,7 @@ import {
   listeningProfileChangedEvent,
   renameLocalLibraryBook,
   readLocalGenerationOutput,
+  resolvePreferredGenerationOutput,
   readLocalLibraryBooks,
   readRemovedLocalLibraryBooks,
   readLocalSampleRequest,
@@ -273,14 +274,16 @@ export function ContinueListeningRow({
                       source: "recent" as const,
                     }
                   : localResolvedTaste;
-        const sampleOutput =
-          readLocalGenerationOutput(book.bookId, "sample-generation") ??
+        const sampleOutput = resolvePreferredGenerationOutput(
+          readLocalGenerationOutput(book.bookId, "sample-generation"),
           initialGenerationOutputsByKey.get(`${book.bookId}:sample-generation`) ??
-          null;
-        const fullBookOutput =
-          readLocalGenerationOutput(book.bookId, "full-book-generation") ??
+            null,
+        );
+        const fullBookOutput = resolvePreferredGenerationOutput(
+          readLocalGenerationOutput(book.bookId, "full-book-generation"),
           initialGenerationOutputsByKey.get(`${book.bookId}:full-book-generation`) ??
-          null;
+            null,
+        );
         const hasSample =
           !!sampleOutput ||
           ((sampleRequest ?? initialSnapshot?.sampleRequest ?? null)?.bookId === book.bookId &&
