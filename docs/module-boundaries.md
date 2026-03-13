@@ -74,6 +74,7 @@ Location:
 - `src/lib/playback/**`
 - `src/lib/jobs/**`
 - `src/lib/import/**`
+- `src/lib/types/repositories.ts`
 
 Responsibilities:
 - persistence
@@ -128,6 +129,7 @@ Storage helpers may:
 - read/write local/browser state
 - read/write backend state
 - expose merge/precedence helpers
+- implement repository interfaces from `src/lib/types/repositories.ts`
 
 Storage helpers should not:
 - format product copy
