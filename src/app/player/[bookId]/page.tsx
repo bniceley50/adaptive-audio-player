@@ -6,6 +6,10 @@ import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
 import { RemovedBookRecoveryCard } from "@/components/library/removed-book-recovery-card";
 import { AppShell } from "@/components/shared/app-shell";
+import {
+  ActionLaunchpad,
+  type ActionLaunchpadItem,
+} from "@/components/shared/action-launchpad";
 import { BookIdentityCard } from "@/components/shared/book-identity-card";
 import { JourneyHero } from "@/components/shared/journey-hero";
 import { StateSummaryPanel } from "@/components/shared/state-summary-panel";
@@ -243,6 +247,52 @@ export default function PlayerPage({ params }: PlayerPageProps) {
     href: "/import",
     cta: "Import another draft",
   };
+  const playerLaunchpad: readonly ActionLaunchpadItem[] = [
+    {
+      id: "next-move",
+      eyebrow: playerNextMove.eyebrow,
+      label: playerNextMove.label,
+      detail: playerNextMove.detail,
+      cardClassName: "border-emerald-200 bg-emerald-50/80",
+      action: (
+        <Link
+          className="inline-flex rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100"
+          href={playerNextMove.href}
+        >
+          {playerNextMove.cta}
+        </Link>
+      ),
+    },
+    {
+      id: "follow-up",
+      eyebrow: playerFollowUp.eyebrow,
+      label: playerFollowUp.label,
+      detail: playerFollowUp.detail,
+      cardClassName: "border-sky-200 bg-sky-50/80",
+      action: (
+        <Link
+          className="inline-flex rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100"
+          href={playerFollowUp.href}
+        >
+          {playerFollowUp.cta}
+        </Link>
+      ),
+    },
+    {
+      id: "support",
+      eyebrow: playerSupport.eyebrow,
+      label: playerSupport.label,
+      detail: playerSupport.detail,
+      action: (
+        <Link
+          className="inline-flex rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100"
+          href={playerSupport.href}
+        >
+          {playerSupport.cta}
+        </Link>
+      ),
+    },
+  ] as const;
   const playerJourneyIndex = preferredAudioKind === "full-book-generation"
     ? 3
     : preferredAudioKind === "sample-generation"
@@ -929,34 +979,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
             <p className="mt-2">{resolvedTasteMeta.detail}</p>
           </div>
         ) : null}
-        <div className="mb-5 grid gap-4 lg:grid-cols-3">
-          {[playerNextMove, playerFollowUp, playerSupport].map((item, index) => (
-            <article
-              key={item.eyebrow}
-              className={`rounded-[1.5rem] border p-5 shadow-sm ${
-                index === 0
-                  ? "border-emerald-200 bg-emerald-50/80"
-                  : index === 1
-                    ? "border-sky-200 bg-sky-50/80"
-                    : "border-stone-200 bg-stone-50"
-              }`}
-            >
-              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-stone-500">
-                {item.eyebrow}
-              </p>
-              <h3 className="mt-3 text-lg font-semibold text-stone-950">{item.label}</h3>
-              <p className="mt-2 text-sm leading-6 text-stone-600">{item.detail}</p>
-              <div className="mt-4">
-                <Link
-                  className="inline-flex rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100"
-                  href={item.href}
-                >
-                  {item.cta}
-                </Link>
-              </div>
-            </article>
-          ))}
-        </div>
+        <ActionLaunchpad className="mb-5 grid gap-4 lg:grid-cols-3" items={playerLaunchpad} />
         <div className="flex flex-wrap gap-3">
           <Link
             className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700"

@@ -5,6 +5,10 @@ import { use, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RemovedBookRecoveryCard } from "@/components/library/removed-book-recovery-card";
 import { RetryJobButton } from "@/components/library/retry-job-button";
+import {
+  ActionLaunchpad,
+  type ActionLaunchpadItem,
+} from "@/components/shared/action-launchpad";
 import { AppShell } from "@/components/shared/app-shell";
 import { BookIdentityCard } from "@/components/shared/book-identity-card";
 import { JourneyHero } from "@/components/shared/journey-hero";
@@ -847,6 +851,119 @@ export default function BookPage({ params }: BookPageProps) {
     writeDefaultListeningProfile(profile);
     setDefaultListeningProfile(profile);
   }
+  const setupLaunchpad: readonly ActionLaunchpadItem[] = [
+    {
+      id: "recommended",
+      eyebrow: "Recommended next move",
+      label: recommendedAction.label,
+      detail: recommendedAction.detail,
+      cardClassName:
+        "rounded-[1.6rem] border-amber-200/35 bg-[linear-gradient(135deg,rgba(252,211,77,0.16)_0%,rgba(255,255,255,0.08)_100%)]",
+      eyebrowClassName:
+        "text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-stone-300",
+      titleClassName: "mt-3 text-lg font-semibold text-white",
+      detailClassName: "mt-2 text-sm leading-6 text-stone-200",
+      action:
+        recommendedAction.href ? (
+          <Link
+            className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
+            href={recommendedAction.href}
+          >
+            Open
+          </Link>
+        ) : recommendedAction.action === "generate-sample" ? (
+          <button
+            className="inline-flex rounded-full border border-amber-200/35 bg-amber-300 px-4 py-2 text-sm font-semibold text-stone-950 transition hover:bg-amber-200 disabled:bg-amber-200 disabled:text-stone-500"
+            type="button"
+            disabled={sampleJobIsActive}
+            onClick={() => {
+              void generateSample();
+            }}
+          >
+            Generate first sample
+          </button>
+        ) : recommendedAction.action === "generate-full-book" ? (
+          <button
+            className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15 disabled:border-white/10 disabled:bg-transparent disabled:text-stone-400"
+            type="button"
+            disabled={!sampleIsCurrent || chapters.length === 0 || fullBookJobIsActive}
+            onClick={() => {
+              void queueFullBookGeneration();
+            }}
+          >
+            Queue full book
+          </button>
+        ) : (
+          <button
+            className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
+            type="button"
+            onClick={saveAsDefaultTaste}
+          >
+            Set as library default
+          </button>
+        ),
+    },
+    {
+      id: "after-that",
+      eyebrow: "After that",
+      label: followUpAction.label,
+      detail: followUpAction.detail,
+      cardClassName:
+        "rounded-[1.6rem] border-sky-200/30 bg-[linear-gradient(135deg,rgba(125,211,252,0.14)_0%,rgba(255,255,255,0.06)_100%)]",
+      eyebrowClassName:
+        "text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-stone-300",
+      titleClassName: "mt-3 text-lg font-semibold text-white",
+      detailClassName: "mt-2 text-sm leading-6 text-stone-200",
+      action:
+        followUpAction.href ? (
+          <Link
+            className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
+            href={followUpAction.href}
+          >
+            Open
+          </Link>
+        ) : followUpAction.action === "generate-full-book" ? (
+          <button
+            className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15 disabled:border-white/10 disabled:bg-transparent disabled:text-stone-400"
+            type="button"
+            disabled={!sampleIsCurrent || chapters.length === 0 || fullBookJobIsActive}
+            onClick={() => {
+              void queueFullBookGeneration();
+            }}
+          >
+            Queue full book
+          </button>
+        ) : (
+          <button
+            className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
+            type="button"
+            onClick={saveAsDefaultTaste}
+          >
+            Set as library default
+          </button>
+        ),
+    },
+    {
+      id: "keep-aligned",
+      eyebrow: "Keep aligned",
+      label: supportAction.label,
+      detail: supportAction.detail,
+      cardClassName:
+        "rounded-[1.6rem] border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08)_0%,rgba(255,255,255,0.04)_100%)]",
+      eyebrowClassName:
+        "text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-stone-300",
+      titleClassName: "mt-3 text-lg font-semibold text-white",
+      detailClassName: "mt-2 text-sm leading-6 text-stone-200",
+      action: (
+        <Link
+          className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
+          href={supportAction.href}
+        >
+          Open
+        </Link>
+      ),
+    },
+  ] as const;
 
   if (hydratedRemovedBook) {
     return (
@@ -1309,79 +1426,7 @@ export default function BookPage({ params }: BookPageProps) {
               </span>
             </div>
           </div>
-          <div className="mt-6 grid gap-4 lg:grid-cols-3">
-            {[
-              {
-                eyebrow: "Recommended next move",
-                accent:
-                  "border-amber-200/35 bg-[linear-gradient(135deg,rgba(252,211,77,0.16)_0%,rgba(255,255,255,0.08)_100%)]",
-                ...recommendedAction,
-              },
-              {
-                eyebrow: "After that",
-                accent:
-                  "border-sky-200/30 bg-[linear-gradient(135deg,rgba(125,211,252,0.14)_0%,rgba(255,255,255,0.06)_100%)]",
-                ...followUpAction,
-              },
-              {
-                eyebrow: "Keep aligned",
-                accent:
-                  "border-white/10 bg-[linear-gradient(135deg,rgba(255,255,255,0.08)_0%,rgba(255,255,255,0.04)_100%)]",
-                ...supportAction,
-              },
-            ].map((item) => (
-              <article
-                key={item.eyebrow}
-                className={`rounded-[1.6rem] border p-5 shadow-sm ${item.accent}`}
-              >
-                <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-stone-300">
-                  {item.eyebrow}
-                </p>
-                <h3 className="mt-3 text-lg font-semibold text-white">{item.label}</h3>
-                <p className="mt-2 text-sm leading-6 text-stone-200">{item.detail}</p>
-                <div className="mt-4">
-                  {item.href ? (
-                    <Link
-                      className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
-                      href={item.href}
-                    >
-                      Open
-                    </Link>
-                  ) : item.action === "generate-sample" ? (
-                    <button
-                      className="inline-flex rounded-full border border-amber-200/35 bg-amber-300 px-4 py-2 text-sm font-semibold text-stone-950 transition hover:bg-amber-200 disabled:bg-amber-200 disabled:text-stone-500"
-                      type="button"
-                      disabled={sampleJobIsActive}
-                      onClick={() => {
-                        void generateSample();
-                      }}
-                    >
-                      Generate first sample
-                    </button>
-                  ) : item.action === "generate-full-book" ? (
-                    <button
-                      className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15 disabled:border-white/10 disabled:bg-transparent disabled:text-stone-400"
-                      type="button"
-                      disabled={!sampleIsCurrent || chapters.length === 0 || fullBookJobIsActive}
-                      onClick={() => {
-                        void queueFullBookGeneration();
-                      }}
-                    >
-                      Queue full book
-                    </button>
-                  ) : (
-                    <button
-                      className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
-                      type="button"
-                      onClick={saveAsDefaultTaste}
-                    >
-                      Set as library default
-                    </button>
-                  )}
-                </div>
-              </article>
-            ))}
-          </div>
+          <ActionLaunchpad className="mt-6 grid gap-4 lg:grid-cols-3" items={setupLaunchpad} />
           <div className="mt-6 flex flex-wrap gap-3">
             <button
               className="rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-stone-950 shadow-[0_20px_40px_-30px_rgba(252,211,77,0.85)] disabled:bg-amber-200 disabled:text-stone-500"
