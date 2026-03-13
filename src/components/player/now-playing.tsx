@@ -21,57 +21,11 @@ import {
   touchLocalLibraryBook,
   writeDefaultListeningProfile,
 } from "@/lib/library/local-library";
-
-interface SavedQuote {
-  id: string;
-  chapterIndex: number;
-  progressSeconds: number;
-  text: string;
-  createdAt: string;
-}
-
-function readSavedQuotes(bookId: string): SavedQuote[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  const rawValue = window.localStorage.getItem(
-    `adaptive-audio-player.saved-quotes.${bookId}`,
-  );
-
-  if (!rawValue) {
-    return [];
-  }
-
-  try {
-    const parsed = JSON.parse(rawValue) as SavedQuote[];
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-
-    return parsed.filter(
-      (quote) =>
-        typeof quote.id === "string" &&
-        typeof quote.chapterIndex === "number" &&
-        typeof quote.progressSeconds === "number" &&
-        typeof quote.text === "string" &&
-        typeof quote.createdAt === "string",
-    );
-  } catch {
-    return [];
-  }
-}
-
-function writeSavedQuotes(bookId: string, quotes: SavedQuote[]) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(
-    `adaptive-audio-player.saved-quotes.${bookId}`,
-    JSON.stringify(quotes),
-  );
-}
+import {
+  readSavedQuotes,
+  writeSavedQuotes,
+  type SavedQuote,
+} from "@/lib/library/local-quotes";
 
 export function NowPlaying({
   audioKind,
@@ -307,6 +261,7 @@ export function NowPlaying({
 
     const nextQuote: SavedQuote = {
       id: `${currentChapterIndex}-${progressSeconds}-${Date.now()}`,
+      bookId,
       chapterIndex: currentChapterIndex,
       progressSeconds,
       text: excerptQuoteText,

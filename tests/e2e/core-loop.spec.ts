@@ -249,6 +249,10 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
     page.getByRole("heading", { level: 2, name: /Chapter \d+/ }),
   ).toBeVisible();
   await expect(page.getByText("The city woke late.", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Save quote" }).click();
+  await expect(
+    page.getByText("Favorite moment").locator("..").getByText("The city woke late.", { exact: false }),
+  ).toBeVisible();
   await page.reload();
   await expect(
     page.getByRole("button", { name: "Speed: 1.15x" }),
@@ -269,6 +273,12 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
   await expect(page.getByText("Books: 1")).toBeVisible();
   await expect(
     page.getByRole("heading", { level: 3, name: "Continue listening" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Memorable lines, ready when you are" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("The city woke late.", { exact: false }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { level: 3, name: "Storm Harbor" }).first(),
@@ -562,8 +572,9 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
   await bookRecoveryCard.getByRole("button", { name: "Restore this book" }).click();
   await page.waitForURL("**/");
   await expect(page.getByTestId("shelf-book-demo-book-2")).toBeVisible();
-  await renamedQuietHarborShelfCard.getByRole("button", { name: "Delete book" }).click();
-  await renamedQuietHarborShelfCard
+  const restoredQuietHarborShelfCard = page.getByTestId("shelf-book-demo-book-2");
+  await restoredQuietHarborShelfCard.getByRole("button", { name: "Delete book" }).click();
+  await restoredQuietHarborShelfCard
     .getByRole("button", { name: "Confirm delete" })
     .click();
   await page.goto("/player/demo-book-2");

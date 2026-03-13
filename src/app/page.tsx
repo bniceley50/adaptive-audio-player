@@ -6,6 +6,7 @@ import { DefaultTasteCard } from "@/components/library/default-taste-card";
 import { DemoModeCard } from "@/components/library/demo-mode-card";
 import { LibraryHero } from "@/components/library/library-hero";
 import { ListeningStatsCard } from "@/components/library/listening-stats-card";
+import { RecentQuotesCard } from "@/components/library/recent-quotes-card";
 import { RecentTastesCard } from "@/components/library/recent-tastes-card";
 import { WorkspaceAccountCard } from "@/components/library/workspace-account-card";
 import { AppShell } from "@/components/shared/app-shell";
@@ -343,6 +344,7 @@ export default async function HomePage() {
 
           <ListeningStatsCard initialStats={listeningStats} />
           <ContinueListeningRow initialSnapshot={backendLibrarySnapshot} />
+          <RecentQuotesCard />
         </div>
 
           <div id="account-context" className="space-y-4">
