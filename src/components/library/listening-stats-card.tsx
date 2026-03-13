@@ -160,6 +160,12 @@ export function ListeningStatsCard({
 }) {
   const [stats, setStats] = useState<ListeningStats>(initialStats);
   const pulse = deriveListeningPulse(stats);
+  const weeklyGoalMinutes = 120;
+  const weeklyGoalProgress = Math.min(
+    100,
+    Math.round((stats.listenedMinutes / weeklyGoalMinutes) * 100),
+  );
+  const weeklyGoalRemaining = Math.max(weeklyGoalMinutes - stats.listenedMinutes, 0);
 
   useEffect(() => {
     function refreshStats() {
@@ -254,6 +260,32 @@ export function ListeningStatsCard({
         </article>
       </div>
       <div className="mt-5 grid gap-3 lg:grid-cols-2">
+        <article className="rounded-[1.4rem] border border-stone-200 bg-[linear-gradient(180deg,#fff7ed_0%,#ffffff_100%)] p-4 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
+                Weekly listening goal
+              </p>
+              <p className="mt-2 text-xl font-semibold text-stone-950">
+                {stats.listenedMinutes} / {weeklyGoalMinutes} min
+              </p>
+              <p className="mt-2 text-sm leading-6 text-stone-600">
+                {weeklyGoalRemaining > 0
+                  ? `${weeklyGoalRemaining} more minutes to hit this week’s goal.`
+                  : "Goal reached. Keep listening and build momentum."}
+              </p>
+            </div>
+            <span className="rounded-full border border-amber-200 bg-white px-3 py-1.5 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-amber-700 shadow-sm">
+              {weeklyGoalProgress}% there
+            </span>
+          </div>
+          <div className="mt-4 h-2.5 rounded-full bg-amber-100">
+            <div
+              className="h-2.5 rounded-full bg-[linear-gradient(90deg,#f59e0b_0%,#fbbf24_100%)] transition-all"
+              style={{ width: `${weeklyGoalProgress}%` }}
+            />
+          </div>
+        </article>
         <article className="rounded-[1.4rem] border border-stone-200 bg-[linear-gradient(180deg,#fcfbf8_0%,#ffffff_100%)] p-4 shadow-sm">
           <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
             Most active title
