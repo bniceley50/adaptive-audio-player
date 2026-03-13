@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import type { Chapter } from "@/lib/types/models";
 import {
   chapterDurationSeconds,
@@ -66,11 +66,16 @@ export function NowPlaying({
   const [sleepTimerMinutes, setSleepTimerMinutes] = useState<number | null>(
     persistedState?.sleepTimerMinutes ?? playbackDefaults?.sleepTimerMinutes ?? null,
   );
+  const [shareFeedback, setShareFeedback] = useState<"idle" | "shared" | "copied">(
+    "idle",
+  );
 
   const totalSeconds = chapterDurationSeconds;
   const currentChapter = chapters[currentChapterIndex];
   const progressPercent = getPlaybackPercent(progressSeconds);
   const remainingSeconds = Math.max(totalSeconds - progressSeconds, 0);
+  const remainingBookSeconds =
+    remainingSeconds + Math.max(chapters.length - currentChapterIndex - 1, 0) * totalSeconds;
   const speedLabel = `${speed.toFixed(2).replace(/\.00$/, "")}x`;
   const sleepTimerLabel = sleepTimerMinutes ? `${sleepTimerMinutes} min` : "Off";
   const isBookmarked = bookmarks.some(
@@ -86,6 +91,10 @@ export function NowPlaying({
   const remainingLabel = useMemo(
     () => formatPlaybackTime(remainingSeconds),
     [remainingSeconds],
+  );
+  const remainingBookLabel = useMemo(
+    () => formatPlaybackTime(remainingBookSeconds),
+    [remainingBookSeconds],
   );
 
   useEffect(() => {
@@ -204,6 +213,105 @@ export function NowPlaying({
     clearPlaybackDefaults();
   }
 
+  async function shareTasteCard() {
+    const shareText = `I’m listening to ${bookTitle} with ${narratorName} in ${mode} mode on Adaptive Audio Player.`;
+    const shareUrl =
+      typeof window !== "undefined" ? window.location.href : "https://github.com/bniceley50/adaptive-audio-player";
+
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({
+          title: `${bookTitle} · ${narratorName} · ${mode}`,
+          text: shareText,
+          url: shareUrl,
+        });
+        setShareFeedback("shared");
+        return;
+      } catch {
+        // Fall through to clipboard copy when native share is dismissed or unavailable.
+      }
+    }
+
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+      setShareFeedback("copied");
+    }
+  }
+
+  const handleKeyboardShortcut = useEffectEvent((event: KeyboardEvent) => {
+    const target = event.target as HTMLElement | null;
+    const isTypingContext =
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      target?.isContentEditable;
+
+    if (isTypingContext) {
+      return;
+    }
+
+    const key = event.key.toLowerCase();
+
+    if (event.code === "Space") {
+      event.preventDefault();
+      togglePlayback();
+      return;
+    }
+
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      skipBackward();
+      return;
+    }
+
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      skipForward();
+      return;
+    }
+
+    if (key === "b") {
+      event.preventDefault();
+      toggleBookmark();
+      return;
+    }
+
+    if (key === "s") {
+      event.preventDefault();
+      cycleSleepTimer();
+      return;
+    }
+
+    if (key === "v") {
+      event.preventDefault();
+      cycleSpeed();
+      return;
+    }
+
+    if (key === "n") {
+      event.preventDefault();
+      selectChapter(Math.min(currentChapterIndex + 1, chapters.length - 1));
+      return;
+    }
+
+    if (key === "p") {
+      event.preventDefault();
+      selectChapter(Math.max(currentChapterIndex - 1, 0));
+    }
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.addEventListener("keydown", handleKeydown);
+    return () => window.removeEventListener("keydown", handleKeydown);
+
+    function handleKeydown(event: KeyboardEvent) {
+      handleKeyboardShortcut(event);
+    }
+  }, []);
+
   return (
     <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
       <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(145deg,#111827_0%,#1c1917_42%,#292524_100%)] p-6 text-white shadow-[0_30px_90px_-50px_rgba(15,23,42,0.95)]">
@@ -252,6 +360,20 @@ export function NowPlaying({
               Mode
             </p>
             <p className="mt-2 text-lg font-semibold capitalize text-white">{mode}</p>
+          </div>
+        </div>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-[1.5rem] border border-white/10 bg-white/8 p-5 shadow-sm">
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-300">
+              Time left in chapter
+            </p>
+            <p className="mt-2 text-lg font-semibold text-white">{remainingLabel}</p>
+          </div>
+          <div className="rounded-[1.5rem] border border-white/10 bg-white/8 p-5 shadow-sm">
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-300">
+              Time left in book
+            </p>
+            <p className="mt-2 text-lg font-semibold text-white">{remainingBookLabel}</p>
           </div>
         </div>
         <div className="mt-6">
@@ -338,6 +460,75 @@ export function NowPlaying({
           >
             Save playback defaults
           </button>
+        </div>
+        <div className="mt-5 rounded-[1.4rem] border border-white/10 bg-white/5 p-4 shadow-sm">
+          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-300">
+            Keyboard shortcuts
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium text-stone-200">
+            {[
+              ["Space", "Play or pause"],
+              ["← / →", "Skip back or forward"],
+              ["B", "Toggle bookmark"],
+              ["S", "Cycle sleep timer"],
+              ["V", "Cycle speed"],
+              ["N / P", "Next or previous chapter"],
+            ].map(([shortcut, label]) => (
+              <span
+                key={shortcut}
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/15 px-3 py-1.5"
+              >
+                <span className="rounded-full bg-white/10 px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-white">
+                  {shortcut}
+                </span>
+                <span className="text-stone-200">{label}</span>
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className="mt-5 rounded-[1.4rem] border border-fuchsia-300/20 bg-[linear-gradient(135deg,rgba(217,70,239,0.12)_0%,rgba(255,255,255,0.06)_100%)] p-4 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="max-w-xl">
+              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-fuchsia-200">
+                Share your taste
+              </p>
+              <p className="mt-2 text-lg font-semibold text-white">
+                {narratorName} in {mode}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-stone-200">
+                Turn your current listening setup into a shareable card-worthy moment.
+              </p>
+            </div>
+            <button
+              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-stone-950 shadow-sm transition hover:bg-fuchsia-50"
+              type="button"
+              onClick={() => {
+                void shareTasteCard();
+              }}
+            >
+              {typeof navigator !== "undefined" && typeof navigator.share === "function"
+                ? "Share taste"
+                : "Copy taste"}
+            </button>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-fuchsia-100">
+            <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5">
+              {bookTitle}
+            </span>
+            <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5">
+              {narratorName}
+            </span>
+            <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5 capitalize">
+              {mode}
+            </span>
+          </div>
+          {shareFeedback !== "idle" ? (
+            <p className="mt-3 text-sm text-fuchsia-100">
+              {shareFeedback === "shared"
+                ? "Taste shared."
+                : "Taste copied to clipboard."}
+            </p>
+          ) : null}
         </div>
       </section>
 

@@ -5,6 +5,7 @@ import { DefaultPlaybackCard } from "@/components/library/default-playback-card"
 import { DefaultTasteCard } from "@/components/library/default-taste-card";
 import { DemoModeCard } from "@/components/library/demo-mode-card";
 import { LibraryHero } from "@/components/library/library-hero";
+import { ListeningStatsCard } from "@/components/library/listening-stats-card";
 import { WorkspaceAccountCard } from "@/components/library/workspace-account-card";
 import { AppShell } from "@/components/shared/app-shell";
 import {
@@ -103,6 +104,37 @@ export default async function HomePage() {
   const recentSessions = latestSession.slice(0, 3);
   const currentLatestSession = recentSessions[0] ?? null;
   const latestSyncedBook = backendLibrarySnapshot?.libraryBooks[0] ?? null;
+  const listeningStats = backendLibrarySnapshot
+    ? {
+        activeBooks: backendLibrarySnapshot.playbackStates.filter(
+          (entry) =>
+            entry.state.progressSeconds > 0 ||
+            (entry.state.bookmarks?.length ?? 0) > 0,
+        ).length,
+        totalBookmarks: backendLibrarySnapshot.playbackStates.reduce(
+          (sum, entry) => sum + (entry.state.bookmarks?.length ?? 0),
+          0,
+        ),
+        listenedMinutes: Math.max(
+          0,
+          Math.round(
+            backendLibrarySnapshot.playbackStates.reduce(
+              (sum, entry) => sum + entry.state.progressSeconds,
+              0,
+            ) / 60,
+          ),
+        ),
+        activeChapters: backendLibrarySnapshot.playbackStates.reduce(
+          (sum, entry) => sum + entry.state.currentChapterIndex + 1,
+          0,
+        ),
+      }
+    : {
+        activeBooks: 0,
+        totalBookmarks: 0,
+        listenedMinutes: 0,
+        activeChapters: 0,
+      };
   const primaryAction = latestSyncedBook
     ? {
         title: "Resume a synced title",
@@ -243,6 +275,7 @@ export default async function HomePage() {
             </div>
           </section>
 
+          <ListeningStatsCard initialStats={listeningStats} />
           <ContinueListeningRow initialSnapshot={backendLibrarySnapshot} />
         </div>
 
