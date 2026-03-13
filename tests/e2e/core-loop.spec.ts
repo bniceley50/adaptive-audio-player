@@ -208,7 +208,7 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
     page.getByText("Narrator", { exact: true }),
   ).toBeVisible({ timeout: 15000 });
   await expect(
-    page.getByText("Sloane", { exact: true }),
+    page.getByText("Narrator", { exact: true }).locator("..").getByText("Sloane", { exact: true }),
   ).toBeVisible({ timeout: 15000 });
   await expect(
     page.getByText("Mode").locator("..").getByText("immersive", { exact: true }),
@@ -234,7 +234,7 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
     page.getByRole("button", { name: "Bookmarked" }),
   ).toBeVisible();
   await expect(
-    page.getByText("Chapter 1 · 1:13"),
+    page.getByText("Jump back in").locator("..").getByText("Chapter 1 · 1:13"),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Jump to bookmark" }),
@@ -263,7 +263,7 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
     page.getByRole("heading", { level: 2, name: /Chapter \d+/ }),
   ).toBeVisible();
   await expect(
-    page.getByText("Chapter 1 · 1:13"),
+    page.getByText("Jump back in").locator("..").getByText("Chapter 1 · 1:13"),
   ).toBeVisible();
   await page.goto("/");
   await expect(page.getByText("Books: 1")).toBeVisible();
@@ -344,7 +344,7 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
     page.getByText("This book already has its own saved listening profile"),
   ).toBeVisible();
   await expect(
-    page.getByText("Sloane", { exact: true }),
+    page.getByText("Narrator", { exact: true }).locator("..").getByText("Sloane", { exact: true }),
   ).toBeVisible();
   await expect(
     page.getByText("Mode").locator("..").getByText("immersive", { exact: true }),

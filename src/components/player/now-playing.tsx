@@ -22,6 +22,57 @@ import {
   writeDefaultListeningProfile,
 } from "@/lib/library/local-library";
 
+interface SavedQuote {
+  id: string;
+  chapterIndex: number;
+  progressSeconds: number;
+  text: string;
+  createdAt: string;
+}
+
+function readSavedQuotes(bookId: string): SavedQuote[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  const rawValue = window.localStorage.getItem(
+    `adaptive-audio-player.saved-quotes.${bookId}`,
+  );
+
+  if (!rawValue) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue) as SavedQuote[];
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.filter(
+      (quote) =>
+        typeof quote.id === "string" &&
+        typeof quote.chapterIndex === "number" &&
+        typeof quote.progressSeconds === "number" &&
+        typeof quote.text === "string" &&
+        typeof quote.createdAt === "string",
+    );
+  } catch {
+    return [];
+  }
+}
+
+function writeSavedQuotes(bookId: string, quotes: SavedQuote[]) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(
+    `adaptive-audio-player.saved-quotes.${bookId}`,
+    JSON.stringify(quotes),
+  );
+}
+
 export function NowPlaying({
   audioKind,
   audioUrl,
@@ -66,6 +117,7 @@ export function NowPlaying({
   const [bookmarks, setBookmarks] = useState<PersistedBookmark[]>(
     persistedState?.bookmarks ?? [],
   );
+  const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>(() => readSavedQuotes(bookId));
   const [sleepTimerMinutes, setSleepTimerMinutes] = useState<number | null>(
     persistedState?.sleepTimerMinutes ?? playbackDefaults?.sleepTimerMinutes ?? null,
   );
@@ -96,6 +148,7 @@ export function NowPlaying({
       });
   }, [chapterQuery, chapters]);
   const latestBookmark = bookmarks[0] ?? null;
+  const latestQuote = savedQuotes[0] ?? null;
   const progressPercent = getPlaybackPercent(progressSeconds);
   const remainingSeconds = Math.max(totalSeconds - progressSeconds, 0);
   const remainingBookSeconds =
@@ -119,6 +172,10 @@ export function NowPlaying({
   const remainingBookLabel = useMemo(
     () => formatPlaybackTime(remainingBookSeconds),
     [remainingBookSeconds],
+  );
+  const excerptQuoteText = useMemo(
+    () => currentChapter?.text.slice(0, 180).trim() ?? "",
+    [currentChapter],
   );
 
   useEffect(() => {
@@ -148,6 +205,10 @@ export function NowPlaying({
     sleepTimerMinutes,
     speed,
   ]);
+
+  useEffect(() => {
+    writeSavedQuotes(bookId, savedQuotes);
+  }, [bookId, savedQuotes]);
 
   function togglePlayback() {
     if (!playbackIsReady) {
@@ -224,6 +285,49 @@ export function NowPlaying({
     setBookmarks((currentBookmarks) =>
       currentBookmarks.filter((bookmark) => bookmark.id !== bookmarkId),
     );
+  }
+
+  function saveQuote() {
+    if (!excerptQuoteText) {
+      return;
+    }
+
+    const duplicateQuote = savedQuotes.find(
+      (quote) =>
+        quote.chapterIndex === currentChapterIndex && quote.text === excerptQuoteText,
+    );
+
+    if (duplicateQuote) {
+      setSavedQuotes((currentQuotes) => [
+        duplicateQuote,
+        ...currentQuotes.filter((quote) => quote.id !== duplicateQuote.id),
+      ]);
+      return;
+    }
+
+    const nextQuote: SavedQuote = {
+      id: `${currentChapterIndex}-${progressSeconds}-${Date.now()}`,
+      chapterIndex: currentChapterIndex,
+      progressSeconds,
+      text: excerptQuoteText,
+      createdAt: new Date().toISOString(),
+    };
+
+    setSavedQuotes((currentQuotes) => [nextQuote, ...currentQuotes].slice(0, 12));
+  }
+
+  function removeQuote(quoteId: string) {
+    setSavedQuotes((currentQuotes) =>
+      currentQuotes.filter((quote) => quote.id !== quoteId),
+    );
+  }
+
+  async function copyQuote(quoteText: string) {
+    if (typeof navigator === "undefined" || !navigator.clipboard) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(quoteText);
   }
 
   function savePlaybackDefaults() {
@@ -678,6 +782,110 @@ export function NowPlaying({
           {currentChapter?.text.slice(0, 280) ??
             "No imported draft found yet. Return to import and carry a chapter through setup first."}
         </p>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[1.4rem] border border-stone-200 bg-white px-4 py-3 shadow-sm">
+          <div>
+            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
+              Save this moment
+            </p>
+            <p className="mt-1 text-sm text-stone-600">
+              Keep memorable lines from the current chapter for quick recall later.
+            </p>
+          </div>
+          <button
+            className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+            type="button"
+            onClick={saveQuote}
+          >
+            Save quote
+          </button>
+        </div>
+        <div className="mt-6 rounded-[1.6rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h4 className="text-lg font-semibold text-stone-900">Saved quotes</h4>
+              <p className="mt-1 text-sm text-stone-600">
+                Keep standout lines and copy them later.
+              </p>
+            </div>
+            <span className="rounded-full bg-white px-3 py-2 text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
+              {savedQuotes.length}
+            </span>
+          </div>
+          {latestQuote ? (
+            <div className="mt-4 rounded-[1.4rem] border border-rose-200 bg-[linear-gradient(135deg,#fff1f2_0%,#ffffff_100%)] px-4 py-4 text-sm text-stone-700 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="max-w-xl">
+                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-rose-700">
+                    Favorite moment
+                  </p>
+                  <p className="mt-2 text-base font-medium italic text-stone-950">
+                    “{latestQuote.text}”
+                  </p>
+                  <p className="mt-2 leading-6 text-stone-600">
+                    {chapters[latestQuote.chapterIndex]?.title ??
+                      `Chapter ${latestQuote.chapterIndex + 1}`}
+                    {" · "}
+                    {formatPlaybackTime(latestQuote.progressSeconds)}
+                  </p>
+                </div>
+                <button
+                  className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
+                  type="button"
+                  onClick={() => {
+                    void copyQuote(latestQuote.text);
+                  }}
+                >
+                  Copy quote
+                </button>
+              </div>
+            </div>
+          ) : null}
+          {savedQuotes.length > 0 ? (
+            <div className="mt-4 grid gap-3">
+              {savedQuotes.map((quote) => {
+                const quoteChapter = chapters[quote.chapterIndex];
+
+                return (
+                  <div
+                    key={quote.id}
+                    className="rounded-[1.4rem] border border-stone-200 bg-white px-4 py-4 text-sm text-stone-700 shadow-sm"
+                  >
+                    <p className="text-base font-medium italic text-stone-950">“{quote.text}”</p>
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                      <p className="text-stone-500">
+                        {quoteChapter?.title ?? `Chapter ${quote.chapterIndex + 1}`}
+                        {" · "}
+                        {formatPlaybackTime(quote.progressSeconds)}
+                      </p>
+                      <div className="flex flex-wrap gap-3">
+                        <button
+                          className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                          type="button"
+                          onClick={() => {
+                            void copyQuote(quote.text);
+                          }}
+                        >
+                          Copy
+                        </button>
+                        <button
+                          className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                          type="button"
+                          onClick={() => removeQuote(quote.id)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="mt-4 text-sm leading-6 text-stone-600">
+              No saved quotes yet for this book.
+            </p>
+          )}
+        </div>
         <div className="mt-6 rounded-[1.6rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm">
           <div className="flex items-center justify-between gap-4">
             <div>
