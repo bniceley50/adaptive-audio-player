@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 import { RemovedBookRecoveryCard } from "@/components/library/removed-book-recovery-card";
 import { AppShell } from "@/components/shared/app-shell";
 import { JourneyRail } from "@/components/shared/journey-rail";
+import { StateSummaryPanel } from "@/components/shared/state-summary-panel";
 import { NowPlaying } from "@/components/player/now-playing";
 import {
   buildPlayerListeningState,
@@ -637,28 +638,12 @@ export default function PlayerPage({ params }: PlayerPageProps) {
         <JourneyRail currentIndex={playerJourneyIndex} steps={playerJourney} />
       </section>
       <section className="rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#fffefb_0%,#ffffff_42%,#eef4ff_100%)] p-6 shadow-[0_24px_70px_-46px_rgba(28,25,23,0.42)]">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-3xl">
-            <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-              Current state
-            </p>
-            <h2 className="mt-2 text-2xl font-semibold text-stone-950">
-              {listeningState.label}
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-stone-600">
-              {listeningState.detail}
-            </p>
-          </div>
-          <div className="rounded-[1.5rem] border border-white/80 bg-white/85 px-4 py-4 shadow-sm backdrop-blur">
-            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
-              Next action
-            </p>
-            <p className="mt-2 max-w-xs text-base font-semibold text-stone-950">
-              {listeningState.action}
-            </p>
-          </div>
-        </div>
-        <div className="mt-5 grid gap-3 md:grid-cols-[1.15fr_0.85fr_0.85fr]">
+        <StateSummaryPanel
+          label={listeningState.label}
+          detail={listeningState.detail}
+          action={listeningState.action}
+          statsClassName="mt-5 grid gap-3 md:grid-cols-[1.15fr_0.85fr_0.85fr]"
+        >
           <article className="rounded-[1.5rem] border border-stone-200/80 bg-white/85 p-4 shadow-sm">
             <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
               Book identity
@@ -709,7 +694,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
               {narratorName} in {mode}
             </p>
           </article>
-        </div>
+        </StateSummaryPanel>
         <div className="mt-5 rounded-[1.5rem] border border-stone-200/80 bg-white/85 p-4 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-2xl">
