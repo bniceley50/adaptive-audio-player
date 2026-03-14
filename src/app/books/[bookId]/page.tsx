@@ -11,6 +11,7 @@ import {
 } from "@/components/shared/action-launchpad";
 import { AppShell } from "@/components/shared/app-shell";
 import { BookIdentityCard } from "@/components/shared/book-identity-card";
+import { ExperienceModeToggle } from "@/components/shared/experience-mode-toggle";
 import { JourneyHero } from "@/components/shared/journey-hero";
 import { RenderArtifactCard } from "@/components/shared/render-artifact-card";
 import { RenderHistorySummary } from "@/components/shared/render-history-summary";
@@ -68,6 +69,9 @@ const narratorOptions = [
 export default function BookPage({ params }: BookPageProps) {
   const { bookId } = use(params);
   const router = useRouter();
+  const [experienceMode, setExperienceMode] = useState<"everyday" | "studio">(
+    "everyday",
+  );
   const [initialTaste] = useState(() =>
     typeof window !== "undefined"
       ? resolveListeningTaste(bookId)
@@ -1001,6 +1005,12 @@ export default function BookPage({ params }: BookPageProps) {
         currentTitle={setupJourney[setupJourneyIndex]?.title}
         steps={setupJourney}
       />
+      <ExperienceModeToggle
+        detail="Everyday keeps setup focused on choosing a voice, generating a sample, and moving toward playback. Studio reveals render history and deeper generation context when you want to inspect the system."
+        mode={experienceMode}
+        onModeChange={setExperienceMode}
+        title="Choose a simpler setup view or open Studio"
+      />
       <StateSummaryPanel
         label={setupStage.label}
         detail={setupStage.detail}
@@ -1394,40 +1404,42 @@ export default function BookPage({ params }: BookPageProps) {
               </article>
             </div>
           </div>
-          <div className="mt-4 space-y-3 rounded-[1.6rem] border border-white/10 bg-white/8 p-5">
-            <div className="flex items-center justify-between gap-4 text-sm">
-              <span className="text-stone-300">Parsed chapters</span>
-              <span className="font-medium text-white">{chapters.length}</span>
+          {experienceMode === "studio" ? (
+            <div className="mt-4 space-y-3 rounded-[1.6rem] border border-white/10 bg-white/8 p-5">
+              <div className="flex items-center justify-between gap-4 text-sm">
+                <span className="text-stone-300">Parsed chapters</span>
+                <span className="font-medium text-white">{chapters.length}</span>
+              </div>
+              <div className="flex items-center justify-between gap-4 text-sm">
+                <span className="text-stone-300">Sample status</span>
+                <span className="font-medium text-white">
+                  {sampleIsCurrent
+                    ? "Generated for this setup"
+                    : sampleOutput?.bookId === bookId
+                      ? "Generated for a different setup"
+                      : generationJob?.status === "queued"
+                        ? "Queued on backend"
+                        : generationJob?.status === "running"
+                          ? "Generating on backend"
+                          : "Not generated yet"}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-4 text-sm">
+                <span className="text-stone-300">Full book status</span>
+                <span className="font-medium text-white">
+                  {fullBookOutput?.bookId === bookId
+                    ? "Generated on backend"
+                    : fullBookJob?.status === "completed"
+                      ? "Queued and completed on backend"
+                      : fullBookJob?.status === "queued"
+                        ? "Queued on backend"
+                        : fullBookJob?.status === "running"
+                          ? "Generating on backend"
+                          : "Not queued yet"}
+                </span>
+              </div>
             </div>
-            <div className="flex items-center justify-between gap-4 text-sm">
-              <span className="text-stone-300">Sample status</span>
-              <span className="font-medium text-white">
-                {sampleIsCurrent
-                  ? "Generated for this setup"
-                  : sampleOutput?.bookId === bookId
-                    ? "Generated for a different setup"
-                  : generationJob?.status === "queued"
-                    ? "Queued on backend"
-                  : generationJob?.status === "running"
-                    ? "Generating on backend"
-                    : "Not generated yet"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-4 text-sm">
-              <span className="text-stone-300">Full book status</span>
-              <span className="font-medium text-white">
-                {fullBookOutput?.bookId === bookId
-                  ? "Generated on backend"
-                  : fullBookJob?.status === "completed"
-                    ? "Queued and completed on backend"
-                  : fullBookJob?.status === "queued"
-                    ? "Queued on backend"
-                  : fullBookJob?.status === "running"
-                    ? "Generating on backend"
-                    : "Not queued yet"}
-              </span>
-            </div>
-          </div>
+          ) : null}
           <ActionLaunchpad className="mt-6 grid gap-4 lg:grid-cols-3" items={setupLaunchpad} />
           <div className="mt-6 flex flex-wrap gap-3">
             <button
@@ -1552,40 +1564,44 @@ export default function BookPage({ params }: BookPageProps) {
               </div>
             </div>
           ) : null}
-          {sampleOutput?.assetPath && sampleIsCurrent ? (
-            <div
-              id="render-history"
-              className="mt-6 rounded-[1.6rem] border border-white/15 bg-white/8 p-5 shadow-sm"
-            >
-              <p className="text-sm font-medium text-white">Generated sample audio</p>
-              <p className="mt-2 text-sm text-stone-300">
-                Provider: {sampleOutput.provider === "openai" ? "OpenAI TTS" : "Local mock TTS"}
-              </p>
-              <audio
-                className="mt-4 w-full"
-                controls
-                preload="metadata"
-                src={`/api/audio/generated/${bookId}?kind=sample-generation`}
-              />
-            </div>
-          ) : null}
-          {artifactHistory.length > 0 ? (
-            <div className="mt-6 rounded-[1.6rem] border border-white/15 bg-white/8 p-5 shadow-sm">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium text-white">Render history</p>
+          {experienceMode === "studio" ? (
+            <>
+              {sampleOutput?.assetPath && sampleIsCurrent ? (
+                <div
+                  id="render-history"
+                  className="mt-6 rounded-[1.6rem] border border-white/15 bg-white/8 p-5 shadow-sm"
+                >
+                  <p className="text-sm font-medium text-white">Generated sample audio</p>
                   <p className="mt-2 text-sm text-stone-300">
-                    Current audio versions stay separate from older preserved renders, so
-                    you can see what is active without losing the history.
+                    Provider:{" "}
+                    {sampleOutput.provider === "openai" ? "OpenAI TTS" : "Local mock TTS"}
                   </p>
+                  <audio
+                    className="mt-4 w-full"
+                    controls
+                    preload="metadata"
+                    src={`/api/audio/generated/${bookId}?kind=sample-generation`}
+                  />
                 </div>
-                <span className="rounded-full border border-white/15 bg-white/8 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-200">
-                  {artifactHistory.length} artifact
-                  {artifactHistory.length === 1 ? "" : "s"}
-                </span>
-              </div>
-              {renderGroups.currentRenders.length > 0 && renderGroups.archivedRenders.length > 0 ? (
-                <RenderHistorySummary
+              ) : null}
+              {artifactHistory.length > 0 ? (
+                <div className="mt-6 rounded-[1.6rem] border border-white/15 bg-white/8 p-5 shadow-sm">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-white">Render history</p>
+                      <p className="mt-2 text-sm text-stone-300">
+                        Current audio versions stay separate from older preserved renders, so
+                        you can see what is active without losing the history.
+                      </p>
+                    </div>
+                    <span className="rounded-full border border-white/15 bg-white/8 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-200">
+                      {artifactHistory.length} artifact
+                      {artifactHistory.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  {renderGroups.currentRenders.length > 0 &&
+                  renderGroups.archivedRenders.length > 0 ? (
+                    <RenderHistorySummary
                   className="mt-5 rounded-[1.4rem] border border-sky-200/25 bg-[linear-gradient(135deg,rgba(125,211,252,0.14)_0%,rgba(255,255,255,0.05)_100%)] px-4 py-4"
                   cardClassName="rounded-[1.1rem] border border-white/10 bg-white/6 px-4 py-3"
                   detail="The current section shows the renders this book should use right now. The archived section keeps older versions available for playback and download, so you can compare how the taste changed over time without losing the earlier work."
@@ -1612,9 +1628,9 @@ export default function BookPage({ params }: BookPageProps) {
                         "Listen from current. Use archived renders only when you want to review or compare previous versions.",
                     },
                   ]}
-                />
-              ) : null}
-              {renderGroups.currentRenders.length > 0 ? (
+                    />
+                  ) : null}
+                  {renderGroups.currentRenders.length > 0 ? (
                 <div className="mt-5">
                   <div className="mb-3 flex items-center gap-3">
                     <span className="rounded-full bg-amber-300 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-950">
@@ -1665,9 +1681,9 @@ export default function BookPage({ params }: BookPageProps) {
                       />
                     ))}
                   </div>
-                </div>
-              ) : null}
-              {renderGroups.archivedRenders.length > 0 ? (
+                  </div>
+                  ) : null}
+                  {renderGroups.archivedRenders.length > 0 ? (
                 <div className="mt-5">
                   <div className="mb-3 flex items-center gap-3">
                     <span className="rounded-full border border-white/15 bg-white/8 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-200">
@@ -1715,9 +1731,11 @@ export default function BookPage({ params }: BookPageProps) {
                       />
                     ))}
                   </div>
+                  </div>
+                  ) : null}
                 </div>
               ) : null}
-            </div>
+            </>
           ) : null}
         </article>
 

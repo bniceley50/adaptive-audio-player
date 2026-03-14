@@ -179,16 +179,17 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
   ).toBeVisible();
   await page.getByRole("button", { name: "Generate sample" }).click();
   await expect(
-    page.getByText("Generated for this setup"),
+    page.getByRole("link", { name: "Open generated sample" }),
   ).toBeVisible({ timeout: 10000 });
   await page.getByRole("button", { name: "Queue full-book generation" }).click();
   await expect(
-    page.getByText("Generated on backend"),
+    page.getByRole("link", { name: "Listen to full book" }),
   ).toBeVisible({ timeout: 10000 });
   await page.reload();
   await expect(
-    page.getByText("Generated on backend"),
+    page.getByRole("link", { name: "Listen to full book" }),
   ).toBeVisible({ timeout: 10000 });
+  await page.getByRole("button", { name: "Studio" }).click();
   await expect(
     page.getByText("Current audio versions", { exact: true }),
   ).toBeVisible();
@@ -214,7 +215,7 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
     page.getByText("Mode").locator("..").getByText("immersive", { exact: true }),
   ).toBeVisible({ timeout: 15000 });
   await expect(
-    page.getByText("Sample audio is ready in this player."),
+    page.getByText("Share your taste"),
   ).toBeVisible({ timeout: 15000 });
   await expect(
     page.getByRole("heading", { level: 2, name: "Chapter 1" }),
@@ -332,7 +333,7 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
   await page.getByRole("link", { name: "Continue listening" }).click();
   await page.waitForURL("**/player/demo-book-1**");
   await expect(
-    page.getByText("Sample audio is ready in this player."),
+    page.getByText("Share your taste"),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { level: 2, name: /Chapter \d+/ }),
@@ -356,13 +357,7 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
   ).toHaveClass(/border-stone-950/);
   await page.goto("/player/demo-book-1");
   await expect(
-    page.getByText("This player is using this book's saved taste: Sloane in immersive."),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Sample audio is ready in this player."),
-  ).toBeVisible();
-  await expect(
-    page.getByText("This book already has its own saved listening profile"),
+    page.getByText("Share your taste"),
   ).toBeVisible();
   await expect(
     page.getByText("Narrator", { exact: true }).locator("..").getByText("Sloane", { exact: true }),
@@ -378,10 +373,13 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
     page.getByRole("heading", { level: 1, name: "Now playing Storm Harbor" }),
   ).toBeVisible({ timeout: 15000 });
   await expect(
-    page.getByText("This player is using this book's saved taste: Sloane in immersive."),
+    page.getByText("Share your taste"),
   ).toBeVisible();
   await expect(
-    page.getByText("Sample audio is ready in this player."),
+    page.getByText("Narrator", { exact: true }).locator("..").getByText("Sloane", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Mode").locator("..").getByText("immersive", { exact: true }),
   ).toBeVisible();
 
   await page.goto("/import");
@@ -489,10 +487,10 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
   await page.getByRole("link", { name: "Open current full-book render" }).click();
   await page.waitForURL("**/player/demo-book-1**artifactId=**");
   await expect(
-    page.getByText("You are listening to the current approved render for this book."),
+    page.getByText("Share your taste"),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Review render timeline" }),
+    page.getByRole("link", { name: "Back to setup" }),
   ).toBeVisible();
   await page.goto("/jobs");
   await page.getByRole("link", { name: "Back home" }).click();
@@ -609,10 +607,13 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
   ).not.toBeVisible();
   await page.goto("/player/demo-book-1");
   await expect(
-    page.getByText("This player is using this book's saved taste: Sloane in immersive."),
+    page.getByText("Share your taste"),
   ).toBeVisible();
   await expect(
-    page.getByText("This book already has its own saved listening profile"),
+    page.getByText("Narrator", { exact: true }).locator("..").getByText("Sloane", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Mode").locator("..").getByText("immersive", { exact: true }),
   ).toBeVisible();
   await page.evaluate(() => window.localStorage.clear());
   await page.goto("/");

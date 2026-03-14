@@ -11,6 +11,7 @@ import {
   type ActionLaunchpadItem,
 } from "@/components/shared/action-launchpad";
 import { BookIdentityCard } from "@/components/shared/book-identity-card";
+import { ExperienceModeToggle } from "@/components/shared/experience-mode-toggle";
 import { JourneyHero } from "@/components/shared/journey-hero";
 import { StateSummaryPanel } from "@/components/shared/state-summary-panel";
 import { NowPlaying } from "@/components/player/now-playing";
@@ -51,6 +52,9 @@ export default function PlayerPage({ params }: PlayerPageProps) {
   const { bookId } = use(params);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [experienceMode, setExperienceMode] = useState<"everyday" | "studio">(
+    "everyday",
+  );
   const [resolvedTaste, setResolvedTaste] = useState(() =>
     typeof window !== "undefined"
       ? resolveListeningTaste(bookId)
@@ -668,6 +672,12 @@ export default function PlayerPage({ params }: PlayerPageProps) {
         currentTitle={playerJourney[playerJourneyIndex]?.title}
         steps={playerJourney}
       />
+      <ExperienceModeToggle
+        detail="Everyday keeps playback focused on the current book, presets, and your next move. Studio reveals adaptive compare and deeper render context when you want to inspect the system."
+        mode={experienceMode}
+        onModeChange={setExperienceMode}
+        title="Listen in everyday mode or open Studio"
+      />
       <section className="rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#fffefb_0%,#ffffff_42%,#eef4ff_100%)] p-6 shadow-[0_24px_70px_-46px_rgba(28,25,23,0.42)]">
         <StateSummaryPanel
           label={listeningState.label}
@@ -765,7 +775,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
           </div>
         </div>
       </section>
-      {sampleIsReady && fullBookIsReady ? (
+      {experienceMode === "studio" && sampleIsReady && fullBookIsReady ? (
         <section className="rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#111827_0%,#1c1917_45%,#292524_100%)] p-6 text-white shadow-[0_28px_80px_-46px_rgba(17,24,39,0.9)]">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-3xl">
@@ -878,106 +888,110 @@ export default function PlayerPage({ params }: PlayerPageProps) {
         playbackIsReady={preferredAudioKind !== null}
       />
       <section className="rounded-[1.75rem] border border-stone-200 bg-white p-6 shadow-sm">
-        <div className="mb-5 rounded-2xl border border-stone-200 bg-stone-50 p-4 text-sm text-stone-700">
-          <span className="font-semibold text-stone-900">Generated audio:</span>{" "}
-          {historicalArtifactId && preferredAudioKind === "full-book-generation"
-            ? "A preserved historical full-book render is ready in this player."
-            : historicalArtifactId && preferredAudioKind === "sample-generation"
-              ? "A preserved historical sample render is ready in this player."
-            : preferredAudioKind === "full-book-generation"
-            ? "Full-book audio is ready in this player."
-            : sampleIsReady
-              ? "Sample audio is ready in this player."
-              : "No generated audio matches this narrator and mode yet."}
-        </div>
-        {sampleIsReady && fullBookIsReady ? (
-          <div className="mb-5 flex flex-wrap gap-3">
-            <Link
-              className={`rounded-full border px-4 py-2 text-sm font-medium ${
-                preferredAudioKind === "sample-generation"
-                  ? "border-stone-950 bg-stone-950 text-white"
-                  : "border-stone-300 text-stone-700"
-              }`}
-              href={`/player/${bookId}?narrator=${narratorId}&mode=${mode}&artifact=sample&renderState=current`}
-            >
-              Use sample audio
-            </Link>
-            <Link
-              className={`rounded-full border px-4 py-2 text-sm font-medium ${
-                preferredAudioKind === "full-book-generation"
-                  ? "border-stone-950 bg-stone-950 text-white"
-                  : "border-stone-300 text-stone-700"
-              }`}
-              href={`/player/${bookId}?narrator=${narratorId}&mode=${mode}&artifact=full&renderState=current`}
-            >
-              Use full-book audio
-            </Link>
-          </div>
-        ) : null}
-        {renderState === "current" ? (
-          <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-            <p className="font-medium">
-              You are listening to the current approved render for this book.
-            </p>
-            <div className="mt-3">
-              <Link
-                className="rounded-full border border-emerald-300 bg-white px-4 py-2 text-sm font-medium text-emerald-900"
-                href={`/books/${bookId}#render-history`}
-              >
-                Review render timeline
-              </Link>
+        {experienceMode === "studio" ? (
+          <>
+            <div className="mb-5 rounded-2xl border border-stone-200 bg-stone-50 p-4 text-sm text-stone-700">
+              <span className="font-semibold text-stone-900">Generated audio:</span>{" "}
+              {historicalArtifactId && preferredAudioKind === "full-book-generation"
+                ? "A preserved historical full-book render is ready in this player."
+                : historicalArtifactId && preferredAudioKind === "sample-generation"
+                  ? "A preserved historical sample render is ready in this player."
+                : preferredAudioKind === "full-book-generation"
+                  ? "Full-book audio is ready in this player."
+                  : sampleIsReady
+                    ? "Sample audio is ready in this player."
+                    : "No generated audio matches this narrator and mode yet."}
             </div>
-          </div>
-        ) : null}
-        {renderState === "archived" ? (
-          <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            <p className="font-medium">
-              You are listening to a preserved archived render for this book.
-            </p>
-            <p className="mt-2">
-              The current approved version may differ from this historical playback.
-            </p>
-            <div className="mt-3">
-              <Link
-                className="rounded-full border border-amber-300 bg-white px-4 py-2 text-sm font-medium text-amber-900"
-                href={`/books/${bookId}#render-history`}
-              >
-                Review render timeline
-              </Link>
-            </div>
-          </div>
-        ) : null}
-        {hasQueryOverride ? (
-          <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-            This player session is using a link-specific taste override.
-          </div>
-        ) : resolvedTaste.source === "saved" && resolvedTaste.profile ? (
-          <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
-            <p className="font-medium">
-              This player is using this book&apos;s saved taste:{" "}
-              {resolvedTaste.profile.narratorName} in{" "}
-              <span className="capitalize">{resolvedTaste.profile.mode}</span>.
-            </p>
-            <p className="mt-2">{resolvedTasteMeta.detail}</p>
-          </div>
-        ) : resolvedTaste.source === "default" && resolvedTaste.profile ? (
-          <div className="mb-5 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-900">
-            <p className="font-medium">
-              This player is using your default taste:{" "}
-              {resolvedTaste.profile.narratorName} in{" "}
-              <span className="capitalize">{resolvedTaste.profile.mode}</span>.
-            </p>
-            <p className="mt-2">{resolvedTasteMeta.detail}</p>
-          </div>
-        ) : resolvedTaste.source === "recent" && resolvedTaste.profile ? (
-          <div className="mb-5 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
-            <p className="font-medium">
-              No default is saved, so this player is using your latest taste:{" "}
-              {resolvedTaste.profile.narratorName} in{" "}
-              <span className="capitalize">{resolvedTaste.profile.mode}</span>.
-            </p>
-            <p className="mt-2">{resolvedTasteMeta.detail}</p>
-          </div>
+            {sampleIsReady && fullBookIsReady ? (
+              <div className="mb-5 flex flex-wrap gap-3">
+                <Link
+                  className={`rounded-full border px-4 py-2 text-sm font-medium ${
+                    preferredAudioKind === "sample-generation"
+                      ? "border-stone-950 bg-stone-950 text-white"
+                      : "border-stone-300 text-stone-700"
+                  }`}
+                  href={`/player/${bookId}?narrator=${narratorId}&mode=${mode}&artifact=sample&renderState=current`}
+                >
+                  Use sample audio
+                </Link>
+                <Link
+                  className={`rounded-full border px-4 py-2 text-sm font-medium ${
+                    preferredAudioKind === "full-book-generation"
+                      ? "border-stone-950 bg-stone-950 text-white"
+                      : "border-stone-300 text-stone-700"
+                  }`}
+                  href={`/player/${bookId}?narrator=${narratorId}&mode=${mode}&artifact=full&renderState=current`}
+                >
+                  Use full-book audio
+                </Link>
+              </div>
+            ) : null}
+            {renderState === "current" ? (
+              <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+                <p className="font-medium">
+                  You are listening to the current approved render for this book.
+                </p>
+                <div className="mt-3">
+                  <Link
+                    className="rounded-full border border-emerald-300 bg-white px-4 py-2 text-sm font-medium text-emerald-900"
+                    href={`/books/${bookId}#render-history`}
+                  >
+                    Review render timeline
+                  </Link>
+                </div>
+              </div>
+            ) : null}
+            {renderState === "archived" ? (
+              <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                <p className="font-medium">
+                  You are listening to a preserved archived render for this book.
+                </p>
+                <p className="mt-2">
+                  The current approved version may differ from this historical playback.
+                </p>
+                <div className="mt-3">
+                  <Link
+                    className="rounded-full border border-amber-300 bg-white px-4 py-2 text-sm font-medium text-amber-900"
+                    href={`/books/${bookId}#render-history`}
+                  >
+                    Review render timeline
+                  </Link>
+                </div>
+              </div>
+            ) : null}
+            {hasQueryOverride ? (
+              <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                This player session is using a link-specific taste override.
+              </div>
+            ) : resolvedTaste.source === "saved" && resolvedTaste.profile ? (
+              <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+                <p className="font-medium">
+                  This player is using this book&apos;s saved taste:{" "}
+                  {resolvedTaste.profile.narratorName} in{" "}
+                  <span className="capitalize">{resolvedTaste.profile.mode}</span>.
+                </p>
+                <p className="mt-2">{resolvedTasteMeta.detail}</p>
+              </div>
+            ) : resolvedTaste.source === "default" && resolvedTaste.profile ? (
+              <div className="mb-5 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-900">
+                <p className="font-medium">
+                  This player is using your default taste:{" "}
+                  {resolvedTaste.profile.narratorName} in{" "}
+                  <span className="capitalize">{resolvedTaste.profile.mode}</span>.
+                </p>
+                <p className="mt-2">{resolvedTasteMeta.detail}</p>
+              </div>
+            ) : resolvedTaste.source === "recent" && resolvedTaste.profile ? (
+              <div className="mb-5 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
+                <p className="font-medium">
+                  No default is saved, so this player is using your latest taste:{" "}
+                  {resolvedTaste.profile.narratorName} in{" "}
+                  <span className="capitalize">{resolvedTaste.profile.mode}</span>.
+                </p>
+                <p className="mt-2">{resolvedTasteMeta.detail}</p>
+              </div>
+            ) : null}
+          </>
         ) : null}
         <ActionLaunchpad className="mb-5 grid gap-4 lg:grid-cols-3" items={playerLaunchpad} />
         <div className="flex flex-wrap gap-3">
