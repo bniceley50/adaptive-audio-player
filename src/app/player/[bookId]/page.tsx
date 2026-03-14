@@ -4,6 +4,7 @@ import Link from "next/link";
 import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
+import { AuthorSpotlightCard } from "@/components/library/author-spotlight-card";
 import { RemovedBookRecoveryCard } from "@/components/library/removed-book-recovery-card";
 import { AppShell } from "@/components/shared/app-shell";
 import {
@@ -15,6 +16,7 @@ import { ExperienceModeToggle } from "@/components/shared/experience-mode-toggle
 import { JourneyHero } from "@/components/shared/journey-hero";
 import { StateSummaryPanel } from "@/components/shared/state-summary-panel";
 import { NowPlaying } from "@/components/player/now-playing";
+import { getAuthorSpotlight } from "@/features/discovery/author-spotlights";
 import {
   buildPlayerListeningState,
   getUpdatedAtWeight,
@@ -113,6 +115,11 @@ export default function PlayerPage({ params }: PlayerPageProps) {
 
   const chapters = useMemo(() => parseChapters(draftText), [draftText]);
   const narratorName = narratorNames[narratorId] ?? narratorNames.marlowe;
+  const authorSpotlight = getAuthorSpotlight({
+    bookId,
+    title: bookTitle,
+    genreLabel: hydratedBookMeta?.genreLabel ?? null,
+  });
   const activeTastePreset =
     tastePresets.find(
       (preset) => preset.narratorId === narratorId && preset.mode === mode,
@@ -775,6 +782,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
           </div>
         </div>
       </section>
+      <AuthorSpotlightCard spotlight={authorSpotlight} />
       {experienceMode === "studio" && sampleIsReady && fullBookIsReady ? (
         <section className="rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#111827_0%,#1c1917_45%,#292524_100%)] p-6 text-white shadow-[0_28px_80px_-46px_rgba(17,24,39,0.9)]">
           <div className="flex flex-wrap items-start justify-between gap-4">

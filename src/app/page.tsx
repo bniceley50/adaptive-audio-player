@@ -1,3 +1,4 @@
+import { AuthorSpotlightCard } from "@/components/library/author-spotlight-card";
 import { BackendSyncCard } from "@/components/library/backend-sync-card";
 import { BackendLibraryPreview } from "@/components/library/backend-library-preview";
 import { BookCircleCard } from "@/components/library/book-circle-card";
@@ -13,6 +14,7 @@ import { RecentTastesCard } from "@/components/library/recent-tastes-card";
 import { WorkspaceAccountCard } from "@/components/library/workspace-account-card";
 import { AppShell } from "@/components/shared/app-shell";
 import { StudioDisclosure } from "@/components/shared/studio-disclosure";
+import { getAuthorSpotlight } from "@/features/discovery/author-spotlights";
 import {
   getUserById,
   getWorkerHeartbeat,
@@ -121,6 +123,12 @@ export default async function HomePage() {
         (profile) => profile.bookId === circleBook.bookId,
       ) ?? backendLibrarySnapshot?.defaultListeningProfile ?? null
     : backendLibrarySnapshot?.defaultListeningProfile ?? null;
+  const authorSpotlight = getAuthorSpotlight({
+    bookId: currentLatestSession?.bookId ?? latestSyncedBook?.bookId ?? null,
+    title: currentLatestSession?.bookTitle ?? latestSyncedBook?.title ?? null,
+    genreLabel:
+      currentLatestSession?.genreLabel ?? latestSyncedBook?.genreLabel ?? null,
+  });
   const listeningStats = backendLibrarySnapshot
     ? {
         activeBooks: backendLibrarySnapshot.playbackStates.filter(
@@ -378,6 +386,7 @@ export default async function HomePage() {
               narratorName={circleProfile?.narratorName ?? null}
             />
           ) : null}
+          <AuthorSpotlightCard spotlight={authorSpotlight} title="Author spotlight" />
         </div>
 
           <div id="account-context" className="space-y-4">

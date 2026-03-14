@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AuthorSpotlightCard } from "@/components/library/author-spotlight-card";
 import { RemovedBookRecoveryCard } from "@/components/library/removed-book-recovery-card";
 import { RetryJobButton } from "@/components/library/retry-job-button";
 import {
@@ -16,6 +17,7 @@ import { JourneyHero } from "@/components/shared/journey-hero";
 import { RenderArtifactCard } from "@/components/shared/render-artifact-card";
 import { RenderHistorySummary } from "@/components/shared/render-history-summary";
 import { StateSummaryPanel } from "@/components/shared/state-summary-panel";
+import { getAuthorSpotlight } from "@/features/discovery/author-spotlights";
 import {
   getUpdatedAtWeight,
   tastePresets,
@@ -114,6 +116,11 @@ export default function BookPage({ params }: BookPageProps) {
   const selectedNarratorMeta =
     narratorOptions.find((narrator) => narrator.id === selectedNarrator) ??
     narratorOptions[0];
+  const authorSpotlight = getAuthorSpotlight({
+    bookId,
+    title: bookTitle,
+    genreLabel: hydratedBookMeta?.genreLabel ?? null,
+  });
   const activeTastePreset =
     tastePresets.find(
       (preset) =>
@@ -1049,6 +1056,7 @@ export default function BookPage({ params }: BookPageProps) {
             </p>
           </article>
       </StateSummaryPanel>
+      <AuthorSpotlightCard spotlight={authorSpotlight} />
       <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <article className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(180deg,#fffefb_0%,#ffffff_100%)] shadow-[0_22px_60px_-42px_rgba(28,25,23,0.45)]">
           <div className="border-b border-stone-200/80 bg-[linear-gradient(135deg,#f7ecd8_0%,#fffdf7_48%,#eef4ff_100%)] p-6">
