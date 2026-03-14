@@ -5,6 +5,7 @@ import {
 } from "@/features/discovery/author-spotlights";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
 import {
+  clearAllDiscoveryPreferences,
   toggleFollowedAuthor,
   toggleJoinedCircle,
   toggleTrackedPlannedFeature,
@@ -87,6 +88,15 @@ export function ManageDiscoveryPreferencesCard() {
               Pinned: {pinnedLabel}
             </div>
           ) : null}
+        </div>
+        <div className="mt-4">
+          <button
+            className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+            type="button"
+            onClick={() => clearAllDiscoveryPreferences()}
+          >
+            Reset all discovery preferences
+          </button>
         </div>
       </div>
       <div className="grid gap-4 p-6 xl:grid-cols-4">

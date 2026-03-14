@@ -217,3 +217,13 @@ export function togglePinnedDiscoverySignal(
   writePinnedDiscoverySignal(nextSignal);
   return nextSignal;
 }
+
+export function clearAllDiscoveryPreferences() {
+  writeStringList(followedAuthorsStorageKey, [], false);
+  writeStringList(joinedCirclesStorageKey, [], false);
+  writeStringList(trackedPlannedFeaturesStorageKey, [], false);
+  writeTimestampMap(followedAuthorTimestampsStorageKey, {}, false);
+  writeTimestampMap(joinedCircleTimestampsStorageKey, {}, false);
+  writeTimestampMap(trackedFeatureTimestampsStorageKey, {}, false);
+  writeJsonValue(pinnedDiscoverySignalStorageKey, null, true);
+}
