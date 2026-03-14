@@ -428,6 +428,38 @@ export default function ImportPage() {
             </div>
           ) : null}
 
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <article className="rounded-[1.4rem] border border-emerald-200 bg-[linear-gradient(180deg,#f0fdf4_0%,#ffffff_100%)] p-5 shadow-sm">
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                Best today
+              </p>
+              <h3 className="mt-3 text-lg font-semibold text-stone-950">Paste the book text</h3>
+              <p className="mt-2 text-sm leading-6 text-stone-600">
+                Fastest first run. Paste chapters directly and move into voice setup right away.
+              </p>
+            </article>
+            <article className="rounded-[1.4rem] border border-sky-200 bg-[linear-gradient(180deg,#eff6ff_0%,#ffffff_100%)] p-5 shadow-sm">
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
+                Supported upload
+              </p>
+              <h3 className="mt-3 text-lg font-semibold text-stone-950">Upload a `.txt` file</h3>
+              <p className="mt-2 text-sm leading-6 text-stone-600">
+                Plain text uploads work today. The rest of the flow stays the same after upload.
+              </p>
+            </article>
+            <article className="rounded-[1.4rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm">
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                Planned next
+              </p>
+              <h3 className="mt-3 text-lg font-semibold text-stone-950">
+                EPUB, PDF, DOCX, and audiobook files
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-stone-600">
+                Richer import support is coming next. For now, bring in plain text for the most reliable path.
+              </p>
+            </article>
+          </div>
+
           <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
             <div className="space-y-6">
               <div className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#ffffff_0%,#faf8f4_100%)] p-6 shadow-sm">
@@ -460,9 +492,12 @@ export default function ImportPage() {
                 <input
                   className="mt-5 block w-full text-sm text-stone-700 file:mr-4 file:rounded-full file:border-0 file:bg-stone-950 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white"
                   type="file"
-                  accept=".txt,.epub,.pdf,.docx"
+                  accept=".txt,text/plain"
                   onChange={handleFileChange}
                 />
+                <p className="mt-3 text-sm text-stone-500">
+                  Uploads currently support plain text files only.
+                </p>
               </label>
 
               <div className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#ffffff_0%,#faf8f4_100%)] p-6 shadow-sm">
