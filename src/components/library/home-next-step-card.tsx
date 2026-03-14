@@ -29,7 +29,7 @@ export function HomeNextStepCard({
     : {
         title: "Import your first book",
         body: "Paste text or upload a file, preview the chapters, and move straight into setup.",
-        href: "/import",
+        href: "/import?source=paste",
         label: "Start importing",
       };
 

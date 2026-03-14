@@ -65,7 +65,7 @@ export function DiscoveryQuickStartCard({
           meta: spotlight
             ? `Recommended next: try ${spotlight.recommendedEdition}`
             : "Recommended next: choose a starter edition if you want help deciding",
-          href: "/import",
+          href: "/import?source=paste",
           action: "Import your own book",
         },
       ];
@@ -98,7 +98,7 @@ export function DiscoveryQuickStartCard({
         meta: spotlight
           ? `Recommended next: try ${spotlight.recommendedEdition}`
           : "Recommended next: choose a starter edition if you want help deciding",
-        href: "/import",
+        href: "/import?source=paste",
         action: "Import your own book",
       },
     ];

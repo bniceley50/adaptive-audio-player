@@ -91,6 +91,18 @@ export default function ImportPage() {
 
     return new URLSearchParams(window.location.search).get("edition");
   });
+  const [selectedSource] = useState<"paste" | "upload" | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    const value = new URLSearchParams(window.location.search).get("source");
+    if (value === "paste" || value === "upload") {
+      return value;
+    }
+
+    return null;
+  });
 
   const chapters = useMemo(() => parseChapters(sourceText), [sourceText]);
   const trimmedSourceText = sourceText.trim();
@@ -222,6 +234,19 @@ export default function ImportPage() {
       cancelled = true;
     };
   }, [defaultListeningProfile]);
+
+  useEffect(() => {
+    if (selectedSource === "paste") {
+      sourceTextRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      sourceTextRef.current?.focus();
+      return;
+    }
+
+    if (selectedSource === "upload") {
+      fileInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      fileInputRef.current?.focus();
+    }
+  }, [selectedSource]);
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
