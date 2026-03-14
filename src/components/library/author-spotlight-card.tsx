@@ -1,12 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import type { AuthorSpotlight } from "@/features/discovery/author-spotlights";
-import {
-  readFollowedAuthors,
-  toggleFollowedAuthor,
-} from "@/features/discovery/local-discovery";
+import { toggleFollowedAuthor } from "@/features/discovery/local-discovery";
+import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 
 interface AuthorSpotlightCardProps {
   spotlight: AuthorSpotlight | null;
@@ -17,7 +14,7 @@ export function AuthorSpotlightCard({
   spotlight,
   title = "About the author",
 }: AuthorSpotlightCardProps) {
-  const [followedAuthors, setFollowedAuthors] = useState<string[]>(() => readFollowedAuthors());
+  const { followedAuthors } = useDiscoveryPreferences();
 
   if (!spotlight) {
     return null;
@@ -32,11 +29,18 @@ export function AuthorSpotlightCard({
           <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
             {title}
           </p>
-          <h2 className="mt-2 text-2xl font-semibold text-stone-950">
-            {spotlight.name}
-          </h2>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            <h2 className="text-2xl font-semibold text-stone-950">{spotlight.name}</h2>
+            {isFollowing ? (
+              <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                Following
+              </span>
+            ) : null}
+          </div>
           <p className="mt-2 text-sm leading-6 text-stone-600">
-            {spotlight.shortBio}
+            {isFollowing
+              ? `${spotlight.shortBio} You are already following this author, so their editions and discovery paths stay easier to surface.`
+              : spotlight.shortBio}
           </p>
         </div>
         <div className="rounded-[1.35rem] border border-white/80 bg-white/85 px-4 py-3 shadow-sm backdrop-blur">
@@ -88,8 +92,7 @@ export function AuthorSpotlightCard({
           className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
           type="button"
           onClick={() => {
-            const nextAuthors = toggleFollowedAuthor(spotlight.name);
-            setFollowedAuthors(nextAuthors);
+            toggleFollowedAuthor(spotlight.name);
           }}
         >
           {isFollowing ? "Following author" : "Follow author"}

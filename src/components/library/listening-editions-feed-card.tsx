@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { featuredBookCircles } from "@/features/discovery/book-circles";
+import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 import {
   defaultTasteChangedEvent,
   listeningProfileChangedEvent,
@@ -46,6 +48,7 @@ function readLibraryEditions(): FeedEdition[] {
 }
 
 export function ListeningEditionsFeedCard() {
+  const { joinedCircles } = useDiscoveryPreferences();
   const [feedbackId, setFeedbackId] = useState<string | null>(null);
   const [libraryEditions, setLibraryEditions] = useState<FeedEdition[]>(() =>
     typeof window === "undefined" ? [] : readLibraryEditions(),
@@ -75,8 +78,18 @@ export function ListeningEditionsFeedCard() {
       bookId: null,
     }));
 
-    return [...libraryEditions, ...curated].slice(0, 4);
-  }, [libraryEditions]);
+    const joinedEditionIds = featuredBookCircles
+      .filter((circle) => joinedCircles.includes(circle.id))
+      .map((circle) => circle.editionId);
+
+    return [...libraryEditions, ...curated]
+      .sort((left, right) => {
+        const leftJoined = joinedEditionIds.includes(left.id) ? 1 : 0;
+        const rightJoined = joinedEditionIds.includes(right.id) ? 1 : 0;
+        return rightJoined - leftJoined;
+      })
+      .slice(0, 4);
+  }, [joinedCircles, libraryEditions]);
 
   return (
     <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-white shadow-[0_22px_60px_-42px_rgba(28,25,23,0.4)]">
@@ -116,6 +129,13 @@ export function ListeningEditionsFeedCard() {
                   <span className="rounded-full bg-stone-100 px-2.5 py-1">
                     {edition.source === "community" ? "Public feed" : "From your library"}
                   </span>
+                  {featuredBookCircles.some(
+                    (circle) => joinedCircles.includes(circle.id) && circle.editionId === edition.id,
+                  ) ? (
+                    <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">
+                      From circles you joined
+                    </span>
+                  ) : null}
                   <span className="rounded-full bg-stone-100 px-2.5 py-1 capitalize">
                     {edition.mode}
                   </span>

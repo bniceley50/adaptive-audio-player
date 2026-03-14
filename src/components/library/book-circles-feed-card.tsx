@@ -4,23 +4,29 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
 import {
-  readJoinedCircles,
   toggleJoinedCircle,
 } from "@/features/discovery/local-discovery";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
+import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 
 export function BookCirclesFeedCard() {
-  const [joinedCircleIds, setJoinedCircleIds] = useState<string[]>(() => readJoinedCircles());
+  const { joinedCircles } = useDiscoveryPreferences();
   const [sharedCircleId, setSharedCircleId] = useState<string | null>(null);
 
   const circles = useMemo(
     () =>
-      featuredBookCircles.map((circle) => ({
-        ...circle,
-        edition:
-          featuredListeningEditions.find((edition) => edition.id === circle.editionId) ?? null,
-      })),
-    [],
+      featuredBookCircles
+        .map((circle) => ({
+          ...circle,
+          edition:
+            featuredListeningEditions.find((edition) => edition.id === circle.editionId) ?? null,
+        }))
+        .sort((left, right) => {
+          const leftJoined = joinedCircles.includes(left.id) ? 1 : 0;
+          const rightJoined = joinedCircles.includes(right.id) ? 1 : 0;
+          return rightJoined - leftJoined;
+        }),
+    [joinedCircles],
   );
 
   async function shareCircle(circleId: string, title: string, bookTitle: string) {
@@ -78,7 +84,7 @@ export function BookCirclesFeedCard() {
       </div>
       <div className="grid gap-4 p-6 xl:grid-cols-3">
         {circles.map((circle) => {
-          const joined = joinedCircleIds.includes(circle.id);
+          const joined = joinedCircles.includes(circle.id);
 
           return (
             <article
@@ -90,6 +96,11 @@ export function BookCirclesFeedCard() {
                 <span className="rounded-full bg-stone-100 px-2.5 py-1">
                   {circle.memberCount} listeners
                 </span>
+                {joined ? (
+                  <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">
+                    Joined
+                  </span>
+                ) : null}
                 {circle.edition ? (
                   <span className="rounded-full bg-stone-100 px-2.5 py-1 capitalize">
                     {circle.edition.mode}
@@ -116,8 +127,7 @@ export function BookCirclesFeedCard() {
                   className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
                   type="button"
                   onClick={() => {
-                    const next = toggleJoinedCircle(circle.id);
-                    setJoinedCircleIds(next);
+                    toggleJoinedCircle(circle.id);
                   }}
                 >
                   {joined ? "Joined" : "Join circle"}

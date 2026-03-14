@@ -1,12 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import {
-  discoveryChangedEvent,
-  readTrackedPlannedFeatures,
-  toggleTrackedPlannedFeature,
-} from "@/features/discovery/local-discovery";
+import { useMemo } from "react";
+import { toggleTrackedPlannedFeature } from "@/features/discovery/local-discovery";
+import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 
 const comingSoonItems = [
   {
@@ -42,24 +39,9 @@ const comingSoonItems = [
 ] as const;
 
 export function ComingNextCard() {
-  const [trackedFeatures, setTrackedFeatures] = useState<string[]>(() =>
-    typeof window === "undefined" ? [] : readTrackedPlannedFeatures(),
-  );
+  const { trackedPlannedFeatures } = useDiscoveryPreferences();
 
-  useEffect(() => {
-    function refreshTrackedFeatures() {
-      setTrackedFeatures(readTrackedPlannedFeatures());
-    }
-
-    refreshTrackedFeatures();
-    window.addEventListener(discoveryChangedEvent, refreshTrackedFeatures);
-
-    return () => {
-      window.removeEventListener(discoveryChangedEvent, refreshTrackedFeatures);
-    };
-  }, []);
-
-  const trackedCount = trackedFeatures.length;
+  const trackedCount = trackedPlannedFeatures.length;
   const interestLabel = useMemo(() => {
     if (trackedCount === 0) {
       return "Save the features you care about";
@@ -71,6 +53,15 @@ export function ComingNextCard() {
 
     return `${trackedCount} future paths saved`;
   }, [trackedCount]);
+  const orderedItems = useMemo(
+    () =>
+      [...comingSoonItems].sort((left, right) => {
+        const leftTracked = trackedPlannedFeatures.includes(left.id) ? 1 : 0;
+        const rightTracked = trackedPlannedFeatures.includes(right.id) ? 1 : 0;
+        return rightTracked - leftTracked;
+      }),
+    [trackedPlannedFeatures],
+  );
 
   return (
     <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#fcfbf7_0%,#ffffff_42%,#eef4ff_100%)] shadow-[0_22px_60px_-42px_rgba(28,25,23,0.4)]">
@@ -78,14 +69,17 @@ export function ComingNextCard() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-              Coming next
+              {trackedCount > 0 ? "Saved future paths" : "Coming next"}
             </p>
             <h2 className="mt-2 text-xl font-semibold text-stone-900">
-              See where the product is heading without losing the simple path today
+              {trackedCount > 0
+                ? "Keep the future paths you care about close"
+                : "See where the product is heading without losing the simple path today"}
             </h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
-              The app keeps the everyday listening flow simple now, while making the next
-              private-library steps visible and easy to understand.
+              {trackedCount > 0
+                ? "The app now keeps your saved roadmap items near the everyday flow so private-library plans stay easy to revisit."
+                : "The app keeps the everyday listening flow simple now, while making the next private-library steps visible and easy to understand."}
             </p>
           </div>
           <div className="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm text-stone-600 shadow-sm">
@@ -94,14 +88,19 @@ export function ComingNextCard() {
         </div>
       </div>
       <div className="grid gap-4 p-6 xl:grid-cols-3">
-        {comingSoonItems.map((item) => (
+        {orderedItems.map((item) => (
           <article
             key={item.title}
             className="rounded-[1.5rem] border border-stone-200 bg-white/90 p-5 shadow-sm"
           >
-            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
-              {item.eyebrow}
-            </p>
+            <div className="flex flex-wrap items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
+              <span>{item.eyebrow}</span>
+              {trackedPlannedFeatures.includes(item.id) ? (
+                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-700">
+                  Saved for you
+                </span>
+              ) : null}
+            </div>
             <h3 className="mt-3 text-lg font-semibold text-stone-950">{item.title}</h3>
             <p className="mt-2 text-sm leading-6 text-stone-600">{item.detail}</p>
             <p className="mt-3 text-sm font-medium text-stone-800">{item.meta}</p>
@@ -114,16 +113,16 @@ export function ComingNextCard() {
               </Link>
               <button
                 className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                  trackedFeatures.includes(item.id)
+                  trackedPlannedFeatures.includes(item.id)
                     ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                     : "border border-stone-300 bg-white text-stone-700 hover:border-stone-400 hover:bg-stone-50"
                 }`}
                 type="button"
                 onClick={() => {
-                  setTrackedFeatures(toggleTrackedPlannedFeature(item.id));
+                  toggleTrackedPlannedFeature(item.id);
                 }}
               >
-                {trackedFeatures.includes(item.id) ? "Saved" : "Notify me"}
+                {trackedPlannedFeatures.includes(item.id) ? "Saved" : "Notify me"}
               </button>
             </div>
           </article>
