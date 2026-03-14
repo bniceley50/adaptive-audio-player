@@ -42,9 +42,18 @@ const comingSoonItems = [
 ] as const;
 
 export function ComingNextCard() {
-  const { pinnedDiscoverySignal, trackedPlannedFeatures } = useDiscoveryPreferences();
+  const { personalizationPaused, pinnedDiscoverySignal, trackedPlannedFeatures } =
+    useDiscoveryPreferences();
+  const effectivePinnedSignal = useMemo(
+    () => (personalizationPaused ? null : pinnedDiscoverySignal),
+    [personalizationPaused, pinnedDiscoverySignal],
+  );
+  const effectiveTrackedFeatures = useMemo(
+    () => (personalizationPaused ? [] : trackedPlannedFeatures),
+    [personalizationPaused, trackedPlannedFeatures],
+  );
 
-  const trackedCount = trackedPlannedFeatures.length;
+  const trackedCount = effectiveTrackedFeatures.length;
   const interestLabel = useMemo(() => {
     if (trackedCount === 0) {
       return "Save the features you care about";
@@ -60,18 +69,18 @@ export function ComingNextCard() {
     () =>
       [...comingSoonItems].sort((left, right) => {
         const leftPinned =
-          pinnedDiscoverySignal?.kind === "feature" && pinnedDiscoverySignal.id === left.id ? 1 : 0;
+          effectivePinnedSignal?.kind === "feature" && effectivePinnedSignal.id === left.id ? 1 : 0;
         const rightPinned =
-          pinnedDiscoverySignal?.kind === "feature" && pinnedDiscoverySignal.id === right.id ? 1 : 0;
+          effectivePinnedSignal?.kind === "feature" && effectivePinnedSignal.id === right.id ? 1 : 0;
         if (leftPinned !== rightPinned) {
           return rightPinned - leftPinned;
         }
 
-        const leftTracked = trackedPlannedFeatures.includes(left.id) ? 1 : 0;
-        const rightTracked = trackedPlannedFeatures.includes(right.id) ? 1 : 0;
+        const leftTracked = effectiveTrackedFeatures.includes(left.id) ? 1 : 0;
+        const rightTracked = effectiveTrackedFeatures.includes(right.id) ? 1 : 0;
         return rightTracked - leftTracked;
       }),
-    [pinnedDiscoverySignal, trackedPlannedFeatures],
+    [effectivePinnedSignal, effectiveTrackedFeatures],
   );
 
   return (
@@ -106,12 +115,12 @@ export function ComingNextCard() {
           >
             <div className="flex flex-wrap items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
               <span>{item.eyebrow}</span>
-              {trackedPlannedFeatures.includes(item.id) ? (
+              {effectiveTrackedFeatures.includes(item.id) ? (
                 <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-700">
                   Saved for you
                 </span>
               ) : null}
-              {pinnedDiscoverySignal?.kind === "feature" && pinnedDiscoverySignal.id === item.id ? (
+              {effectivePinnedSignal?.kind === "feature" && effectivePinnedSignal.id === item.id ? (
                 <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-700">
                   Pinned
                 </span>
@@ -129,7 +138,7 @@ export function ComingNextCard() {
               </Link>
               <button
                 className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                  trackedPlannedFeatures.includes(item.id)
+                  effectiveTrackedFeatures.includes(item.id)
                     ? "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
                     : "border border-stone-300 bg-white text-stone-700 hover:border-stone-400 hover:bg-stone-50"
                 }`}
@@ -138,7 +147,7 @@ export function ComingNextCard() {
                   toggleTrackedPlannedFeature(item.id);
                 }}
               >
-                {trackedPlannedFeatures.includes(item.id) ? "Saved" : "Notify me"}
+                {effectiveTrackedFeatures.includes(item.id) ? "Saved" : "Notify me"}
               </button>
               <button
                 className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
@@ -150,7 +159,7 @@ export function ComingNextCard() {
                   });
                 }}
               >
-                {pinnedDiscoverySignal?.kind === "feature" && pinnedDiscoverySignal.id === item.id
+                {effectivePinnedSignal?.kind === "feature" && effectivePinnedSignal.id === item.id
                   ? "Unpin path"
                   : "Pin path"}
               </button>

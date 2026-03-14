@@ -29,12 +29,35 @@ export function HomeNextStepCard({
   recommendedEdition,
   spotlightName,
 }: HomeNextStepCardProps) {
-  const { followedAuthors, joinedCircles, pinnedDiscoverySignal, trackedPlannedFeatures } =
-    useDiscoveryPreferences();
-  const joinedCircle = featuredBookCircles.find((circle) => joinedCircles.includes(circle.id));
+  const {
+    followedAuthors,
+    joinedCircles,
+    personalizationPaused,
+    pinnedDiscoverySignal,
+    trackedPlannedFeatures,
+  } = useDiscoveryPreferences();
+  const effectiveFollowedAuthors = useMemo(
+    () => (personalizationPaused ? [] : followedAuthors),
+    [followedAuthors, personalizationPaused],
+  );
+  const effectiveJoinedCircles = useMemo(
+    () => (personalizationPaused ? [] : joinedCircles),
+    [joinedCircles, personalizationPaused],
+  );
+  const effectivePinnedSignal = useMemo(
+    () => (personalizationPaused ? null : pinnedDiscoverySignal),
+    [personalizationPaused, pinnedDiscoverySignal],
+  );
+  const effectiveTrackedFeatures = useMemo(
+    () => (personalizationPaused ? [] : trackedPlannedFeatures),
+    [personalizationPaused, trackedPlannedFeatures],
+  );
+  const joinedCircle = featuredBookCircles.find((circle) =>
+    effectiveJoinedCircles.includes(circle.id),
+  );
   const pinnedReason = useMemo(
-    () => getPinnedDiscoveryReason(pinnedDiscoverySignal),
-    [pinnedDiscoverySignal],
+    () => getPinnedDiscoveryReason(effectivePinnedSignal),
+    [effectivePinnedSignal],
   );
   const homeReason = useMemo(
     () =>
@@ -45,18 +68,18 @@ export function HomeNextStepCard({
           spotlightName,
         },
         {
-          followedAuthors,
-          joinedCircles,
-          trackedPlannedFeatures,
+          followedAuthors: effectiveFollowedAuthors,
+          joinedCircles: effectiveJoinedCircles,
+          trackedPlannedFeatures: effectiveTrackedFeatures,
         },
       ),
     [
-      followedAuthors,
+      effectiveFollowedAuthors,
+      effectiveJoinedCircles,
+      effectiveTrackedFeatures,
       hasSyncedBook,
-      joinedCircles,
       latestBookTitle,
       spotlightName,
-      trackedPlannedFeatures,
     ],
   );
 
@@ -72,9 +95,9 @@ export function HomeNextStepCard({
       };
     }
 
-    if (pinnedDiscoverySignal?.kind === "circle") {
+    if (effectivePinnedSignal?.kind === "circle") {
       const pinnedCircle = featuredBookCircles.find(
-        (circle) => circle.id === pinnedDiscoverySignal.id,
+        (circle) => circle.id === effectivePinnedSignal.id,
       );
       if (pinnedCircle) {
         return {
@@ -86,9 +109,9 @@ export function HomeNextStepCard({
       }
     }
 
-    if (pinnedDiscoverySignal?.kind === "author") {
+    if (effectivePinnedSignal?.kind === "author") {
       const pinnedAuthor = featuredAuthorSpotlights.find(
-        (author) => author.name === pinnedDiscoverySignal.id,
+        (author) => author.name === effectivePinnedSignal.id,
       );
       if (pinnedAuthor) {
         return {
@@ -100,13 +123,13 @@ export function HomeNextStepCard({
       }
     }
 
-    if (pinnedDiscoverySignal?.kind === "feature") {
+    if (effectivePinnedSignal?.kind === "feature") {
       return {
         title: "Keep your pinned future path visible",
         body:
           "You pinned a future import path, so it stays ahead of the usual discovery suggestions.",
         href:
-          pinnedDiscoverySignal.id === "private-audio-files"
+          effectivePinnedSignal.id === "private-audio-files"
             ? "/import?source=audio"
             : "/import",
         label: "Open the pinned path",
@@ -122,7 +145,7 @@ export function HomeNextStepCard({
       };
     }
 
-    if (followedAuthors.length > 0 && recommendedEdition) {
+    if (effectiveFollowedAuthors.length > 0 && recommendedEdition) {
       return {
         title: "Start from an author you followed",
         body: `Use ${recommendedEdition} as the fastest way into a style you already told the app you want more of.`,
@@ -131,7 +154,7 @@ export function HomeNextStepCard({
       };
     }
 
-    if (trackedPlannedFeatures.includes("private-audio-files")) {
+    if (effectiveTrackedFeatures.includes("private-audio-files")) {
       return {
         title: "Plan for your audiobook files",
         body:
@@ -149,14 +172,14 @@ export function HomeNextStepCard({
         label: "Start importing",
       };
   }, [
-    followedAuthors.length,
+    effectiveFollowedAuthors.length,
+    effectivePinnedSignal,
+    effectiveTrackedFeatures,
     hasSyncedBook,
     joinedCircle,
     latestBookHref,
     latestBookTitle,
-    pinnedDiscoverySignal,
     recommendedEdition,
-    trackedPlannedFeatures,
   ]);
 
   const secondaryActions = [
@@ -215,10 +238,12 @@ export function HomeNextStepCard({
           </p>
           <div className="mt-4 rounded-[1.1rem] border border-emerald-200 bg-emerald-50/80 px-4 py-3">
             <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-              {pinnedReason?.label ?? homeReason.label}
+              {personalizationPaused ? "Personalization paused" : pinnedReason?.label ?? homeReason.label}
             </p>
             <p className="mt-2 text-sm leading-6 text-emerald-900">
-              {pinnedReason?.detail ?? homeReason.detail}
+              {personalizationPaused
+                ? "The app is temporarily using neutral discovery suggestions. Your saved signals are still here when you want them back."
+                : pinnedReason?.detail ?? homeReason.detail}
             </p>
           </div>
           <h3 className="mt-3 text-xl font-semibold text-stone-950">

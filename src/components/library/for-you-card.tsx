@@ -20,13 +20,34 @@ interface ForYouCardProps {
 
 export function ForYouCard({ spotlight }: ForYouCardProps) {
   const preferences = useDiscoveryPreferences();
-  const { followedAuthors, joinedCircles, pinnedDiscoverySignal, trackedPlannedFeatures } =
-    preferences;
+  const {
+    followedAuthors,
+    joinedCircles,
+    personalizationPaused,
+    pinnedDiscoverySignal,
+    trackedPlannedFeatures,
+  } = preferences;
+  const effectiveFollowedAuthors = useMemo(
+    () => (personalizationPaused ? [] : followedAuthors),
+    [followedAuthors, personalizationPaused],
+  );
+  const effectiveJoinedCircles = useMemo(
+    () => (personalizationPaused ? [] : joinedCircles),
+    [joinedCircles, personalizationPaused],
+  );
+  const effectivePinnedSignal = useMemo(
+    () => (personalizationPaused ? null : pinnedDiscoverySignal),
+    [personalizationPaused, pinnedDiscoverySignal],
+  );
+  const effectiveTrackedFeatures = useMemo(
+    () => (personalizationPaused ? [] : trackedPlannedFeatures),
+    [personalizationPaused, trackedPlannedFeatures],
+  );
 
   const recommendation = useMemo(() => {
-    if (pinnedDiscoverySignal?.kind === "circle") {
+    if (effectivePinnedSignal?.kind === "circle") {
       const pinnedCircle = featuredBookCircles.find(
-        (circle) => circle.id === pinnedDiscoverySignal.id,
+        (circle) => circle.id === effectivePinnedSignal.id,
       );
       if (pinnedCircle) {
         return {
@@ -39,9 +60,9 @@ export function ForYouCard({ spotlight }: ForYouCardProps) {
       }
     }
 
-    if (pinnedDiscoverySignal?.kind === "author") {
+    if (effectivePinnedSignal?.kind === "author") {
       const pinnedAuthor = featuredAuthorSpotlights.find(
-        (author) => author.name === pinnedDiscoverySignal.id,
+        (author) => author.name === effectivePinnedSignal.id,
       );
       if (pinnedAuthor) {
         return {
@@ -54,26 +75,28 @@ export function ForYouCard({ spotlight }: ForYouCardProps) {
       }
     }
 
-    if (pinnedDiscoverySignal?.kind === "feature") {
+    if (effectivePinnedSignal?.kind === "feature") {
       return {
         eyebrow: "Because you pinned a future path",
         title:
-          pinnedDiscoverySignal.id === "private-audio-files"
+          effectivePinnedSignal.id === "private-audio-files"
             ? "Private audiobook files"
             : "Richer document imports",
         detail:
-          pinnedDiscoverySignal.id === "private-audio-files"
+          effectivePinnedSignal.id === "private-audio-files"
             ? "You pinned the audiobook-file path, so the private-library roadmap stays in front."
             : "You pinned a future import path, so the roadmap stays in front while today’s text flow remains simple.",
         href:
-          pinnedDiscoverySignal.id === "private-audio-files"
+          effectivePinnedSignal.id === "private-audio-files"
             ? "/import?source=audio"
             : "/import",
         action: "Open your pinned path",
       };
     }
 
-    const joinedCircle = featuredBookCircles.find((circle) => joinedCircles.includes(circle.id));
+    const joinedCircle = featuredBookCircles.find((circle) =>
+      effectiveJoinedCircles.includes(circle.id),
+    );
     if (joinedCircle) {
       return {
         eyebrow: "Because you joined a circle",
@@ -84,7 +107,7 @@ export function ForYouCard({ spotlight }: ForYouCardProps) {
       };
     }
 
-    if (spotlight && followedAuthors.includes(spotlight.name)) {
+    if (spotlight && effectiveFollowedAuthors.includes(spotlight.name)) {
       return {
         eyebrow: "Because you followed this author",
         title: `${spotlight.name} starter path`,
@@ -94,7 +117,7 @@ export function ForYouCard({ spotlight }: ForYouCardProps) {
       };
     }
 
-    if (trackedPlannedFeatures.includes("private-audio-files")) {
+    if (effectiveTrackedFeatures.includes("private-audio-files")) {
       return {
         eyebrow: "Because you saved a future path",
         title: "Private audiobook files",
@@ -105,7 +128,7 @@ export function ForYouCard({ spotlight }: ForYouCardProps) {
       };
     }
 
-    if (trackedPlannedFeatures.includes("richer-document-imports")) {
+    if (effectiveTrackedFeatures.includes("richer-document-imports")) {
       return {
         eyebrow: "Because you saved a future path",
         title: "Richer document imports",
@@ -124,10 +147,16 @@ export function ForYouCard({ spotlight }: ForYouCardProps) {
       href: `/import?edition=${edition.id}`,
       action: "Start with this edition",
     };
-  }, [followedAuthors, joinedCircles, pinnedDiscoverySignal, spotlight, trackedPlannedFeatures]);
+  }, [
+    effectiveFollowedAuthors,
+    effectiveJoinedCircles,
+    effectivePinnedSignal,
+    effectiveTrackedFeatures,
+    spotlight,
+  ]);
   const pinnedReason = useMemo(
-    () => getPinnedDiscoveryReason(pinnedDiscoverySignal),
-    [pinnedDiscoverySignal],
+    () => getPinnedDiscoveryReason(effectivePinnedSignal),
+    [effectivePinnedSignal],
   );
   const rationale = useMemo(
     () =>
@@ -153,10 +182,12 @@ export function ForYouCard({ spotlight }: ForYouCardProps) {
         </h2>
         <div className="mt-4 rounded-[1.1rem] border border-emerald-200 bg-emerald-50/80 px-4 py-3">
           <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-            {pinnedReason?.label ?? rationale.label}
+            {personalizationPaused ? "Personalization paused" : pinnedReason?.label ?? rationale.label}
           </p>
           <p className="mt-2 text-sm leading-6 text-emerald-900">
-            {pinnedReason?.detail ?? rationale.detail}
+            {personalizationPaused
+              ? "The app is showing a neutral recommendation instead of your saved discovery signals."
+              : pinnedReason?.detail ?? rationale.detail}
           </p>
         </div>
         <p className="mt-3 text-sm font-medium text-stone-700">

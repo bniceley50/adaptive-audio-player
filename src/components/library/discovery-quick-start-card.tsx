@@ -20,8 +20,29 @@ export function DiscoveryQuickStartCard({
   const [localBookCount, setLocalBookCount] = useState<number>(() =>
     typeof window === "undefined" ? 0 : readLocalLibraryBooks().length,
   );
-  const { followedAuthors, joinedCircles, pinnedDiscoverySignal, trackedPlannedFeatures } =
-    useDiscoveryPreferences();
+  const {
+    followedAuthors,
+    joinedCircles,
+    personalizationPaused,
+    pinnedDiscoverySignal,
+    trackedPlannedFeatures,
+  } = useDiscoveryPreferences();
+  const effectiveFollowedAuthors = useMemo(
+    () => (personalizationPaused ? [] : followedAuthors),
+    [followedAuthors, personalizationPaused],
+  );
+  const effectiveJoinedCircles = useMemo(
+    () => (personalizationPaused ? [] : joinedCircles),
+    [joinedCircles, personalizationPaused],
+  );
+  const effectivePinnedSignal = useMemo(
+    () => (personalizationPaused ? null : pinnedDiscoverySignal),
+    [personalizationPaused, pinnedDiscoverySignal],
+  );
+  const effectiveTrackedFeatures = useMemo(
+    () => (personalizationPaused ? [] : trackedPlannedFeatures),
+    [personalizationPaused, trackedPlannedFeatures],
+  );
   const featuredEdition = featuredListeningEditions[0];
   const featuredCircle = featuredBookCircles[0];
 
@@ -41,11 +62,13 @@ export function DiscoveryQuickStartCard({
   }, []);
 
   const cards = useMemo(() => {
-    const joinedCircle = featuredBookCircles.find((circle) => joinedCircles.includes(circle.id));
+    const joinedCircle = featuredBookCircles.find((circle) =>
+      effectiveJoinedCircles.includes(circle.id),
+    );
     const pinnedCard =
-      pinnedDiscoverySignal?.kind === "circle"
+      effectivePinnedSignal?.kind === "circle"
         ? (() => {
-            const circle = featuredBookCircles.find((item) => item.id === pinnedDiscoverySignal.id);
+            const circle = featuredBookCircles.find((item) => item.id === effectivePinnedSignal.id);
             if (!circle) {
               return null;
             }
@@ -60,10 +83,10 @@ export function DiscoveryQuickStartCard({
               action: "Open your pinned circle",
             };
           })()
-        : pinnedDiscoverySignal?.kind === "author"
+        : effectivePinnedSignal?.kind === "author"
           ? (() => {
               const author = featuredAuthorSpotlights.find(
-                (item) => item.name === pinnedDiscoverySignal.id,
+                (item) => item.name === effectivePinnedSignal.id,
               );
               if (!author) {
                 return null;
@@ -79,21 +102,21 @@ export function DiscoveryQuickStartCard({
                 action: "Use your pinned author path",
               };
             })()
-          : pinnedDiscoverySignal?.kind === "feature"
+          : effectivePinnedSignal?.kind === "feature"
             ? {
                 eyebrow: "Pinned for you",
                 title:
-                  pinnedDiscoverySignal.id === "private-audio-files"
+                  effectivePinnedSignal.id === "private-audio-files"
                     ? "Your audiobook-file plan"
                     : "Your future import plan",
                 detail:
                   "You pinned this future path, so the roadmap stays visible even when discovery suggestions change.",
                 meta:
-                  pinnedDiscoverySignal.id === "private-audio-files"
+                  effectivePinnedSignal.id === "private-audio-files"
                     ? "Planned first support: M4B and MP3"
                     : "Planned later: EPUB, PDF, and DOCX",
                 href:
-                  pinnedDiscoverySignal.id === "private-audio-files"
+                  effectivePinnedSignal.id === "private-audio-files"
                     ? "/import?source=audio"
                     : "/import",
                 action: "Open your pinned path",
@@ -101,8 +124,8 @@ export function DiscoveryQuickStartCard({
             : null;
     const followedAuthorCard =
       spotlight &&
-      followedAuthors.includes(spotlight.name) &&
-      !(pinnedDiscoverySignal?.kind === "author" && pinnedDiscoverySignal.id === spotlight.name)
+      effectiveFollowedAuthors.includes(spotlight.name) &&
+      !(effectivePinnedSignal?.kind === "author" && effectivePinnedSignal.id === spotlight.name)
         ? {
             eyebrow: "Followed author",
             title: `${spotlight.name} starter path`,
@@ -114,10 +137,10 @@ export function DiscoveryQuickStartCard({
           }
         : null;
     const personalizedFutureCard =
-      trackedPlannedFeatures.includes("private-audio-files") &&
+      effectiveTrackedFeatures.includes("private-audio-files") &&
       !(
-        pinnedDiscoverySignal?.kind === "feature" &&
-        pinnedDiscoverySignal.id === "private-audio-files"
+        effectivePinnedSignal?.kind === "feature" &&
+        effectivePinnedSignal.id === "private-audio-files"
       )
         ? {
             eyebrow: "Saved future path",
@@ -128,10 +151,10 @@ export function DiscoveryQuickStartCard({
             href: "/import?source=audio",
             action: "Review audio plans",
           }
-        : trackedPlannedFeatures.includes("richer-document-imports") &&
+        : effectiveTrackedFeatures.includes("richer-document-imports") &&
             !(
-              pinnedDiscoverySignal?.kind === "feature" &&
-              pinnedDiscoverySignal.id === "richer-document-imports"
+              effectivePinnedSignal?.kind === "feature" &&
+              effectivePinnedSignal.id === "richer-document-imports"
             )
           ? {
               eyebrow: "Saved future path",
@@ -167,8 +190,8 @@ export function DiscoveryQuickStartCard({
         },
         ...(joinedCircle &&
         !(
-          pinnedDiscoverySignal?.kind === "circle" &&
-          pinnedDiscoverySignal.id === joinedCircle.id
+          effectivePinnedSignal?.kind === "circle" &&
+          effectivePinnedSignal.id === joinedCircle.id
         )
           ? [
               {
@@ -233,8 +256,8 @@ export function DiscoveryQuickStartCard({
       },
       ...(joinedCircle &&
       !(
-        pinnedDiscoverySignal?.kind === "circle" &&
-        pinnedDiscoverySignal.id === joinedCircle.id
+        effectivePinnedSignal?.kind === "circle" &&
+        effectivePinnedSignal.id === joinedCircle.id
       )
         ? [
             {
@@ -278,12 +301,12 @@ export function DiscoveryQuickStartCard({
   }, [
     featuredCircle,
     featuredEdition,
-    followedAuthors,
-    joinedCircles,
+    effectiveFollowedAuthors,
+    effectiveJoinedCircles,
+    effectivePinnedSignal,
+    effectiveTrackedFeatures,
     localBookCount,
-    pinnedDiscoverySignal,
     spotlight,
-    trackedPlannedFeatures,
   ]);
 
   return (

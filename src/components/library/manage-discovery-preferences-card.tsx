@@ -6,6 +6,7 @@ import {
 import { featuredBookCircles } from "@/features/discovery/book-circles";
 import {
   clearAllDiscoveryPreferences,
+  toggleDiscoveryPersonalizationPaused,
   toggleFollowedAuthor,
   toggleJoinedCircle,
   toggleTrackedPlannedFeature,
@@ -43,6 +44,7 @@ export function ManageDiscoveryPreferencesCard() {
   const {
     followedAuthors,
     joinedCircles,
+    personalizationPaused,
     pinnedDiscoverySignal,
     trackedPlannedFeatures,
   } = useDiscoveryPreferences();
@@ -87,9 +89,24 @@ export function ManageDiscoveryPreferencesCard() {
             <div className="rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800 shadow-sm">
               Pinned: {pinnedLabel}
             </div>
+          ) : personalizationPaused ? (
+            <div className="rounded-full border border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-800 shadow-sm">
+              Personalization paused
+            </div>
           ) : null}
         </div>
-        <div className="mt-4">
+        <div className="mt-4 flex flex-wrap gap-3">
+          <button
+            className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+              personalizationPaused
+                ? "border-sky-200 bg-sky-50 text-sky-800 hover:bg-sky-100"
+                : "border-stone-300 bg-white text-stone-700 hover:border-stone-400 hover:bg-stone-50"
+            }`}
+            type="button"
+            onClick={() => toggleDiscoveryPersonalizationPaused()}
+          >
+            {personalizationPaused ? "Resume personalization" : "Pause personalization"}
+          </button>
           <button
             className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
             type="button"
@@ -108,7 +125,9 @@ export function ManageDiscoveryPreferencesCard() {
             {pinnedLabel ?? "Nothing pinned"}
           </h3>
           <p className="mt-2 text-sm leading-6 text-stone-600">
-            {pinnedLabel
+            {personalizationPaused
+              ? "The app is currently using neutral discovery suggestions instead of your saved signals."
+              : pinnedLabel
               ? "This path outranks the normal discovery order across home."
               : "Pin one author, circle, or future path to keep it in front."}
           </p>

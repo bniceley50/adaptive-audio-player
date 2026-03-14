@@ -12,6 +12,8 @@ const trackedFeatureTimestampsStorageKey =
   "adaptive-audio-player.tracked-feature-timestamps";
 const pinnedDiscoverySignalStorageKey =
   "adaptive-audio-player.pinned-discovery-signal";
+const discoveryPersonalizationPausedStorageKey =
+  "adaptive-audio-player.discovery-personalization-paused";
 
 type TimestampMap = Record<string, string>;
 export type PinnedDiscoverySignal = {
@@ -218,6 +220,20 @@ export function togglePinnedDiscoverySignal(
   return nextSignal;
 }
 
+export function readDiscoveryPersonalizationPaused(): boolean {
+  return readJsonValue<boolean>(discoveryPersonalizationPausedStorageKey, false);
+}
+
+export function writeDiscoveryPersonalizationPaused(paused: boolean) {
+  writeJsonValue(discoveryPersonalizationPausedStorageKey, paused);
+}
+
+export function toggleDiscoveryPersonalizationPaused(): boolean {
+  const nextValue = !readDiscoveryPersonalizationPaused();
+  writeDiscoveryPersonalizationPaused(nextValue);
+  return nextValue;
+}
+
 export function clearAllDiscoveryPreferences() {
   writeStringList(followedAuthorsStorageKey, [], false);
   writeStringList(joinedCirclesStorageKey, [], false);
@@ -225,5 +241,6 @@ export function clearAllDiscoveryPreferences() {
   writeTimestampMap(followedAuthorTimestampsStorageKey, {}, false);
   writeTimestampMap(joinedCircleTimestampsStorageKey, {}, false);
   writeTimestampMap(trackedFeatureTimestampsStorageKey, {}, false);
+  writeJsonValue(discoveryPersonalizationPausedStorageKey, false, false);
   writeJsonValue(pinnedDiscoverySignalStorageKey, null, true);
 }
