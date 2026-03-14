@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/shared/app-shell";
 import { JourneyHero } from "@/components/shared/journey-hero";
@@ -45,6 +45,8 @@ const importJourney = [
 
 export default function ImportPage() {
   const router = useRouter();
+  const titleInputRef = useRef<HTMLInputElement | null>(null);
+  const sourceTextRef = useRef<HTMLTextAreaElement | null>(null);
   const [title, setTitle] = useState("");
   const [sourceText, setSourceText] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -106,6 +108,32 @@ export default function ImportPage() {
             accent:
               "border-stone-200 bg-[linear-gradient(135deg,#faf7ef_0%,#ffffff_100%)] text-stone-950",
             badge: "border-stone-200 bg-white/80 text-stone-600",
+        };
+  const nextStepCard = chapters.length > 0
+    ? {
+        label: "Open voice setup",
+        detail:
+          "The chapter map is stable. Move into narrator setup and generate the first sample.",
+        hint: "This is the fastest path once the import is parsed.",
+        actionLabel: "Open voice setup",
+        action: () => continueToSetup(),
+      }
+    : trimmedSourceText
+      ? {
+          label: "Review parsed chapters",
+          detail:
+            "Your source is loaded. Confirm the chapter structure before you pick the sound.",
+          hint: "Previewing now keeps the next screen cleaner.",
+          actionLabel: "Review parsed chapters",
+          action: () => previewPastedText(),
+        }
+      : {
+          label: "Paste text or upload a file",
+          detail:
+            "Bring in the book first. The app will handle chapter parsing before voice setup.",
+          hint: "Start with pasted text for the quickest first run.",
+          actionLabel: "Focus text editor",
+          action: () => sourceTextRef.current?.focus(),
         };
 
   useEffect(() => {
@@ -355,6 +383,7 @@ export default function ImportPage() {
                   className="mt-3 w-full rounded-[1.5rem] border border-stone-200 bg-white px-5 py-4 text-sm text-stone-800 outline-none transition focus:border-stone-400"
                   name="book-title"
                   placeholder="Name your import"
+                  ref={titleInputRef}
                   type="text"
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
@@ -389,6 +418,7 @@ export default function ImportPage() {
                   className="mt-3 min-h-64 w-full rounded-[1.5rem] border border-stone-200 bg-white p-5 text-sm leading-6 text-stone-800 outline-none transition focus:border-stone-400"
                   name="source-text"
                   placeholder={"Chapter 1\nIt was a wet night...\n\nChapter 2\nThe city woke late."}
+                  ref={sourceTextRef}
                   value={sourceText}
                   onChange={(event) => setSourceText(event.target.value)}
                 />
@@ -408,6 +438,75 @@ export default function ImportPage() {
             </div>
 
             <aside className="space-y-4">
+              <div className="rounded-[1.5rem] border border-stone-950 bg-[linear-gradient(135deg,#111827_0%,#1f2937_45%,#312e81_100%)] p-5 text-white shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/70">
+                      Fastest path
+                    </p>
+                    <h3 className="mt-3 text-lg font-semibold text-white">
+                      {nextStepCard.label}
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-white/80">
+                      {nextStepCard.detail}
+                    </p>
+                    <p className="mt-3 text-sm text-white/65">
+                      {nextStepCard.hint}
+                    </p>
+                  </div>
+                  <div className="rounded-[1.2rem] border border-white/15 bg-white/10 px-4 py-4 text-right backdrop-blur">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/60">
+                      Best next move
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-white">
+                      {nextStepCard.actionLabel}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    className="rounded-full bg-white px-5 py-3 text-sm font-medium text-stone-950 shadow-sm transition hover:bg-stone-100"
+                    type="button"
+                    onClick={nextStepCard.action}
+                  >
+                    {nextStepCard.actionLabel}
+                  </button>
+                  <button
+                    className="rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/15"
+                    type="button"
+                    onClick={() => titleInputRef.current?.focus()}
+                  >
+                    Name the book first
+                  </button>
+                </div>
+                <div className="mt-4 grid gap-3">
+                  <article className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/60">
+                      1. Bring in the text
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-white/80">
+                      Paste text or upload a file to seed the book quickly.
+                    </p>
+                  </article>
+                  <article className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/60">
+                      2. Confirm the structure
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-white/80">
+                      Preview the parser output so setup starts from a clean chapter map.
+                    </p>
+                  </article>
+                  <article className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/60">
+                      3. Hear the sample
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-white/80">
+                      Move into setup, keep the sound simple, and generate the first preview.
+                    </p>
+                  </article>
+                </div>
+              </div>
+
               <div className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#f9f6ef_0%,#ffffff_100%)] p-5 shadow-sm">
                 <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
                   What happens next
