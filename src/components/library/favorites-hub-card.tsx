@@ -3,11 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
-import {
-  discoveryChangedEvent,
-  readFollowedAuthors,
-  readJoinedCircles,
-} from "@/features/discovery/local-discovery";
+import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 import {
   defaultTasteChangedEvent,
   libraryChangedEvent,
@@ -65,16 +61,21 @@ export function FavoritesHubCard() {
     readLatestBookmark(),
   );
   const [latestQuote, setLatestQuote] = useState(() => readAllSavedQuotes()[0] ?? null);
-  const [followedAuthors, setFollowedAuthors] = useState<string[]>(() => readFollowedAuthors());
-  const [joinedCircles, setJoinedCircles] = useState<string[]>(() => readJoinedCircles());
+  const { followedAuthors, joinedCircles, personalizationPaused } = useDiscoveryPreferences();
+  const effectiveFollowedAuthors = useMemo(
+    () => (personalizationPaused ? [] : followedAuthors),
+    [followedAuthors, personalizationPaused],
+  );
+  const effectiveJoinedCircles = useMemo(
+    () => (personalizationPaused ? [] : joinedCircles),
+    [joinedCircles, personalizationPaused],
+  );
 
   useEffect(() => {
     function refresh() {
       setDefaultTaste(readDefaultListeningProfile());
       setLatestBookmark(readLatestBookmark());
       setLatestQuote(readAllSavedQuotes()[0] ?? null);
-      setFollowedAuthors(readFollowedAuthors());
-      setJoinedCircles(readJoinedCircles());
     }
 
     refresh();
@@ -83,7 +84,6 @@ export function FavoritesHubCard() {
     window.addEventListener(playbackChangedEvent, refresh);
     window.addEventListener(savedQuotesChangedEvent, refresh);
     window.addEventListener(workspaceContextChangedEvent, refresh);
-    window.addEventListener(discoveryChangedEvent, refresh);
 
     return () => {
       window.removeEventListener(defaultTasteChangedEvent, refresh);
@@ -91,7 +91,6 @@ export function FavoritesHubCard() {
       window.removeEventListener(playbackChangedEvent, refresh);
       window.removeEventListener(savedQuotesChangedEvent, refresh);
       window.removeEventListener(workspaceContextChangedEvent, refresh);
-      window.removeEventListener(discoveryChangedEvent, refresh);
     };
   }, []);
 
@@ -111,11 +110,16 @@ export function FavoritesHubCard() {
     return null;
   }, [defaultTaste, latestBookmark, latestQuote]);
   const latestJoinedCircle = useMemo(
-    () => featuredBookCircles.find((circle) => joinedCircles.includes(circle.id)) ?? null,
-    [joinedCircles],
+    () =>
+      featuredBookCircles.find((circle) => effectiveJoinedCircles.includes(circle.id)) ?? null,
+    [effectiveJoinedCircles],
   );
   const hasFavoritesContent = Boolean(
-    defaultTaste || latestBookmark || latestQuote || followedAuthors.length > 0 || latestJoinedCircle,
+    defaultTaste ||
+      latestBookmark ||
+      latestQuote ||
+      effectiveFollowedAuthors.length > 0 ||
+      latestJoinedCircle,
   );
 
   if (!hasFavoritesContent) {
@@ -137,6 +141,12 @@ export function FavoritesHubCard() {
               Keep your best taste, latest moment, and easiest resume point in one
               place.
             </p>
+            {personalizationPaused ? (
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-sky-700">
+                Personalization is paused, so social discovery memory is hidden here until
+                you turn it back on.
+              </p>
+            ) : null}
           </div>
           {topBook ? (
             <div className="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm text-stone-600 shadow-sm">
@@ -216,17 +226,19 @@ export function FavoritesHubCard() {
             Following
           </p>
           <p className="mt-2 text-lg font-semibold text-stone-950">
-            {followedAuthors.length > 0
-              ? `${followedAuthors.length} author${followedAuthors.length === 1 ? "" : "s"}`
+            {effectiveFollowedAuthors.length > 0
+              ? `${effectiveFollowedAuthors.length} author${effectiveFollowedAuthors.length === 1 ? "" : "s"}`
               : latestJoinedCircle
                 ? latestJoinedCircle.title
                 : "No followed authors yet"}
           </p>
           <p className="mt-2 text-sm leading-6 text-stone-600">
-            {latestJoinedCircle
-              ? `${joinedCircles.length} public circle${joinedCircles.length === 1 ? "" : "s"} joined. Latest: ${latestJoinedCircle.bookTitle}.`
-              : followedAuthors.length > 0
-                ? `You are following ${followedAuthors[0]}${followedAuthors.length > 1 ? " and more" : ""}.`
+            {personalizationPaused
+              ? "Discovery memory is paused right now, so followed authors and joined circles are not steering this surface."
+              : latestJoinedCircle
+                ? `${effectiveJoinedCircles.length} public circle${effectiveJoinedCircles.length === 1 ? "" : "s"} joined. Latest: ${latestJoinedCircle.bookTitle}.`
+              : effectiveFollowedAuthors.length > 0
+                ? `You are following ${effectiveFollowedAuthors[0]}${effectiveFollowedAuthors.length > 1 ? " and more" : ""}.`
                 : "Follow authors or join a public circle to keep discovery feeling personal."}
           </p>
           <Link

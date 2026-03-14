@@ -17,15 +17,18 @@ export function AuthorSpotlightCard({
   spotlight,
   title = "About the author",
 }: AuthorSpotlightCardProps) {
-  const { followedAuthors, pinnedDiscoverySignal } = useDiscoveryPreferences();
+  const { followedAuthors, personalizationPaused, pinnedDiscoverySignal } =
+    useDiscoveryPreferences();
 
   if (!spotlight) {
     return null;
   }
 
-  const isFollowing = followedAuthors.includes(spotlight.name);
+  const isFollowing = !personalizationPaused && followedAuthors.includes(spotlight.name);
   const isPinned =
-    pinnedDiscoverySignal?.kind === "author" && pinnedDiscoverySignal.id === spotlight.name;
+    !personalizationPaused &&
+    pinnedDiscoverySignal?.kind === "author" &&
+    pinnedDiscoverySignal.id === spotlight.name;
 
   return (
     <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#fffdf8_0%,#ffffff_45%,#eef4ff_100%)] p-6 shadow-[0_22px_60px_-42px_rgba(28,25,23,0.38)]">
@@ -48,7 +51,9 @@ export function AuthorSpotlightCard({
             ) : null}
           </div>
           <p className="mt-2 text-sm leading-6 text-stone-600">
-            {isFollowing
+            {personalizationPaused
+              ? `${spotlight.shortBio} Personalization is paused, so followed-author signals are not steering discovery right now.`
+              : isFollowing
               ? `${spotlight.shortBio} You are already following this author, so their editions and discovery paths stay easier to surface.`
               : spotlight.shortBio}
           </p>
