@@ -61,6 +61,7 @@ export default function ImportPage() {
   const router = useRouter();
   const titleInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const audioPlanRef = useRef<HTMLElement | null>(null);
   const sourceTextRef = useRef<HTMLTextAreaElement | null>(null);
   const [title, setTitle] = useState("");
   const [sourceText, setSourceText] = useState("");
@@ -91,13 +92,13 @@ export default function ImportPage() {
 
     return new URLSearchParams(window.location.search).get("edition");
   });
-  const [selectedSource] = useState<"paste" | "upload" | null>(() => {
+  const [selectedSource] = useState<"paste" | "upload" | "audio" | null>(() => {
     if (typeof window === "undefined") {
       return null;
     }
 
     const value = new URLSearchParams(window.location.search).get("source");
-    if (value === "paste" || value === "upload") {
+    if (value === "paste" || value === "upload" || value === "audio") {
       return value;
     }
 
@@ -245,6 +246,11 @@ export default function ImportPage() {
     if (selectedSource === "upload") {
       fileInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       fileInputRef.current?.focus();
+      return;
+    }
+
+    if (selectedSource === "audio") {
+      audioPlanRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }, [selectedSource]);
 
@@ -511,6 +517,18 @@ export default function ImportPage() {
               <p className="mt-2 text-sm leading-6 text-stone-600">
                 Richer import support is coming next. For audiobook imports, the future path is DRM-free or already-converted personal files such as M4B or MP3.
               </p>
+              <button
+                className="mt-4 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                type="button"
+                onClick={() =>
+                  audioPlanRef.current?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "center",
+                  })
+                }
+              >
+                See audiobook file plans
+              </button>
             </article>
           </div>
 
@@ -585,6 +603,61 @@ export default function ImportPage() {
                 <p className="mt-2 text-sm leading-6 text-stone-600">
                   EPUB, PDF, DOCX, and cloud-style library connections can layer onto this
                   same intake flow later without changing the core product shape.
+                </p>
+              </article>
+            </div>
+          </section>
+
+          <section
+            ref={audioPlanRef}
+            className="mt-4 rounded-[1.5rem] border border-sky-200 bg-[linear-gradient(135deg,#eff6ff_0%,#ffffff_100%)] p-5 shadow-sm"
+          >
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="max-w-3xl">
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
+                  Private audiobook files
+                </p>
+                <h3 className="mt-2 text-lg font-semibold text-stone-950">
+                  A real place for personal audio imports is coming next
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-stone-600">
+                  This future path is for private-use audiobook files you already control,
+                  such as DRM-free purchases or already-converted personal files. The app
+                  will treat them like a cleaner listening intake, not a DRM-removal tool.
+                </p>
+              </div>
+              <div className="rounded-[1.2rem] border border-sky-200 bg-white px-4 py-4 text-right shadow-sm">
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
+                  Planned support
+                </p>
+                <p className="mt-2 text-sm font-semibold text-stone-950">
+                  M4B and MP3 first
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <article className="rounded-2xl border border-sky-200 bg-white/85 px-4 py-3 shadow-sm">
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
+                  Step 1
+                </p>
+                <p className="mt-2 text-sm leading-6 text-stone-600">
+                  Bring in a personal audiobook file you already control.
+                </p>
+              </article>
+              <article className="rounded-2xl border border-sky-200 bg-white/85 px-4 py-3 shadow-sm">
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
+                  Step 2
+                </p>
+                <p className="mt-2 text-sm leading-6 text-stone-600">
+                  Keep chapter structure, cover, and book identity intact where possible.
+                </p>
+              </article>
+              <article className="rounded-2xl border border-sky-200 bg-white/85 px-4 py-3 shadow-sm">
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
+                  Step 3
+                </p>
+                <p className="mt-2 text-sm leading-6 text-stone-600">
+                  Layer Adaptive Audio taste, circles, and listening editions onto that file.
                 </p>
               </article>
             </div>
