@@ -13,6 +13,7 @@ import {
   readDefaultListeningProfile,
   readLibraryTotals,
   upsertLocalLibraryBook,
+  writeDefaultListeningProfile,
   writeLocalDraftText,
 } from "@/lib/library/local-library";
 import { parseChapters } from "@/lib/parser/parse-chapters";
@@ -69,7 +70,8 @@ export default function ImportPage() {
   const [removedBooks, setRemovedBooks] = useState(() =>
     typeof window !== "undefined" ? readRemovedLocalLibraryBooks() : [],
   );
-  const [selectedEditionId, setSelectedEditionId] = useState<string | null>(() => {
+  const [selectedEditionFeedback, setSelectedEditionFeedback] = useState(false);
+  const [selectedEditionId] = useState<string | null>(() => {
     if (typeof window === "undefined") {
       return null;
     }
@@ -148,10 +150,6 @@ export default function ImportPage() {
           actionLabel: "Focus text editor",
           action: () => sourceTextRef.current?.focus(),
         };
-
-  useEffect(() => {
-    setSelectedEditionId(new URLSearchParams(window.location.search).get("edition"));
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -375,6 +373,47 @@ export default function ImportPage() {
                     {selectedEdition.creator} recommends {selectedEdition.narratorName} for{" "}
                     {selectedEdition.bookTitle}. It is best for {selectedEdition.bestFor}.
                   </p>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <button
+                      className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
+                      type="button"
+                      onClick={() => {
+                        writeDefaultListeningProfile({
+                          bookId: `featured-${selectedEdition.id}`,
+                          narratorId: selectedEdition.narratorName
+                            .toLowerCase()
+                            .replace(/\s+/g, "-"),
+                          narratorName: selectedEdition.narratorName,
+                          mode: selectedEdition.mode,
+                        });
+                        setDefaultListeningProfile({
+                          bookId: `featured-${selectedEdition.id}`,
+                          narratorId: selectedEdition.narratorName
+                            .toLowerCase()
+                            .replace(/\s+/g, "-"),
+                          narratorName: selectedEdition.narratorName,
+                          mode: selectedEdition.mode,
+                        });
+                        setStartingTasteSource("default");
+                        setSelectedEditionFeedback(true);
+                        window.setTimeout(() => setSelectedEditionFeedback(false), 1800);
+                      }}
+                    >
+                      Use this edition as my starting taste
+                    </button>
+                    <button
+                      className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                      type="button"
+                      onClick={() => sourceTextRef.current?.focus()}
+                    >
+                      Paste text now
+                    </button>
+                  </div>
+                  {selectedEditionFeedback ? (
+                    <p className="mt-3 text-sm text-emerald-700">
+                      This edition is now the default starting taste for new imports.
+                    </p>
+                  ) : null}
                 </div>
                 <div className="rounded-[1.2rem] border border-stone-200 bg-white px-4 py-4 text-right shadow-sm">
                   <p className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-stone-500">
