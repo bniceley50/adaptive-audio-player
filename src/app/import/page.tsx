@@ -60,6 +60,7 @@ function suggestTitleFromFilename(filename: string): string {
 export default function ImportPage() {
   const router = useRouter();
   const titleInputRef = useRef<HTMLInputElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const sourceTextRef = useRef<HTMLTextAreaElement | null>(null);
   const [title, setTitle] = useState("");
   const [sourceText, setSourceText] = useState("");
@@ -451,6 +452,13 @@ export default function ImportPage() {
               <p className="mt-2 text-sm leading-6 text-stone-600">
                 Fastest first run. Paste chapters directly and move into voice setup right away.
               </p>
+              <button
+                className="mt-4 rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
+                type="button"
+                onClick={() => sourceTextRef.current?.focus()}
+              >
+                Paste text now
+              </button>
             </article>
             <article className="rounded-[1.4rem] border border-sky-200 bg-[linear-gradient(180deg,#eff6ff_0%,#ffffff_100%)] p-5 shadow-sm">
               <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
@@ -460,6 +468,13 @@ export default function ImportPage() {
               <p className="mt-2 text-sm leading-6 text-stone-600">
                 Plain text uploads work today. The rest of the flow stays the same after upload.
               </p>
+              <button
+                className="mt-4 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Choose a `.txt` file
+              </button>
             </article>
             <article className="rounded-[1.4rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm">
               <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
@@ -507,6 +522,7 @@ export default function ImportPage() {
                   className="mt-5 block w-full text-sm text-stone-700 file:mr-4 file:rounded-full file:border-0 file:bg-stone-950 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white"
                   type="file"
                   accept=".txt,text/plain"
+                  ref={fileInputRef}
                   onChange={handleFileChange}
                 />
                 <p className="mt-3 text-sm text-stone-500">
