@@ -1,4 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import {
+  discoveryChangedEvent,
+  readTrackedPlannedFeatures,
+} from "@/features/discovery/local-discovery";
 
 interface HomeNextStepCardProps {
   hasSyncedBook: boolean;
@@ -17,21 +24,53 @@ export function HomeNextStepCard({
   listeningStreakDays,
   recommendedEdition,
 }: HomeNextStepCardProps) {
-  const primaryAction = hasSyncedBook && latestBookHref
-    ? {
+  const [trackedPlannedFeatures, setTrackedPlannedFeatures] = useState<string[]>(() =>
+    typeof window === "undefined" ? [] : readTrackedPlannedFeatures(),
+  );
+
+  useEffect(() => {
+    function refreshTrackedFeatures() {
+      setTrackedPlannedFeatures(readTrackedPlannedFeatures());
+    }
+
+    refreshTrackedFeatures();
+    window.addEventListener(discoveryChangedEvent, refreshTrackedFeatures);
+
+    return () => {
+      window.removeEventListener(discoveryChangedEvent, refreshTrackedFeatures);
+    };
+  }, []);
+
+  const primaryAction = useMemo(() => {
+    if (hasSyncedBook && latestBookHref) {
+      return {
         title: "Resume your best current title",
         body: latestBookTitle
           ? `Jump back into ${latestBookTitle} and keep the listening loop moving.`
           : "Jump back into your latest synced title and keep the listening loop moving.",
         href: latestBookHref,
         label: "Resume listening",
-      }
-    : {
-        title: "Import your first book",
-        body: "Paste text or upload a file, preview the chapters, and move straight into setup.",
-        href: "/import?source=paste",
-        label: "Start importing",
       };
+    }
+
+    if (trackedPlannedFeatures.includes("private-audio-files")) {
+      return {
+        title: "Plan for your audiobook files",
+        body:
+          "You saved the private-audio path, so the app is keeping that future import route easy to find while the simple text flow stays live today.",
+        href: "/import?source=audio",
+        label: "View audio import plans",
+      };
+    }
+
+    return {
+      title: "Import your first book",
+      body:
+        "Paste text or upload a file, preview the chapters, and move straight into setup.",
+      href: "/import?source=paste",
+      label: "Start importing",
+    };
+  }, [hasSyncedBook, latestBookHref, latestBookTitle, trackedPlannedFeatures]);
 
   const secondaryActions = [
     {

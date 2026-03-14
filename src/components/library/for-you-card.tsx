@@ -8,6 +8,7 @@ import {
   discoveryChangedEvent,
   readFollowedAuthors,
   readJoinedCircles,
+  readTrackedPlannedFeatures,
 } from "@/features/discovery/local-discovery";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import { workspaceContextChangedEvent } from "@/lib/library/local-state";
@@ -19,11 +20,15 @@ interface ForYouCardProps {
 export function ForYouCard({ spotlight }: ForYouCardProps) {
   const [followedAuthors, setFollowedAuthors] = useState<string[]>(() => readFollowedAuthors());
   const [joinedCircles, setJoinedCircles] = useState<string[]>(() => readJoinedCircles());
+  const [trackedPlannedFeatures, setTrackedPlannedFeatures] = useState<string[]>(() =>
+    readTrackedPlannedFeatures(),
+  );
 
   useEffect(() => {
     function refresh() {
       setFollowedAuthors(readFollowedAuthors());
       setJoinedCircles(readJoinedCircles());
+      setTrackedPlannedFeatures(readTrackedPlannedFeatures());
     }
 
     refresh();
@@ -58,6 +63,28 @@ export function ForYouCard({ spotlight }: ForYouCardProps) {
       };
     }
 
+    if (trackedPlannedFeatures.includes("private-audio-files")) {
+      return {
+        eyebrow: "Because you saved a future path",
+        title: "Private audiobook files",
+        detail:
+          "You marked private audiobook files as interesting, so the app is keeping that future import path visible.",
+        href: "/import?source=audio",
+        action: "Review audio import plans",
+      };
+    }
+
+    if (trackedPlannedFeatures.includes("richer-document-imports")) {
+      return {
+        eyebrow: "Because you saved a future path",
+        title: "Richer document imports",
+        detail:
+          "You saved the richer-import path, so the app is pointing you back to the intake roadmap for what lands after plain text.",
+        href: "/import",
+        action: "Review the import roadmap",
+      };
+    }
+
     const edition = featuredListeningEditions[0];
     return {
       eyebrow: "Recommended for first-time listeners",
@@ -66,7 +93,7 @@ export function ForYouCard({ spotlight }: ForYouCardProps) {
       href: `/import?edition=${edition.id}`,
       action: "Start with this edition",
     };
-  }, [followedAuthors, joinedCircles, spotlight]);
+  }, [followedAuthors, joinedCircles, spotlight, trackedPlannedFeatures]);
 
   return (
     <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#fffdf8_0%,#ffffff_45%,#eef4ff_100%)] shadow-[0_22px_60px_-42px_rgba(28,25,23,0.4)]">
