@@ -1,3 +1,7 @@
+"use client";
+
+import Link from "next/link";
+import { useState } from "react";
 import type { AuthorSpotlight } from "@/features/discovery/author-spotlights";
 
 interface AuthorSpotlightCardProps {
@@ -5,13 +9,40 @@ interface AuthorSpotlightCardProps {
   title?: string;
 }
 
+const followedAuthorsStorageKey = "adaptive-audio-player.followed-authors";
+
+function readFollowedAuthors(): string[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(followedAuthorsStorageKey);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeFollowedAuthors(authorNames: string[]) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(followedAuthorsStorageKey, JSON.stringify(authorNames));
+}
+
 export function AuthorSpotlightCard({
   spotlight,
   title = "About the author",
 }: AuthorSpotlightCardProps) {
+  const [followedAuthors, setFollowedAuthors] = useState<string[]>(() => readFollowedAuthors());
+
   if (!spotlight) {
     return null;
   }
+
+  const isFollowing = followedAuthors.includes(spotlight.name);
 
   return (
     <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#fffdf8_0%,#ffffff_45%,#eef4ff_100%)] p-6 shadow-[0_22px_60px_-42px_rgba(28,25,23,0.38)]">
@@ -69,6 +100,28 @@ export function AuthorSpotlightCard({
             ))}
           </div>
         </article>
+      </div>
+
+      <div className="mt-5 flex flex-wrap gap-3">
+        <button
+          className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
+          type="button"
+          onClick={() => {
+            const nextAuthors = isFollowing
+              ? followedAuthors.filter((author) => author !== spotlight.name)
+              : [...followedAuthors, spotlight.name];
+            setFollowedAuthors(nextAuthors);
+            writeFollowedAuthors(nextAuthors);
+          }}
+        >
+          {isFollowing ? "Following author" : "Follow author"}
+        </button>
+        <Link
+          className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+          href={`/import?edition=${spotlight.recommendedEditionId}`}
+        >
+          Try recommended edition
+        </Link>
       </div>
     </section>
   );

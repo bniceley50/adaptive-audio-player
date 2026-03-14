@@ -5,6 +5,7 @@ export interface AuthorSpotlight {
   bestFor: string;
   signatureThemes: string[];
   recommendedEdition: string;
+  recommendedEditionId: string;
 }
 
 interface AuthorSpotlightInput {
@@ -23,6 +24,7 @@ const byBookId: Record<string, AuthorSpotlight> = {
     bestFor: "Readers who want a noir mystery that feels calm, sharp, and premium.",
     signatureThemes: ["Coastal noir", "Quiet suspense", "Moral ambiguity"],
     recommendedEdition: "Sloane in immersive mode",
+    recommendedEditionId: "cinematic-harbor",
   },
   "demo-book-2": {
     name: "Jonah Mercer",
@@ -32,7 +34,8 @@ const byBookId: Record<string, AuthorSpotlight> = {
       "The chapters move quickly, so even a short sample gives you a strong feel for the pacing and tension curve.",
     bestFor: "Listeners who want a smart thriller with constant forward motion.",
     signatureThemes: ["Urban tension", "Late-night transit", "Fast reveals"],
-    recommendedEdition: "Marlowe in ambient mode",
+    recommendedEdition: "Mara in classic mode",
+    recommendedEditionId: "quiet-detective",
   },
   "demo-book-3": {
     name: "Ari Kessler",
@@ -42,7 +45,8 @@ const byBookId: Record<string, AuthorSpotlight> = {
       "The language has room to breathe, which makes voice choice and atmosphere especially noticeable in the setup flow.",
     bestFor: "Listeners who want thoughtful sci-fi with a calm, immersive tone.",
     signatureThemes: ["Orbital solitude", "Human-scale sci-fi", "Interior reflection"],
-    recommendedEdition: "Sloane in immersive mode",
+    recommendedEdition: "Noah in ambient mode",
+    recommendedEditionId: "night-window",
   },
 };
 
@@ -56,6 +60,7 @@ const byGenre: Record<string, AuthorSpotlight> = {
     bestFor: "People who want suspense without losing clarity.",
     signatureThemes: ["Clues", "Atmosphere", "Slow reveals"],
     recommendedEdition: "A calm or immersive edition",
+    recommendedEditionId: "cinematic-harbor",
   },
   thriller: {
     name: "Featured thriller author",
@@ -65,7 +70,8 @@ const byGenre: Record<string, AuthorSpotlight> = {
       "Thriller listeners respond to momentum, so the strongest editions usually keep chapters tight and urgent.",
     bestFor: "People who want a book that moves immediately.",
     signatureThemes: ["Pacing", "Escalation", "Forward motion"],
-    recommendedEdition: "A bright or ambient edition",
+    recommendedEdition: "A clean, high-clarity edition",
+    recommendedEditionId: "quiet-detective",
   },
   "sci-fi": {
     name: "Featured sci-fi author",
@@ -75,7 +81,8 @@ const byGenre: Record<string, AuthorSpotlight> = {
       "Science fiction often earns loyalty when the edition lets the world feel large without drowning the voice.",
     bestFor: "People who want atmosphere and ideas together.",
     signatureThemes: ["Scale", "Wonder", "Interiority"],
-    recommendedEdition: "A spacious immersive edition",
+    recommendedEdition: "A spacious ambient edition",
+    recommendedEditionId: "night-window",
   },
 };
 
