@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import type { AuthorSpotlight } from "@/features/discovery/author-spotlights";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
+import { getHomeDiscoveryReason } from "@/features/discovery/personalization";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 
@@ -12,8 +13,8 @@ interface ForYouCardProps {
 }
 
 export function ForYouCard({ spotlight }: ForYouCardProps) {
-  const { followedAuthors, joinedCircles, trackedPlannedFeatures } =
-    useDiscoveryPreferences();
+  const preferences = useDiscoveryPreferences();
+  const { followedAuthors, joinedCircles, trackedPlannedFeatures } = preferences;
 
   const recommendation = useMemo(() => {
     const joinedCircle = featuredBookCircles.find((circle) => joinedCircles.includes(circle.id));
@@ -68,6 +69,18 @@ export function ForYouCard({ spotlight }: ForYouCardProps) {
       action: "Start with this edition",
     };
   }, [followedAuthors, joinedCircles, spotlight, trackedPlannedFeatures]);
+  const rationale = useMemo(
+    () =>
+      getHomeDiscoveryReason(
+        {
+          hasSyncedBook: false,
+          latestBookTitle: null,
+          spotlightName: spotlight?.name ?? null,
+        },
+        preferences,
+      ),
+    [preferences, spotlight?.name],
+  );
 
   return (
     <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#fffdf8_0%,#ffffff_45%,#eef4ff_100%)] shadow-[0_22px_60px_-42px_rgba(28,25,23,0.4)]">
@@ -78,6 +91,12 @@ export function ForYouCard({ spotlight }: ForYouCardProps) {
         <h2 className="mt-2 text-xl font-semibold text-stone-900">
           {recommendation.title}
         </h2>
+        <div className="mt-4 rounded-[1.1rem] border border-emerald-200 bg-emerald-50/80 px-4 py-3">
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+            {rationale.label}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-emerald-900">{rationale.detail}</p>
+        </div>
         <p className="mt-3 text-sm font-medium text-stone-700">
           {recommendation.eyebrow}
         </p>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
+import { getHomeDiscoveryReason } from "@/features/discovery/personalization";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 
 interface HomeNextStepCardProps {
@@ -12,6 +13,7 @@ interface HomeNextStepCardProps {
   isSignedIn: boolean;
   listeningStreakDays: number;
   recommendedEdition: string | null;
+  spotlightName: string | null;
 }
 
 export function HomeNextStepCard({
@@ -21,10 +23,34 @@ export function HomeNextStepCard({
   isSignedIn,
   listeningStreakDays,
   recommendedEdition,
+  spotlightName,
 }: HomeNextStepCardProps) {
   const { followedAuthors, joinedCircles, trackedPlannedFeatures } =
     useDiscoveryPreferences();
   const joinedCircle = featuredBookCircles.find((circle) => joinedCircles.includes(circle.id));
+  const homeReason = useMemo(
+    () =>
+      getHomeDiscoveryReason(
+        {
+          hasSyncedBook,
+          latestBookTitle,
+          spotlightName,
+        },
+        {
+          followedAuthors,
+          joinedCircles,
+          trackedPlannedFeatures,
+        },
+      ),
+    [
+      followedAuthors,
+      hasSyncedBook,
+      joinedCircles,
+      latestBookTitle,
+      spotlightName,
+      trackedPlannedFeatures,
+    ],
+  );
 
   const primaryAction = useMemo(() => {
     if (hasSyncedBook && latestBookHref) {
@@ -137,6 +163,12 @@ export function HomeNextStepCard({
           <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
             Best next action
           </p>
+          <div className="mt-4 rounded-[1.1rem] border border-emerald-200 bg-emerald-50/80 px-4 py-3">
+            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+              {homeReason.label}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-emerald-900">{homeReason.detail}</p>
+          </div>
           <h3 className="mt-3 text-xl font-semibold text-stone-950">
             {primaryAction.title}
           </h3>
