@@ -1,4 +1,5 @@
 # Adaptive Audio Player
+[![CI](https://github.com/bniceley50/adaptive-audio-player/actions/workflows/ci.yml/badge.svg)](https://github.com/bniceley50/adaptive-audio-player/actions/workflows/ci.yml)
 
 Private AI audiobook player for your books and documents, with customizable voices, character-aware narration, and premium listening controls.
 
@@ -89,13 +90,21 @@ This project intentionally combines:
 - generated sample/full-book artifact history
 - route-level ownership tests for protected APIs
 
-## What Is Still Prototype-Grade
+## Prototype Boundaries
 
-- SQLite is still the primary backend store
-- the queue is local-worker based, not cloud queue infrastructure
-- cloud storage/CDN delivery is not productionized
-- auth is custom and local-environment oriented, not hosted auth
-- multi-device production deployment is not finished
+This repo is intentionally scoped as a portfolio prototype. The following
+areas are designed but not yet productionized:
+
+| Area | Current state | Production path |
+|---|---|---|
+| Database | SQLite (local) | Postgres via Supabase |
+| Job queue | Local worker process | Cloud queue (SQS/BullMQ) |
+| Audio storage | Local filesystem | Object storage + CDN |
+| Auth | Custom signed sessions | Hosted auth (Supabase Auth / Clerk) |
+| Multi-device | Single-device only | Cloud sync infrastructure exists, needs hosted backend |
+
+For a production-deployed example with Supabase, RLS, hosted auth, and
+Vercel deployment, see [Clinic Notes AI](https://github.com/bniceley50/clinic-notes-ai).
 
 ## Demo Mode
 
@@ -148,6 +157,13 @@ Open:
 
 - [http://127.0.0.1:3100](http://127.0.0.1:3100)
 
+## Live Demo
+
+> **Coming soon** — a hosted demo with pre-seeded portfolio data is planned.
+> For now, clone the repo and run `pnpm dev:all` to see the full experience.
+> The demo seeds automatically when you click `Load portfolio demo` on the
+> home screen.
+
 ## Key Scripts
 
 ```bash
@@ -168,7 +184,9 @@ pnpm lint && pnpm typecheck && pnpm test
 
 ## Stack
 
-- Next.js 16
+- Next.js 16 (RC) — chosen for React 19 server component improvements
+  and Turbopack stability; the app does not depend on any unstable APIs
+  and can run on Next.js 15 with minimal changes
 - TypeScript
 - pnpm
 - Vitest
@@ -197,11 +215,11 @@ pnpm lint && pnpm typecheck && pnpm test
 
 If you are reviewing this repo as an employer or client, the strongest things to inspect are:
 
-- the home/dashboard composition in [src/app/page.tsx](/Users/brian/Projects/adaptive-audio-player/src/app/page.tsx)
-- the setup flow in [src/app/books/[bookId]/page.tsx](/Users/brian/Projects/adaptive-audio-player/src/app/books/[bookId]/page.tsx)
-- the player experience in [src/app/player/[bookId]/page.tsx](/Users/brian/Projects/adaptive-audio-player/src/app/player/[bookId]/page.tsx)
-- the jobs console in [src/app/jobs/page.tsx](/Users/brian/Projects/adaptive-audio-player/src/app/jobs/page.tsx)
-- the backend/session model in [src/lib/backend/sqlite.ts](/Users/brian/Projects/adaptive-audio-player/src/lib/backend/sqlite.ts) and [src/lib/backend/workspace-session.ts](/Users/brian/Projects/adaptive-audio-player/src/lib/backend/workspace-session.ts)
+- the home/dashboard composition in [src/app/page.tsx](src/app/page.tsx)
+- the setup flow in [src/app/books/[bookId]/page.tsx](src/app/books/%5BbookId%5D/page.tsx)
+- the player experience in [src/app/player/[bookId]/page.tsx](src/app/player/%5BbookId%5D/page.tsx)
+- the jobs console in [src/app/jobs/page.tsx](src/app/jobs/page.tsx)
+- the backend/session model in [src/lib/backend/sqlite.ts](src/lib/backend/sqlite.ts) and [src/lib/backend/workspace-session.ts](src/lib/backend/workspace-session.ts)
 
 ## Current Limitations
 
@@ -217,3 +235,12 @@ If you are reviewing this repo as an employer or client, the strongest things to
 - persistent cloud queue
 - production session and sync infrastructure
 - mobile-grade playback and offline downloads
+
+## See Also
+
+**[Clinic Notes AI](https://github.com/bniceley50/clinic-notes-ai)** —
+A production-deployed clinical documentation app (Next.js, Supabase, Vercel)
+with magic-link auth, row-level security, HIPAA-adjacent data handling,
+Sentry monitoring, and CI/CD. If this repo shows product and UX thinking,
+Clinic Notes AI shows backend architecture, security hardening, and
+operational maturity. Together they represent the full stack.
