@@ -16,7 +16,18 @@ import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-pref
 
 export function BookCirclesFeedCard() {
   const preferences = useDiscoveryPreferences();
-  const { joinedCircles, joinedCircleTimestamps, pinnedDiscoverySignal } = preferences;
+  const { joinedCircleTimestamps, personalizationPaused } = preferences;
+  const effectivePreferences = useMemo(
+    () => ({
+      ...preferences,
+      followedAuthors: personalizationPaused ? [] : preferences.followedAuthors,
+      joinedCircles: personalizationPaused ? [] : preferences.joinedCircles,
+      pinnedDiscoverySignal: personalizationPaused ? null : preferences.pinnedDiscoverySignal,
+      trackedPlannedFeatures: personalizationPaused ? [] : preferences.trackedPlannedFeatures,
+    }),
+    [preferences, personalizationPaused],
+  );
+  const { joinedCircles, pinnedDiscoverySignal } = effectivePreferences;
   const [sharedCircleId, setSharedCircleId] = useState<string | null>(null);
 
   const circles = useMemo(
@@ -86,6 +97,11 @@ export function BookCirclesFeedCard() {
               Start from a public circle with a recommended edition, a clear weekly
               checkpoint, and a title people are already moving through together.
             </p>
+            {personalizationPaused ? (
+              <p className="mt-2 text-sm leading-6 text-sky-700">
+                Personalization is paused, so public circles are shown in neutral order.
+              </p>
+            ) : null}
           </div>
           <div className="rounded-[1.2rem] border border-stone-200 bg-white px-4 py-3 shadow-sm">
             <p className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-stone-500">
@@ -104,11 +120,11 @@ export function BookCirclesFeedCard() {
 
           return (
             <article
-              key={circle.id}
-              className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm"
-            >
+            key={circle.id}
+            className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm"
+          >
               {(() => {
-                const reason = getCircleDiscoveryReason(circle.id, preferences);
+                const reason = getCircleDiscoveryReason(circle.id, effectivePreferences);
                 return reason ? (
                   <div className="mb-4 rounded-[1.1rem] border border-emerald-200 bg-emerald-50/80 px-4 py-3">
                     <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">

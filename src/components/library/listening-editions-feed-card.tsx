@@ -53,7 +53,18 @@ function readLibraryEditions(): FeedEdition[] {
 
 export function ListeningEditionsFeedCard() {
   const preferences = useDiscoveryPreferences();
-  const { followedAuthorTimestamps, joinedCircles, joinedCircleTimestamps } = preferences;
+  const { followedAuthorTimestamps, joinedCircleTimestamps, personalizationPaused } = preferences;
+  const effectivePreferences = useMemo(
+    () => ({
+      ...preferences,
+      followedAuthors: personalizationPaused ? [] : preferences.followedAuthors,
+      joinedCircles: personalizationPaused ? [] : preferences.joinedCircles,
+      pinnedDiscoverySignal: personalizationPaused ? null : preferences.pinnedDiscoverySignal,
+      trackedPlannedFeatures: personalizationPaused ? [] : preferences.trackedPlannedFeatures,
+    }),
+    [preferences, personalizationPaused],
+  );
+  const joinedCircles = effectivePreferences.joinedCircles;
   const [feedbackId, setFeedbackId] = useState<string | null>(null);
   const [libraryEditions, setLibraryEditions] = useState<FeedEdition[]>(() =>
     typeof window === "undefined" ? [] : readLibraryEditions(),
@@ -111,6 +122,11 @@ export function ListeningEditionsFeedCard() {
               Start with a community-ready or library-proven listening edition, then
               make it your default in one tap.
             </p>
+            {personalizationPaused ? (
+              <p className="mt-2 text-sm leading-6 text-sky-700">
+                Personalization is paused, so this feed is using neutral ordering.
+              </p>
+            ) : null}
           </div>
           <div className="rounded-[1.2rem] border border-stone-200 bg-white px-4 py-3 shadow-sm">
             <p className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-stone-500">
@@ -129,7 +145,7 @@ export function ListeningEditionsFeedCard() {
             className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm"
           >
             {(() => {
-              const reason = getEditionDiscoveryReason(edition.id, preferences);
+              const reason = getEditionDiscoveryReason(edition.id, effectivePreferences);
               return reason ? (
                 <div className="mb-4 rounded-[1.1rem] border border-emerald-200 bg-emerald-50/80 px-4 py-3">
                   <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
@@ -149,9 +165,9 @@ export function ListeningEditionsFeedCard() {
                   const recentBadge = joinedCircle
                     ? getRelativeDiscoveryBadge(joinedCircleTimestamps[joinedCircle.id])
                     : null;
-                  const followedAuthor = preferences.followedAuthors.find((authorName) =>
+                  const followedAuthor = effectivePreferences.followedAuthors.find((authorName) =>
                     getEditionDiscoveryReason(edition.id, {
-                      ...preferences,
+                      ...effectivePreferences,
                       followedAuthors: [authorName],
                     })?.label.includes(authorName),
                   );

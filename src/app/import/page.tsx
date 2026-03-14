@@ -8,14 +8,12 @@ import { JourneyHero } from "@/components/shared/journey-hero";
 import { StudioDisclosure } from "@/components/shared/studio-disclosure";
 import {
   discoveryChangedEvent,
-  readFollowedAuthors,
-  readJoinedCircles,
   readPinnedDiscoverySignal,
-  readTrackedPlannedFeatures,
   togglePinnedDiscoverySignal,
 } from "@/features/discovery/local-discovery";
 import { getEditionDiscoveryReason } from "@/features/discovery/personalization";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
+import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 import { extractImportText } from "@/lib/import/extract-text";
 import {
   createNextLocalLibraryBook,
@@ -95,17 +93,32 @@ export default function ImportPage() {
     typeof window !== "undefined" ? readRemovedLocalLibraryBooks() : [],
   );
   const [selectedEditionFeedback, setSelectedEditionFeedback] = useState(false);
-  const [followedAuthors, setFollowedAuthors] = useState<string[]>(() =>
-    typeof window !== "undefined" ? readFollowedAuthors() : [],
-  );
-  const [joinedCircles, setJoinedCircles] = useState<string[]>(() =>
-    typeof window !== "undefined" ? readJoinedCircles() : [],
-  );
-  const [trackedPlannedFeatures, setTrackedPlannedFeatures] = useState<string[]>(() =>
-    typeof window !== "undefined" ? readTrackedPlannedFeatures() : [],
-  );
   const [pinnedDiscoverySignal, setPinnedDiscoverySignal] = useState(() =>
     typeof window !== "undefined" ? readPinnedDiscoverySignal() : null,
+  );
+  const discoveryPreferences = useDiscoveryPreferences();
+  const effectiveFollowedAuthors = useMemo(
+    () =>
+      discoveryPreferences.personalizationPaused ? [] : discoveryPreferences.followedAuthors,
+    [discoveryPreferences.followedAuthors, discoveryPreferences.personalizationPaused],
+  );
+  const effectiveJoinedCircles = useMemo(
+    () => (discoveryPreferences.personalizationPaused ? [] : discoveryPreferences.joinedCircles),
+    [discoveryPreferences.joinedCircles, discoveryPreferences.personalizationPaused],
+  );
+  const effectiveTrackedFeatures = useMemo(
+    () =>
+      discoveryPreferences.personalizationPaused
+        ? []
+        : discoveryPreferences.trackedPlannedFeatures,
+    [
+      discoveryPreferences.personalizationPaused,
+      discoveryPreferences.trackedPlannedFeatures,
+    ],
+  );
+  const effectivePinnedSignal = useMemo(
+    () => (discoveryPreferences.personalizationPaused ? null : pinnedDiscoverySignal),
+    [discoveryPreferences.personalizationPaused, pinnedDiscoverySignal],
   );
   const [selectedEditionId] = useState<string | null>(() => {
     if (typeof window === "undefined") {
@@ -140,28 +153,38 @@ export default function ImportPage() {
     }
 
     return getEditionDiscoveryReason(selectedEdition.id, {
-      followedAuthors,
-      joinedCircles,
-      trackedPlannedFeatures,
+      followedAuthors: effectiveFollowedAuthors,
+      joinedCircles: effectiveJoinedCircles,
+      trackedPlannedFeatures: effectiveTrackedFeatures,
     });
-  }, [followedAuthors, joinedCircles, selectedEdition, trackedPlannedFeatures]);
+  }, [
+    effectiveFollowedAuthors,
+    effectiveJoinedCircles,
+    effectiveTrackedFeatures,
+    selectedEdition,
+  ]);
   const highlightedFuturePath = useMemo(() => {
     if (
       selectedSource === "audio" ||
-      pinnedDiscoverySignal?.kind === "feature" && pinnedDiscoverySignal.id === "private-audio-files" ||
-      trackedPlannedFeatures.includes("private-audio-files")
+      (effectivePinnedSignal?.kind === "feature" &&
+        effectivePinnedSignal.id === "private-audio-files") ||
+      effectiveTrackedFeatures.includes("private-audio-files")
     ) {
       return {
         eyebrow:
-          pinnedDiscoverySignal?.kind === "feature" &&
-          pinnedDiscoverySignal.id === "private-audio-files"
+          effectivePinnedSignal?.kind === "feature" &&
+          effectivePinnedSignal.id === "private-audio-files"
             ? "Pinned future path"
+            : discoveryPreferences.personalizationPaused
+              ? "Neutral import mode"
             : "Saved future path",
         title: "Private audiobook files",
         detail:
-          pinnedDiscoverySignal?.kind === "feature" &&
-          pinnedDiscoverySignal.id === "private-audio-files"
+          effectivePinnedSignal?.kind === "feature" &&
+          effectivePinnedSignal.id === "private-audio-files"
             ? "You pinned private audiobook imports, so this roadmap stays ahead of the normal import guidance while the simple text flow remains the fastest path today."
+            : discoveryPreferences.personalizationPaused
+              ? "Personalization is paused, so this roadmap is only showing because you opened the audio path directly."
             : "You already showed interest in private audiobook imports, so this roadmap stays visible while the simple text flow remains the fastest path today.",
         actionLabel: "Review audio import plans",
         target: "audio-plan" as const,
@@ -169,8 +192,8 @@ export default function ImportPage() {
     }
 
     if (
-      pinnedDiscoverySignal?.kind === "feature" &&
-      pinnedDiscoverySignal.id === "richer-document-imports"
+      effectivePinnedSignal?.kind === "feature" &&
+      effectivePinnedSignal.id === "richer-document-imports"
     ) {
       return {
         eyebrow: "Pinned future path",
@@ -182,7 +205,7 @@ export default function ImportPage() {
       };
     }
 
-    if (trackedPlannedFeatures.includes("richer-document-imports")) {
+    if (effectiveTrackedFeatures.includes("richer-document-imports")) {
       return {
         eyebrow: "Saved future path",
         title: "Richer document imports",
@@ -194,7 +217,12 @@ export default function ImportPage() {
     }
 
     return null;
-  }, [pinnedDiscoverySignal, selectedSource, trackedPlannedFeatures]);
+  }, [
+    discoveryPreferences.personalizationPaused,
+    effectivePinnedSignal,
+    effectiveTrackedFeatures,
+    selectedSource,
+  ]);
   const importState = error
     ? {
         label: "Import needs attention",
@@ -320,18 +348,15 @@ export default function ImportPage() {
   }, [defaultListeningProfile]);
 
   useEffect(() => {
-    function refreshTrackedFeatures() {
-      setFollowedAuthors(readFollowedAuthors());
-      setJoinedCircles(readJoinedCircles());
+    function refreshPinnedSignal() {
       setPinnedDiscoverySignal(readPinnedDiscoverySignal());
-      setTrackedPlannedFeatures(readTrackedPlannedFeatures());
     }
 
-    refreshTrackedFeatures();
-    window.addEventListener(discoveryChangedEvent, refreshTrackedFeatures);
+    refreshPinnedSignal();
+    window.addEventListener(discoveryChangedEvent, refreshPinnedSignal);
 
     return () => {
-      window.removeEventListener(discoveryChangedEvent, refreshTrackedFeatures);
+      window.removeEventListener(discoveryChangedEvent, refreshPinnedSignal);
     };
   }, []);
 
