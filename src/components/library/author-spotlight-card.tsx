@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import type { AuthorSpotlight } from "@/features/discovery/author-spotlights";
-import { toggleFollowedAuthor } from "@/features/discovery/local-discovery";
+import {
+  toggleFollowedAuthor,
+  togglePinnedDiscoverySignal,
+} from "@/features/discovery/local-discovery";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 
 interface AuthorSpotlightCardProps {
@@ -14,13 +17,15 @@ export function AuthorSpotlightCard({
   spotlight,
   title = "About the author",
 }: AuthorSpotlightCardProps) {
-  const { followedAuthors } = useDiscoveryPreferences();
+  const { followedAuthors, pinnedDiscoverySignal } = useDiscoveryPreferences();
 
   if (!spotlight) {
     return null;
   }
 
   const isFollowing = followedAuthors.includes(spotlight.name);
+  const isPinned =
+    pinnedDiscoverySignal?.kind === "author" && pinnedDiscoverySignal.id === spotlight.name;
 
   return (
     <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#fffdf8_0%,#ffffff_45%,#eef4ff_100%)] p-6 shadow-[0_22px_60px_-42px_rgba(28,25,23,0.38)]">
@@ -34,6 +39,11 @@ export function AuthorSpotlightCard({
             {isFollowing ? (
               <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
                 Following
+              </span>
+            ) : null}
+            {isPinned ? (
+              <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-amber-700">
+                Pinned
               </span>
             ) : null}
           </div>
@@ -103,6 +113,18 @@ export function AuthorSpotlightCard({
         >
           Try recommended edition
         </Link>
+        <button
+          className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+          type="button"
+          onClick={() => {
+            togglePinnedDiscoverySignal({
+              kind: "author",
+              id: spotlight.name,
+            });
+          }}
+        >
+          {isPinned ? "Unpin author path" : "Pin author path"}
+        </button>
       </div>
     </section>
   );

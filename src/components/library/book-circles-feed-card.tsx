@@ -8,6 +8,7 @@ import {
   getRelativeDiscoveryBadge,
 } from "@/features/discovery/personalization";
 import {
+  togglePinnedDiscoverySignal,
   toggleJoinedCircle,
 } from "@/features/discovery/local-discovery";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
@@ -15,7 +16,7 @@ import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-pref
 
 export function BookCirclesFeedCard() {
   const preferences = useDiscoveryPreferences();
-  const { joinedCircles, joinedCircleTimestamps } = preferences;
+  const { joinedCircles, joinedCircleTimestamps, pinnedDiscoverySignal } = preferences;
   const [sharedCircleId, setSharedCircleId] = useState<string | null>(null);
 
   const circles = useMemo(
@@ -27,11 +28,18 @@ export function BookCirclesFeedCard() {
             featuredListeningEditions.find((edition) => edition.id === circle.editionId) ?? null,
         }))
         .sort((left, right) => {
+          const leftPinned =
+            pinnedDiscoverySignal?.kind === "circle" && pinnedDiscoverySignal.id === left.id ? 1 : 0;
+          const rightPinned =
+            pinnedDiscoverySignal?.kind === "circle" && pinnedDiscoverySignal.id === right.id ? 1 : 0;
+          if (leftPinned !== rightPinned) {
+            return rightPinned - leftPinned;
+          }
           const leftJoined = joinedCircles.includes(left.id) ? 1 : 0;
           const rightJoined = joinedCircles.includes(right.id) ? 1 : 0;
           return rightJoined - leftJoined;
         }),
-    [joinedCircles],
+    [joinedCircles, pinnedDiscoverySignal],
   );
 
   async function shareCircle(circleId: string, title: string, bookTitle: string) {
@@ -90,6 +98,8 @@ export function BookCirclesFeedCard() {
       <div className="grid gap-4 p-6 xl:grid-cols-3">
         {circles.map((circle) => {
           const joined = joinedCircles.includes(circle.id);
+          const pinned =
+            pinnedDiscoverySignal?.kind === "circle" && pinnedDiscoverySignal.id === circle.id;
           const freshnessBadge = getRelativeDiscoveryBadge(joinedCircleTimestamps[circle.id]);
 
           return (
@@ -116,6 +126,11 @@ export function BookCirclesFeedCard() {
                 {joined ? (
                   <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">
                     Joined
+                  </span>
+                ) : null}
+                {pinned ? (
+                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
+                    Pinned
                   </span>
                 ) : null}
                 {freshnessBadge ? (
@@ -168,6 +183,18 @@ export function BookCirclesFeedCard() {
                   }}
                 >
                   {sharedCircleId === circle.id ? "Shared" : "Share circle"}
+                </button>
+                <button
+                  className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                  type="button"
+                  onClick={() => {
+                    togglePinnedDiscoverySignal({
+                      kind: "circle",
+                      id: circle.id,
+                    });
+                  }}
+                >
+                  {pinned ? "Unpin circle" : "Pin circle"}
                 </button>
               </div>
             </article>
