@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
-import { getEditionDiscoveryReason } from "@/features/discovery/personalization";
+import {
+  getEditionDiscoveryReason,
+  getRelativeDiscoveryBadge,
+} from "@/features/discovery/personalization";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 import {
   defaultTasteChangedEvent,
@@ -50,7 +53,7 @@ function readLibraryEditions(): FeedEdition[] {
 
 export function ListeningEditionsFeedCard() {
   const preferences = useDiscoveryPreferences();
-  const { joinedCircles } = preferences;
+  const { followedAuthorTimestamps, joinedCircles, joinedCircleTimestamps } = preferences;
   const [feedbackId, setFeedbackId] = useState<string | null>(null);
   const [libraryEditions, setLibraryEditions] = useState<FeedEdition[]>(() =>
     typeof window === "undefined" ? [] : readLibraryEditions(),
@@ -138,6 +141,39 @@ export function ListeningEditionsFeedCard() {
             })()}
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="max-w-xl">
+                {(() => {
+                  const joinedCircle = featuredBookCircles.find(
+                    (circle) =>
+                      joinedCircles.includes(circle.id) && circle.editionId === edition.id,
+                  );
+                  const recentBadge = joinedCircle
+                    ? getRelativeDiscoveryBadge(joinedCircleTimestamps[joinedCircle.id])
+                    : null;
+                  const followedAuthor = preferences.followedAuthors.find((authorName) =>
+                    getEditionDiscoveryReason(edition.id, {
+                      ...preferences,
+                      followedAuthors: [authorName],
+                    })?.label.includes(authorName),
+                  );
+                  const followBadge = followedAuthor
+                    ? getRelativeDiscoveryBadge(followedAuthorTimestamps[followedAuthor])
+                    : null;
+
+                  return recentBadge || followBadge ? (
+                    <div className="mb-3 flex flex-wrap gap-2">
+                      {recentBadge ? (
+                        <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
+                          {recentBadge}
+                        </span>
+                      ) : null}
+                      {followBadge ? (
+                        <span className="rounded-full bg-violet-50 px-2.5 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                          {followBadge}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null;
+                })()}
                 <div className="flex flex-wrap items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
                   <span className="rounded-full bg-stone-100 px-2.5 py-1">
                     {edition.source === "community" ? "Public feed" : "From your library"}

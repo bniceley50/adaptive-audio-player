@@ -3,7 +3,10 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
-import { getCircleDiscoveryReason } from "@/features/discovery/personalization";
+import {
+  getCircleDiscoveryReason,
+  getRelativeDiscoveryBadge,
+} from "@/features/discovery/personalization";
 import {
   toggleJoinedCircle,
 } from "@/features/discovery/local-discovery";
@@ -12,7 +15,7 @@ import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-pref
 
 export function BookCirclesFeedCard() {
   const preferences = useDiscoveryPreferences();
-  const { joinedCircles } = preferences;
+  const { joinedCircles, joinedCircleTimestamps } = preferences;
   const [sharedCircleId, setSharedCircleId] = useState<string | null>(null);
 
   const circles = useMemo(
@@ -87,6 +90,7 @@ export function BookCirclesFeedCard() {
       <div className="grid gap-4 p-6 xl:grid-cols-3">
         {circles.map((circle) => {
           const joined = joinedCircles.includes(circle.id);
+          const freshnessBadge = getRelativeDiscoveryBadge(joinedCircleTimestamps[circle.id]);
 
           return (
             <article
@@ -112,6 +116,11 @@ export function BookCirclesFeedCard() {
                 {joined ? (
                   <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">
                     Joined
+                  </span>
+                ) : null}
+                {freshnessBadge ? (
+                  <span className="rounded-full bg-sky-50 px-2.5 py-1 text-sky-700">
+                    {freshnessBadge}
                   </span>
                 ) : null}
                 {circle.edition ? (

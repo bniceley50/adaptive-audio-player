@@ -122,3 +122,31 @@ export function getHomeDiscoveryReason(
       "For new or reset listeners, the product keeps the shortest path into setup and playback at the top instead of asking for more decisions.",
   };
 }
+
+export function getRelativeDiscoveryBadge(updatedAt: string | null | undefined): string | null {
+  if (!updatedAt) {
+    return null;
+  }
+
+  const timestamp = new Date(updatedAt).getTime();
+  if (Number.isNaN(timestamp)) {
+    return null;
+  }
+
+  const ageMs = Date.now() - timestamp;
+  const oneDay = 1000 * 60 * 60 * 24;
+
+  if (ageMs < 1000 * 60 * 60) {
+    return "Just updated";
+  }
+
+  if (ageMs < oneDay) {
+    return "Updated today";
+  }
+
+  if (ageMs < oneDay * 3) {
+    return "Recent pick";
+  }
+
+  return null;
+}

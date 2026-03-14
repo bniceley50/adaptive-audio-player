@@ -4,7 +4,10 @@ import { useEffect, useState } from "react";
 import {
   discoveryChangedEvent,
   readFollowedAuthors,
+  readFollowedAuthorTimestamps,
   readJoinedCircles,
+  readJoinedCircleTimestamps,
+  readTrackedFeatureTimestamps,
   readTrackedPlannedFeatures,
 } from "@/features/discovery/local-discovery";
 
@@ -18,12 +21,24 @@ export function useDiscoveryPreferences() {
   const [trackedPlannedFeatures, setTrackedPlannedFeatures] = useState<string[]>(() =>
     typeof window === "undefined" ? [] : readTrackedPlannedFeatures(),
   );
+  const [followedAuthorTimestamps, setFollowedAuthorTimestamps] = useState<
+    Record<string, string>
+  >(() => (typeof window === "undefined" ? {} : readFollowedAuthorTimestamps()));
+  const [joinedCircleTimestamps, setJoinedCircleTimestamps] = useState<Record<string, string>>(
+    () => (typeof window === "undefined" ? {} : readJoinedCircleTimestamps()),
+  );
+  const [trackedFeatureTimestamps, setTrackedFeatureTimestamps] = useState<
+    Record<string, string>
+  >(() => (typeof window === "undefined" ? {} : readTrackedFeatureTimestamps()));
 
   useEffect(() => {
     function refresh() {
       setFollowedAuthors(readFollowedAuthors());
       setJoinedCircles(readJoinedCircles());
       setTrackedPlannedFeatures(readTrackedPlannedFeatures());
+      setFollowedAuthorTimestamps(readFollowedAuthorTimestamps());
+      setJoinedCircleTimestamps(readJoinedCircleTimestamps());
+      setTrackedFeatureTimestamps(readTrackedFeatureTimestamps());
     }
 
     refresh();
@@ -36,7 +51,10 @@ export function useDiscoveryPreferences() {
 
   return {
     followedAuthors,
+    followedAuthorTimestamps,
     joinedCircles,
+    joinedCircleTimestamps,
     trackedPlannedFeatures,
+    trackedFeatureTimestamps,
   };
 }
