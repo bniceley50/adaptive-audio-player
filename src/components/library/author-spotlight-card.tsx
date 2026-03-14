@@ -3,33 +3,14 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { AuthorSpotlight } from "@/features/discovery/author-spotlights";
+import {
+  readFollowedAuthors,
+  toggleFollowedAuthor,
+} from "@/features/discovery/local-discovery";
 
 interface AuthorSpotlightCardProps {
   spotlight: AuthorSpotlight | null;
   title?: string;
-}
-
-const followedAuthorsStorageKey = "adaptive-audio-player.followed-authors";
-
-function readFollowedAuthors(): string[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  try {
-    const raw = window.localStorage.getItem(followedAuthorsStorageKey);
-    return raw ? (JSON.parse(raw) as string[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeFollowedAuthors(authorNames: string[]) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(followedAuthorsStorageKey, JSON.stringify(authorNames));
 }
 
 export function AuthorSpotlightCard({
@@ -107,11 +88,8 @@ export function AuthorSpotlightCard({
           className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
           type="button"
           onClick={() => {
-            const nextAuthors = isFollowing
-              ? followedAuthors.filter((author) => author !== spotlight.name)
-              : [...followedAuthors, spotlight.name];
+            const nextAuthors = toggleFollowedAuthor(spotlight.name);
             setFollowedAuthors(nextAuthors);
-            writeFollowedAuthors(nextAuthors);
           }}
         >
           {isFollowing ? "Following author" : "Follow author"}

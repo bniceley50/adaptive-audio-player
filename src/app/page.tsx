@@ -9,6 +9,7 @@ import { DefaultTasteCard } from "@/components/library/default-taste-card";
 import { DemoModeCard } from "@/components/library/demo-mode-card";
 import { DiscoveryQuickStartCard } from "@/components/library/discovery-quick-start-card";
 import { FavoritesHubCard } from "@/components/library/favorites-hub-card";
+import { ForYouCard } from "@/components/library/for-you-card";
 import { HomeNextStepCard } from "@/components/library/home-next-step-card";
 import { LibraryHero } from "@/components/library/library-hero";
 import { ListeningEditionsFeedCard } from "@/components/library/listening-editions-feed-card";
@@ -310,6 +311,7 @@ export default async function HomePage() {
           </section>
 
           <DiscoveryQuickStartCard spotlight={authorSpotlight} />
+          <ForYouCard spotlight={authorSpotlight} />
           <ListeningStatsCard initialStats={listeningStats} />
           <FavoritesHubCard />
           <ListeningEditionsFeedCard />

@@ -3,30 +3,11 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
+import {
+  readJoinedCircles,
+  toggleJoinedCircle,
+} from "@/features/discovery/local-discovery";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
-
-const joinedCircleStorageKey = "adaptive-audio-player.joined-circles";
-
-function readJoinedCircles(): string[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  try {
-    const raw = window.localStorage.getItem(joinedCircleStorageKey);
-    return raw ? (JSON.parse(raw) as string[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeJoinedCircles(circleIds: string[]) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(joinedCircleStorageKey, JSON.stringify(circleIds));
-}
 
 export function BookCirclesFeedCard() {
   const [joinedCircleIds, setJoinedCircleIds] = useState<string[]>(() => readJoinedCircles());
@@ -135,11 +116,8 @@ export function BookCirclesFeedCard() {
                   className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
                   type="button"
                   onClick={() => {
-                    const next = joined
-                      ? joinedCircleIds.filter((circleId) => circleId !== circle.id)
-                      : [...joinedCircleIds, circle.id];
+                    const next = toggleJoinedCircle(circle.id);
                     setJoinedCircleIds(next);
-                    writeJoinedCircles(next);
                   }}
                 >
                   {joined ? "Joined" : "Join circle"}

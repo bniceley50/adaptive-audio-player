@@ -2,6 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { featuredBookCircles } from "@/features/discovery/book-circles";
+import {
+  discoveryChangedEvent,
+  readFollowedAuthors,
+  readJoinedCircles,
+} from "@/features/discovery/local-discovery";
 import {
   defaultTasteChangedEvent,
   libraryChangedEvent,
@@ -11,7 +17,6 @@ import {
   type LocalListeningProfile,
 } from "@/lib/library/local-library";
 import { readAllSavedQuotes, savedQuotesChangedEvent } from "@/lib/library/local-quotes";
-import { featuredBookCircles } from "@/features/discovery/book-circles";
 import {
   formatPlaybackTime,
   playbackChangedEvent,
@@ -19,9 +24,6 @@ import {
   type PersistedBookmark,
 } from "@/lib/playback/local-playback";
 import { workspaceContextChangedEvent } from "@/lib/library/local-state";
-
-const followedAuthorsStorageKey = "adaptive-audio-player.followed-authors";
-const joinedCirclesStorageKey = "adaptive-audio-player.joined-circles";
 
 type FavoriteBookmark = PersistedBookmark & {
   bookId: string;
@@ -55,32 +57,6 @@ function readLatestBookmark(): FavoriteBookmark | null {
   );
 }
 
-function readFollowedAuthors(): string[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  try {
-    const raw = window.localStorage.getItem(followedAuthorsStorageKey);
-    return raw ? (JSON.parse(raw) as string[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function readJoinedCircles(): string[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  try {
-    const raw = window.localStorage.getItem(joinedCirclesStorageKey);
-    return raw ? (JSON.parse(raw) as string[]) : [];
-  } catch {
-    return [];
-  }
-}
-
 export function FavoritesHubCard() {
   const [defaultTaste, setDefaultTaste] = useState<LocalListeningProfile | null>(() =>
     readDefaultListeningProfile(),
@@ -107,6 +83,7 @@ export function FavoritesHubCard() {
     window.addEventListener(playbackChangedEvent, refresh);
     window.addEventListener(savedQuotesChangedEvent, refresh);
     window.addEventListener(workspaceContextChangedEvent, refresh);
+    window.addEventListener(discoveryChangedEvent, refresh);
 
     return () => {
       window.removeEventListener(defaultTasteChangedEvent, refresh);
@@ -114,6 +91,7 @@ export function FavoritesHubCard() {
       window.removeEventListener(playbackChangedEvent, refresh);
       window.removeEventListener(savedQuotesChangedEvent, refresh);
       window.removeEventListener(workspaceContextChangedEvent, refresh);
+      window.removeEventListener(discoveryChangedEvent, refresh);
     };
   }, []);
 
