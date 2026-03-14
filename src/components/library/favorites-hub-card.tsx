@@ -11,6 +11,7 @@ import {
   type LocalListeningProfile,
 } from "@/lib/library/local-library";
 import { readAllSavedQuotes, savedQuotesChangedEvent } from "@/lib/library/local-quotes";
+import { featuredBookCircles } from "@/features/discovery/book-circles";
 import {
   formatPlaybackTime,
   playbackChangedEvent,
@@ -18,6 +19,9 @@ import {
   type PersistedBookmark,
 } from "@/lib/playback/local-playback";
 import { workspaceContextChangedEvent } from "@/lib/library/local-state";
+
+const followedAuthorsStorageKey = "adaptive-audio-player.followed-authors";
+const joinedCirclesStorageKey = "adaptive-audio-player.joined-circles";
 
 type FavoriteBookmark = PersistedBookmark & {
   bookId: string;
@@ -51,6 +55,32 @@ function readLatestBookmark(): FavoriteBookmark | null {
   );
 }
 
+function readFollowedAuthors(): string[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(followedAuthorsStorageKey);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function readJoinedCircles(): string[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(joinedCirclesStorageKey);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 export function FavoritesHubCard() {
   const [defaultTaste, setDefaultTaste] = useState<LocalListeningProfile | null>(() =>
     readDefaultListeningProfile(),
@@ -59,12 +89,16 @@ export function FavoritesHubCard() {
     readLatestBookmark(),
   );
   const [latestQuote, setLatestQuote] = useState(() => readAllSavedQuotes()[0] ?? null);
+  const [followedAuthors, setFollowedAuthors] = useState<string[]>(() => readFollowedAuthors());
+  const [joinedCircles, setJoinedCircles] = useState<string[]>(() => readJoinedCircles());
 
   useEffect(() => {
     function refresh() {
       setDefaultTaste(readDefaultListeningProfile());
       setLatestBookmark(readLatestBookmark());
       setLatestQuote(readAllSavedQuotes()[0] ?? null);
+      setFollowedAuthors(readFollowedAuthors());
+      setJoinedCircles(readJoinedCircles());
     }
 
     refresh();
@@ -98,6 +132,10 @@ export function FavoritesHubCard() {
 
     return null;
   }, [defaultTaste, latestBookmark, latestQuote]);
+  const latestJoinedCircle = useMemo(
+    () => featuredBookCircles.find((circle) => joinedCircles.includes(circle.id)) ?? null,
+    [joinedCircles],
+  );
 
   return (
     <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#fffdf7_0%,#ffffff_42%,#eef4ff_100%)] shadow-[0_22px_60px_-42px_rgba(28,25,23,0.4)]">
@@ -122,7 +160,7 @@ export function FavoritesHubCard() {
           ) : null}
         </div>
       </div>
-      <div className="grid gap-4 p-6 md:grid-cols-3">
+      <div className="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-4">
         <article className="rounded-[1.4rem] border border-stone-200 bg-white/90 p-5 shadow-sm">
           <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
             Favorite taste
@@ -186,7 +224,32 @@ export function FavoritesHubCard() {
             >
               Revisit quote
             </Link>
-          ) : null}
+            ) : null}
+        </article>
+        <article className="rounded-[1.4rem] border border-stone-200 bg-white/90 p-5 shadow-sm">
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
+            Following
+          </p>
+          <p className="mt-2 text-lg font-semibold text-stone-950">
+            {followedAuthors.length > 0
+              ? `${followedAuthors.length} author${followedAuthors.length === 1 ? "" : "s"}`
+              : latestJoinedCircle
+                ? latestJoinedCircle.title
+                : "No followed authors yet"}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-stone-600">
+            {latestJoinedCircle
+              ? `${joinedCircles.length} public circle${joinedCircles.length === 1 ? "" : "s"} joined. Latest: ${latestJoinedCircle.bookTitle}.`
+              : followedAuthors.length > 0
+                ? `You are following ${followedAuthors[0]}${followedAuthors.length > 1 ? " and more" : ""}.`
+                : "Follow authors or join a public circle to keep discovery feeling personal."}
+          </p>
+          <Link
+            className="mt-4 inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+            href="/"
+          >
+            Explore discovery
+          </Link>
         </article>
       </div>
     </section>
