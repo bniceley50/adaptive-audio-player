@@ -16,6 +16,7 @@ import { LibraryHero } from "@/components/library/library-hero";
 import { ListeningEditionsFeedCard } from "@/components/library/listening-editions-feed-card";
 import { ListeningStatsCard } from "@/components/library/listening-stats-card";
 import { RecentQuotesCard } from "@/components/library/recent-quotes-card";
+import { RecentPersonalizationCard } from "@/components/library/recent-personalization-card";
 import { RecentTastesCard } from "@/components/library/recent-tastes-card";
 import { WorkspaceAccountCard } from "@/components/library/workspace-account-card";
 import { AppShell } from "@/components/shared/app-shell";
@@ -266,6 +267,7 @@ export default async function HomePage() {
 
         <DiscoveryQuickStartCard spotlight={authorSpotlight} />
         <ForYouCard spotlight={authorSpotlight} />
+        <RecentPersonalizationCard />
         <ListeningStatsCard initialStats={listeningStats} />
         <FavoritesHubCard />
         <ComingNextCard />
