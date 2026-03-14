@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/shared/app-shell";
 import { JourneyHero } from "@/components/shared/journey-hero";
+import { StudioDisclosure } from "@/components/shared/studio-disclosure";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import { extractImportText } from "@/lib/import/extract-text";
 import {
@@ -427,42 +428,6 @@ export default function ImportPage() {
             </div>
           ) : null}
 
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
-            <article className="rounded-2xl border border-stone-200 bg-[linear-gradient(180deg,#faf7f0_0%,#ffffff_100%)] p-4 shadow-sm">
-              <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
-                Library books
-              </p>
-              <p className="mt-3 text-2xl font-semibold text-stone-900">
-                {libraryTotals.totalBooks}
-              </p>
-              <p className="mt-2 text-xs leading-5 text-stone-500">
-                Imports already living in your private shelf.
-              </p>
-            </article>
-            <article className="rounded-2xl border border-stone-200 bg-[linear-gradient(180deg,#f4f8ff_0%,#ffffff_100%)] p-4 shadow-sm">
-              <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
-                Saved tastes
-              </p>
-              <p className="mt-3 text-2xl font-semibold text-stone-900">
-                {libraryTotals.booksWithSavedTaste}
-              </p>
-              <p className="mt-2 text-xs leading-5 text-stone-500">
-                Books already carrying narrator and mode choices.
-              </p>
-            </article>
-            <article className="rounded-2xl border border-stone-200 bg-[linear-gradient(180deg,#fff7ef_0%,#ffffff_100%)] p-4 shadow-sm">
-              <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
-                Recently removed
-              </p>
-              <p className="mt-3 text-2xl font-semibold text-stone-900">
-                {removedBooks.length}
-              </p>
-              <p className="mt-2 text-xs leading-5 text-stone-500">
-                Recoverable titles still available from stale links or the home shelf.
-              </p>
-            </article>
-          </div>
-
           <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
             <div className="space-y-6">
               <div className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#ffffff_0%,#faf8f4_100%)] p-6 shadow-sm">
@@ -624,16 +589,6 @@ export default function ImportPage() {
                 </ol>
               </div>
 
-              {removedBooks.length > 0 ? (
-                <div className="rounded-[1.5rem] border border-amber-200 bg-[linear-gradient(135deg,#fff7d8_0%,#fffdf7_100%)] p-5 text-sm text-amber-950 shadow-sm">
-                  <p className="font-medium">Removed books are still recoverable.</p>
-                  <p className="mt-2 leading-6 text-amber-900">
-                    Stale setup and player links can restore them, and the home shelf keeps a
-                    recently removed list until you dismiss it.
-                  </p>
-                </div>
-              ) : null}
-
               {error ? (
                 <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
                   {error}
@@ -725,6 +680,61 @@ export default function ImportPage() {
                 </div>
               </div>
             </aside>
+          </div>
+
+          <div className="mt-6">
+            <StudioDisclosure
+              detail="Open this when you want deeper library context before importing, including synced shelf totals, saved taste counts, and removed-book recovery state."
+              title="Library context and recovery tools"
+            >
+              <div className="space-y-5">
+                <div className="grid gap-4 md:grid-cols-3">
+                  <article className="rounded-2xl border border-stone-200 bg-[linear-gradient(180deg,#faf7f0_0%,#ffffff_100%)] p-4 shadow-sm">
+                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
+                      Library books
+                    </p>
+                    <p className="mt-3 text-2xl font-semibold text-stone-900">
+                      {libraryTotals.totalBooks}
+                    </p>
+                    <p className="mt-2 text-xs leading-5 text-stone-500">
+                      Imports already living in your private shelf.
+                    </p>
+                  </article>
+                  <article className="rounded-2xl border border-stone-200 bg-[linear-gradient(180deg,#f4f8ff_0%,#ffffff_100%)] p-4 shadow-sm">
+                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
+                      Saved tastes
+                    </p>
+                    <p className="mt-3 text-2xl font-semibold text-stone-900">
+                      {libraryTotals.booksWithSavedTaste}
+                    </p>
+                    <p className="mt-2 text-xs leading-5 text-stone-500">
+                      Books already carrying narrator and mode choices.
+                    </p>
+                  </article>
+                  <article className="rounded-2xl border border-stone-200 bg-[linear-gradient(180deg,#fff7ef_0%,#ffffff_100%)] p-4 shadow-sm">
+                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
+                      Recently removed
+                    </p>
+                    <p className="mt-3 text-2xl font-semibold text-stone-900">
+                      {removedBooks.length}
+                    </p>
+                    <p className="mt-2 text-xs leading-5 text-stone-500">
+                      Recoverable titles still available from stale links or the home shelf.
+                    </p>
+                  </article>
+                </div>
+
+                {removedBooks.length > 0 ? (
+                  <div className="rounded-[1.5rem] border border-amber-200 bg-[linear-gradient(135deg,#fff7d8_0%,#fffdf7_100%)] p-5 text-sm text-amber-950 shadow-sm">
+                    <p className="font-medium">Removed books are still recoverable.</p>
+                    <p className="mt-2 leading-6 text-amber-900">
+                      Stale setup and player links can restore them, and the home shelf keeps a
+                      recently removed list until you dismiss it.
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            </StudioDisclosure>
           </div>
         </div>
       </section>
