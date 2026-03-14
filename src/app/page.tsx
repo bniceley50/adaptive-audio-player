@@ -9,6 +9,7 @@ import { DefaultTasteCard } from "@/components/library/default-taste-card";
 import { DemoModeCard } from "@/components/library/demo-mode-card";
 import { DiscoveryQuickStartCard } from "@/components/library/discovery-quick-start-card";
 import { FavoritesHubCard } from "@/components/library/favorites-hub-card";
+import { HomeNextStepCard } from "@/components/library/home-next-step-card";
 import { LibraryHero } from "@/components/library/library-hero";
 import { ListeningEditionsFeedCard } from "@/components/library/listening-editions-feed-card";
 import { ListeningStatsCard } from "@/components/library/listening-stats-card";
@@ -228,78 +229,18 @@ export default async function HomePage() {
         recentBooks: 0,
         listeningStreakDays: 0,
       };
-  const primaryAction = latestSyncedBook
-    ? {
-        title: "Resume a synced title",
-        body: `Jump back into ${latestSyncedBook.title} and keep the listening loop moving.`,
-        href: `/player/${latestSyncedBook.bookId}`,
-        eyebrow: "Start here",
-      }
-    : {
-        title: "Import your first book",
-        body: "Bring in a title and watch the setup, generation, and playback flow come to life.",
-        href: "/import",
-        eyebrow: "Start here",
-      };
-  const quickActions = [
-    primaryAction,
-    {
-      title: currentUser ? "Check account security" : "Create a workspace account",
-      body: currentUser
-        ? "Review active sessions, connected workspaces, and recent account activity."
-        : "Turn the local workspace into a signed-in identity with sync and session controls.",
-      href: "#account-context",
-      eyebrow: "Then",
-    },
-    {
-      title: "Open Studio",
-      body: "Reveal default taste controls, synced restore state, and backend health only when you want the deeper system view.",
-      href: "#studio",
-      eyebrow: "Then",
-    },
-  ];
-
   return (
     <AppShell eyebrow="Adaptive audiobooks" title="Choose how your audiobook sounds">
       <LibraryHero />
       <DemoModeCard />
-      <section className="rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#fffefb_0%,#ffffff_45%,#eef4ff_100%)] p-6 shadow-[0_24px_70px_-46px_rgba(28,25,23,0.42)]">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-              Start here
-            </p>
-            <h2 className="mt-2 text-2xl font-semibold text-stone-950">
-              The fastest way to understand the product
-            </h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
-              Follow these three actions in order to see the listening product, the
-              account model, and the backend system working together.
-            </p>
-          </div>
-          <div className="rounded-full border border-stone-200 bg-white/90 px-4 py-2 text-sm text-stone-600 shadow-sm backdrop-blur">
-            Library first. Account second. Backend third.
-          </div>
-        </div>
-        <div className="mt-6 grid gap-4 xl:grid-cols-3">
-          {quickActions.map((action) => (
-            <a
-              key={action.title}
-              href={action.href}
-              className="group rounded-[1.5rem] border border-stone-200/80 bg-white/85 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-            >
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
-                {action.eyebrow}
-              </p>
-              <h3 className="mt-2 text-lg font-semibold text-stone-950 transition group-hover:text-stone-700">
-                {action.title}
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-stone-600">{action.body}</p>
-              <p className="mt-4 text-sm font-medium text-stone-900">Open section →</p>
-            </a>
-          ))}
-        </div>
-      </section>
+      <HomeNextStepCard
+        hasSyncedBook={Boolean(latestSyncedBook)}
+        latestBookTitle={latestSyncedBook?.title ?? null}
+        latestBookHref={latestSyncedBook ? `/player/${latestSyncedBook.bookId}` : null}
+        isSignedIn={Boolean(currentUser)}
+        listeningStreakDays={listeningStats.listeningStreakDays}
+        recommendedEdition={authorSpotlight?.recommendedEdition ?? null}
+      />
       <section className="space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
