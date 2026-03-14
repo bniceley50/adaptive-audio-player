@@ -3,6 +3,7 @@ import { BackendSyncCard } from "@/components/library/backend-sync-card";
 import { BackendLibraryPreview } from "@/components/library/backend-library-preview";
 import { BookCircleCard } from "@/components/library/book-circle-card";
 import { BookCirclesFeedCard } from "@/components/library/book-circles-feed-card";
+import { ComingNextCard } from "@/components/library/coming-next-card";
 import { ContinueListeningRow } from "@/components/library/continue-listening-row";
 import { DefaultPlaybackCard } from "@/components/library/default-playback-card";
 import { DefaultTasteCard } from "@/components/library/default-taste-card";
@@ -266,6 +267,7 @@ export default async function HomePage() {
         <ForYouCard spotlight={authorSpotlight} />
         <ListeningStatsCard initialStats={listeningStats} />
         <FavoritesHubCard />
+        <ComingNextCard />
         <ListeningEditionsFeedCard />
         <ContinueListeningRow initialSnapshot={backendLibrarySnapshot} hideWhenEmpty />
         <RecentQuotesCard />
