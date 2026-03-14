@@ -514,12 +514,81 @@ export default function ImportPage() {
             </article>
           </div>
 
-          <div className="mt-4 rounded-[1.4rem] border border-stone-200 bg-[linear-gradient(135deg,#fffefb_0%,#ffffff_100%)] px-5 py-4 text-sm text-stone-700 shadow-sm">
-            <p className="font-medium text-stone-950">Private library note</p>
-            <p className="mt-2 leading-6 text-stone-600">
-              This app is being shaped around private-use imports. Plain text works today. Future audiobook-file imports are intended for DRM-free or already-converted personal library files, not DRM removal inside the app.
-            </p>
-          </div>
+          <section className="mt-4 overflow-hidden rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(135deg,#fffefb_0%,#ffffff_100%)] shadow-sm">
+            <div className="border-b border-stone-200 bg-white/80 px-5 py-4">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div>
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                    Import roadmap
+                  </p>
+                  <h3 className="mt-2 text-lg font-semibold text-stone-950">
+                    What works today, what comes next, and what comes later
+                  </h3>
+                  <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
+                    The app is being shaped around private-use imports. It starts with the
+                    simplest reliable path first, then adds richer formats without turning
+                    import into a confusing setup wall.
+                  </p>
+                </div>
+                <div className="rounded-full border border-stone-200 bg-stone-50 px-4 py-2 text-sm text-stone-600">
+                  Private library first
+                </div>
+              </div>
+            </div>
+            <div className="grid gap-4 px-5 py-5 md:grid-cols-3">
+              <article className="rounded-[1.4rem] border border-emerald-200 bg-[linear-gradient(180deg,#f0fdf4_0%,#ffffff_100%)] p-5 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                    Today
+                  </span>
+                  <span className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                    Live now
+                  </span>
+                </div>
+                <h4 className="mt-3 text-lg font-semibold text-stone-950">
+                  Paste text or upload `.txt`
+                </h4>
+                <p className="mt-2 text-sm leading-6 text-stone-600">
+                  This is the fastest path into chapter parsing, narrator setup, and the
+                  first listening sample.
+                </p>
+              </article>
+              <article className="rounded-[1.4rem] border border-sky-200 bg-[linear-gradient(180deg,#eff6ff_0%,#ffffff_100%)] p-5 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full border border-sky-200 bg-white px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
+                    Next
+                  </span>
+                  <span className="rounded-full border border-sky-200 bg-white px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
+                    Private audio
+                  </span>
+                </div>
+                <h4 className="mt-3 text-lg font-semibold text-stone-950">
+                  DRM-free audiobook files
+                </h4>
+                <p className="mt-2 text-sm leading-6 text-stone-600">
+                  The next audiobook-file path is for DRM-free or already-converted personal
+                  files such as M4B or MP3.
+                </p>
+              </article>
+              <article className="rounded-[1.4rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full border border-stone-200 bg-white px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                    Later
+                  </span>
+                  <span className="rounded-full border border-stone-200 bg-white px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                    Richer connectors
+                  </span>
+                </div>
+                <h4 className="mt-3 text-lg font-semibold text-stone-950">
+                  Document imports and library connectors
+                </h4>
+                <p className="mt-2 text-sm leading-6 text-stone-600">
+                  EPUB, PDF, DOCX, and cloud-style library connections can layer onto this
+                  same intake flow later without changing the core product shape.
+                </p>
+              </article>
+            </div>
+          </section>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
             <div className="space-y-6">
