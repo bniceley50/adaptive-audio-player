@@ -217,7 +217,10 @@ export function DemoModeCard() {
   }
 
   return (
-    <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#1c1917_0%,#2f2a25_38%,#0f172a_100%)] text-stone-50 shadow-[0_28px_80px_-42px_rgba(15,23,42,0.6)]">
+    <section
+      id="demo-mode"
+      className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#1c1917_0%,#2f2a25_38%,#0f172a_100%)] text-stone-50 shadow-[0_28px_80px_-42px_rgba(15,23,42,0.6)]"
+    >
       <div className="grid gap-6 px-6 py-6 lg:grid-cols-[1.15fr_0.85fr]">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-300">

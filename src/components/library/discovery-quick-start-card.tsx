@@ -1,7 +1,12 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import type { AuthorSpotlight } from "@/features/discovery/author-spotlights";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
+import { libraryChangedEvent, readLocalLibraryBooks } from "@/lib/library/local-library";
+import { workspaceContextChangedEvent } from "@/lib/library/local-state";
 
 interface DiscoveryQuickStartCardProps {
   spotlight: AuthorSpotlight | null;
@@ -10,8 +15,94 @@ interface DiscoveryQuickStartCardProps {
 export function DiscoveryQuickStartCard({
   spotlight,
 }: DiscoveryQuickStartCardProps) {
+  const [localBookCount, setLocalBookCount] = useState<number>(() =>
+    typeof window === "undefined" ? 0 : readLocalLibraryBooks().length,
+  );
   const featuredEdition = featuredListeningEditions[0];
   const featuredCircle = featuredBookCircles[0];
+
+  useEffect(() => {
+    function refreshLibraryCount() {
+      setLocalBookCount(readLocalLibraryBooks().length);
+    }
+
+    refreshLibraryCount();
+    window.addEventListener(libraryChangedEvent, refreshLibraryCount);
+    window.addEventListener(workspaceContextChangedEvent, refreshLibraryCount);
+
+    return () => {
+      window.removeEventListener(libraryChangedEvent, refreshLibraryCount);
+      window.removeEventListener(workspaceContextChangedEvent, refreshLibraryCount);
+    };
+  }, []);
+
+  const cards = useMemo(() => {
+    if (localBookCount === 0) {
+      return [
+        {
+          eyebrow: "Load the demo",
+          title: "See the product alive instantly",
+          detail:
+            "Start with the polished demo if you want playback, saved taste, generated audio, and a real shelf immediately.",
+          meta: "Three staged books · guided tour ready",
+          href: "/#demo-mode",
+          action: "Open the demo",
+        },
+        {
+          eyebrow: "Start with an edition",
+          title: featuredEdition.title,
+          detail:
+            "Borrow a proven sound first, then import a book with that taste already in mind.",
+          meta: `${featuredEdition.narratorName} · ${featuredEdition.mode}`,
+          href: `/import?edition=${featuredEdition.id}`,
+          action: "Use this edition",
+        },
+        {
+          eyebrow: "Bring your own book",
+          title: "Import and listen your way",
+          detail:
+            "Paste text or upload a file, preview the chapters, and move straight into setup and sample generation.",
+          meta: spotlight
+            ? `Recommended next: try ${spotlight.recommendedEdition}`
+            : "Recommended next: choose a starter edition if you want help deciding",
+          href: "/import",
+          action: "Import your own book",
+        },
+      ];
+    }
+
+    return [
+      {
+        eyebrow: "Start with an edition",
+        title: featuredEdition.title,
+        detail:
+          "Borrow a proven sound first, then import a book with that taste already in mind.",
+        meta: `${featuredEdition.narratorName} · ${featuredEdition.mode}`,
+        href: `/import?edition=${featuredEdition.id}`,
+        action: "Use this edition",
+      },
+      {
+        eyebrow: "Join a circle",
+        title: featuredCircle.title,
+        detail:
+          "Start where other listeners already are, with one title, one checkpoint, and one recommended edition.",
+        meta: `${featuredCircle.memberCount} listeners · ${featuredCircle.bookTitle}`,
+        href: `/import?edition=${featuredCircle.editionId}`,
+        action: "Start with this circle",
+      },
+      {
+        eyebrow: "Bring your own book",
+        title: "Import and listen your way",
+        detail:
+          "Paste text or upload a file, preview the chapters, then move straight into setup and sample generation.",
+        meta: spotlight
+          ? `Recommended next: try ${spotlight.recommendedEdition}`
+          : "Recommended next: choose a starter edition if you want help deciding",
+        href: "/import",
+        action: "Import your own book",
+      },
+    ];
+  }, [featuredCircle, featuredEdition, localBookCount, spotlight]);
 
   return (
     <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#fffefb_0%,#ffffff_48%,#eef4ff_100%)] shadow-[0_22px_60px_-42px_rgba(28,25,23,0.4)]">
@@ -22,83 +113,41 @@ export function DiscoveryQuickStartCard({
               Discovery quick start
             </p>
             <h2 className="mt-2 text-xl font-semibold text-stone-900">
-              Pick one easy way to start
+              {localBookCount === 0 ? "Pick the easiest first step" : "Pick one easy way to continue"}
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-              Start from a public listening edition, join a public circle, or bring in
-              your own book if you already know what you want to hear.
+              {localBookCount === 0
+                ? "Start from the polished demo, a featured listening edition, or your own book. The goal is to hear the product fast, not configure everything first."
+                : "Start from a public listening edition, a public circle, or bring in another book if you already know what you want to hear."}
             </p>
           </div>
           <div className="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm text-stone-600 shadow-sm">
-            Fast path for first-time listeners
+            {localBookCount === 0 ? "Fast path for first-time listeners" : "Fast path back into discovery"}
           </div>
         </div>
       </div>
       <div className="grid gap-4 p-6 xl:grid-cols-3">
-        <article className="rounded-[1.5rem] border border-stone-200 bg-white/90 p-5 shadow-sm">
-          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
-            Start with an edition
-          </p>
-          <h3 className="mt-3 text-lg font-semibold text-stone-950">
-            {featuredEdition.title}
-          </h3>
-          <p className="mt-2 text-sm leading-6 text-stone-600">
-            Borrow a proven sound first, then import a book with that taste already in mind.
-          </p>
-          <p className="mt-3 text-sm font-medium text-stone-800">
-            {featuredEdition.narratorName} · <span className="capitalize">{featuredEdition.mode}</span>
-          </p>
-          <Link
-            className="mt-4 inline-flex rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
-            href={`/import?edition=${featuredEdition.id}`}
+        {cards.map((card) => (
+          <article
+            key={card.title}
+            className="rounded-[1.5rem] border border-stone-200 bg-white/90 p-5 shadow-sm"
           >
-            Use this edition
-          </Link>
-        </article>
-
-        <article className="rounded-[1.5rem] border border-stone-200 bg-white/90 p-5 shadow-sm">
-          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
-            Join a circle
-          </p>
-          <h3 className="mt-3 text-lg font-semibold text-stone-950">
-            {featuredCircle.title}
-          </h3>
-          <p className="mt-2 text-sm leading-6 text-stone-600">
-            Start where other listeners already are, with one title, one checkpoint, and one recommended edition.
-          </p>
-          <p className="mt-3 text-sm font-medium text-stone-800">
-            {featuredCircle.memberCount} listeners · {featuredCircle.bookTitle}
-          </p>
-          <Link
-            className="mt-4 inline-flex rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
-            href={`/import?edition=${featuredCircle.editionId}`}
-          >
-            Start with this circle
-          </Link>
-        </article>
-
-        <article className="rounded-[1.5rem] border border-stone-200 bg-white/90 p-5 shadow-sm">
-          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
-            Bring your own book
-          </p>
-          <h3 className="mt-3 text-lg font-semibold text-stone-950">
-            Import and listen your way
-          </h3>
-          <p className="mt-2 text-sm leading-6 text-stone-600">
-            Paste text or upload a file, preview the chapters, then move straight into setup and sample generation.
-          </p>
-          <p className="mt-3 text-sm font-medium text-stone-800">
-            {spotlight
-              ? `Recommended next: try ${spotlight.recommendedEdition}`
-              : "Recommended next: choose a starter edition if you want help deciding"}
-          </p>
-          <Link
-            className="mt-4 inline-flex rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
-            href="/import"
-          >
-            Import your own book
-          </Link>
-        </article>
+            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
+              {card.eyebrow}
+            </p>
+            <h3 className="mt-3 text-lg font-semibold text-stone-950">
+              {card.title}
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-stone-600">{card.detail}</p>
+            <p className="mt-3 text-sm font-medium text-stone-800">{card.meta}</p>
+            <Link
+              className="mt-4 inline-flex rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
+              href={card.href}
+            >
+              {card.action}
+            </Link>
+          </article>
+        ))}
       </div>
     </section>
   );
