@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { AuthorSpotlight } from "@/features/discovery/author-spotlights";
+import { featuredAuthorSpotlights } from "@/features/discovery/author-spotlights";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
@@ -19,7 +20,7 @@ export function DiscoveryQuickStartCard({
   const [localBookCount, setLocalBookCount] = useState<number>(() =>
     typeof window === "undefined" ? 0 : readLocalLibraryBooks().length,
   );
-  const { followedAuthors, joinedCircles, trackedPlannedFeatures } =
+  const { followedAuthors, joinedCircles, pinnedDiscoverySignal, trackedPlannedFeatures } =
     useDiscoveryPreferences();
   const featuredEdition = featuredListeningEditions[0];
   const featuredCircle = featuredBookCircles[0];
@@ -41,8 +42,67 @@ export function DiscoveryQuickStartCard({
 
   const cards = useMemo(() => {
     const joinedCircle = featuredBookCircles.find((circle) => joinedCircles.includes(circle.id));
+    const pinnedCard =
+      pinnedDiscoverySignal?.kind === "circle"
+        ? (() => {
+            const circle = featuredBookCircles.find((item) => item.id === pinnedDiscoverySignal.id);
+            if (!circle) {
+              return null;
+            }
+
+            return {
+              eyebrow: "Pinned for you",
+              title: circle.title,
+              detail:
+                "You pinned this circle, so it stays near the top as the easiest social path back into the app.",
+              meta: `${circle.memberCount} listeners · ${circle.checkpoint}`,
+              href: `/import?edition=${circle.editionId}`,
+              action: "Open your pinned circle",
+            };
+          })()
+        : pinnedDiscoverySignal?.kind === "author"
+          ? (() => {
+              const author = featuredAuthorSpotlights.find(
+                (item) => item.name === pinnedDiscoverySignal.id,
+              );
+              if (!author) {
+                return null;
+              }
+
+              return {
+                eyebrow: "Pinned for you",
+                title: `${author.name} starter path`,
+                detail:
+                  "You pinned this author path, so the recommended edition stays one tap away.",
+                meta: `Recommended edition: ${author.recommendedEdition}`,
+                href: `/import?edition=${author.recommendedEditionId}`,
+                action: "Use your pinned author path",
+              };
+            })()
+          : pinnedDiscoverySignal?.kind === "feature"
+            ? {
+                eyebrow: "Pinned for you",
+                title:
+                  pinnedDiscoverySignal.id === "private-audio-files"
+                    ? "Your audiobook-file plan"
+                    : "Your future import plan",
+                detail:
+                  "You pinned this future path, so the roadmap stays visible even when discovery suggestions change.",
+                meta:
+                  pinnedDiscoverySignal.id === "private-audio-files"
+                    ? "Planned first support: M4B and MP3"
+                    : "Planned later: EPUB, PDF, and DOCX",
+                href:
+                  pinnedDiscoverySignal.id === "private-audio-files"
+                    ? "/import?source=audio"
+                    : "/import",
+                action: "Open your pinned path",
+              }
+            : null;
     const followedAuthorCard =
-      spotlight && followedAuthors.includes(spotlight.name)
+      spotlight &&
+      followedAuthors.includes(spotlight.name) &&
+      !(pinnedDiscoverySignal?.kind === "author" && pinnedDiscoverySignal.id === spotlight.name)
         ? {
             eyebrow: "Followed author",
             title: `${spotlight.name} starter path`,
@@ -53,26 +113,35 @@ export function DiscoveryQuickStartCard({
             action: "Use the recommended edition",
           }
         : null;
-    const personalizedFutureCard = trackedPlannedFeatures.includes("private-audio-files")
-      ? {
-          eyebrow: "Saved future path",
-          title: "Your audiobook-file plan",
-          detail:
-            "You already saved the private-audio path, so the app keeps that roadmap visible while the simple text flow stays live today.",
-          meta: "Planned first support: M4B and MP3",
-          href: "/import?source=audio",
-          action: "Review audio plans",
-        }
-      : trackedPlannedFeatures.includes("richer-document-imports")
+    const personalizedFutureCard =
+      trackedPlannedFeatures.includes("private-audio-files") &&
+      !(
+        pinnedDiscoverySignal?.kind === "feature" &&
+        pinnedDiscoverySignal.id === "private-audio-files"
+      )
         ? {
             eyebrow: "Saved future path",
-            title: "Your richer import plan",
+            title: "Your audiobook-file plan",
             detail:
-              "You marked richer document imports as interesting, so the intake roadmap stays easy to find while text remains the fastest path.",
-            meta: "Planned later: EPUB, PDF, and DOCX",
-            href: "/import",
-          action: "Review the roadmap",
-        }
+              "You already saved the private-audio path, so the app keeps that roadmap visible while the simple text flow stays live today.",
+            meta: "Planned first support: M4B and MP3",
+            href: "/import?source=audio",
+            action: "Review audio plans",
+          }
+        : trackedPlannedFeatures.includes("richer-document-imports") &&
+            !(
+              pinnedDiscoverySignal?.kind === "feature" &&
+              pinnedDiscoverySignal.id === "richer-document-imports"
+            )
+          ? {
+              eyebrow: "Saved future path",
+              title: "Your richer import plan",
+              detail:
+                "You marked richer document imports as interesting, so the intake roadmap stays easy to find while text remains the fastest path.",
+              meta: "Planned later: EPUB, PDF, and DOCX",
+              href: "/import",
+              action: "Review the roadmap",
+            }
         : null;
 
     if (localBookCount === 0) {
@@ -86,6 +155,7 @@ export function DiscoveryQuickStartCard({
           href: "/?demo=1",
           action: "Open the demo",
         },
+        ...(pinnedCard ? [pinnedCard] : []),
         {
           eyebrow: "Start with an edition",
           title: featuredEdition.title,
@@ -95,7 +165,11 @@ export function DiscoveryQuickStartCard({
           href: `/import?edition=${featuredEdition.id}`,
           action: "Use this edition",
         },
-        ...(joinedCircle
+        ...(joinedCircle &&
+        !(
+          pinnedDiscoverySignal?.kind === "circle" &&
+          pinnedDiscoverySignal.id === joinedCircle.id
+        )
           ? [
               {
                 eyebrow: "Joined circle",
@@ -138,6 +212,7 @@ export function DiscoveryQuickStartCard({
     }
 
     return [
+      ...(pinnedCard ? [pinnedCard] : []),
       {
         eyebrow: "Start with an edition",
         title: featuredEdition.title,
@@ -156,7 +231,11 @@ export function DiscoveryQuickStartCard({
         href: `/import?edition=${featuredCircle.editionId}`,
         action: "Start with this circle",
       },
-      ...(joinedCircle
+      ...(joinedCircle &&
+      !(
+        pinnedDiscoverySignal?.kind === "circle" &&
+        pinnedDiscoverySignal.id === joinedCircle.id
+      )
         ? [
             {
               eyebrow: "Return to your circle",
@@ -202,6 +281,7 @@ export function DiscoveryQuickStartCard({
     followedAuthors,
     joinedCircles,
     localBookCount,
+    pinnedDiscoverySignal,
     spotlight,
     trackedPlannedFeatures,
   ]);

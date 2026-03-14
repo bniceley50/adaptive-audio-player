@@ -19,6 +19,13 @@ type PersonalizationItem = {
   updatedAt: string;
 };
 
+function isPinnedItem(
+  item: PersonalizationItem,
+  pinnedSignal: { kind: PersonalizationItem["kind"]; id: string } | null,
+) {
+  return pinnedSignal?.kind === item.kind && pinnedSignal.id === item.id;
+}
+
 const plannedFeatureMeta: Record<
   string,
   { title: string; detail: string; href: string; action: string }
@@ -133,11 +140,19 @@ export function RecentPersonalizationCard() {
     trackedPlannedFeatures,
   ]);
 
-  const latestItem = useMemo(
-    () =>
-      sortByRecent(items)[0] ?? null,
-    [items],
-  );
+  const orderedItems = useMemo(() => {
+    return [...items].sort((left, right) => {
+      const leftPinned = isPinnedItem(left, pinnedDiscoverySignal) ? 1 : 0;
+      const rightPinned = isPinnedItem(right, pinnedDiscoverySignal) ? 1 : 0;
+      if (leftPinned !== rightPinned) {
+        return rightPinned - leftPinned;
+      }
+
+      return new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime();
+    });
+  }, [items, pinnedDiscoverySignal]);
+
+  const latestItem = orderedItems[0] ?? null;
 
   if (items.length === 0) {
     return null;
@@ -167,8 +182,9 @@ export function RecentPersonalizationCard() {
         </div>
       </div>
       <div className="grid gap-4 p-6 md:grid-cols-3">
-        {items.map((item) => {
+        {orderedItems.map((item) => {
           const freshnessBadge = getRelativeDiscoveryBadge(item.updatedAt);
+          const pinned = isPinnedItem(item, pinnedDiscoverySignal);
 
           return (
             <article
@@ -182,7 +198,7 @@ export function RecentPersonalizationCard() {
                     {freshnessBadge}
                   </span>
                 ) : null}
-                {pinnedDiscoverySignal?.kind === item.kind && pinnedDiscoverySignal.id === item.id ? (
+                {pinned ? (
                   <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
                     Pinned
                   </span>
@@ -206,9 +222,7 @@ export function RecentPersonalizationCard() {
                   });
                 }}
               >
-                {pinnedDiscoverySignal?.kind === item.kind && pinnedDiscoverySignal.id === item.id
-                  ? "Unpin"
-                  : "Pin near the top"}
+                {pinned ? "Unpin" : "Pin near the top"}
               </button>
             </article>
           );

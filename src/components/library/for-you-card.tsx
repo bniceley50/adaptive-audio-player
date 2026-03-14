@@ -2,9 +2,15 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import type { AuthorSpotlight } from "@/features/discovery/author-spotlights";
+import {
+  featuredAuthorSpotlights,
+  type AuthorSpotlight,
+} from "@/features/discovery/author-spotlights";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
-import { getHomeDiscoveryReason } from "@/features/discovery/personalization";
+import {
+  getHomeDiscoveryReason,
+  getPinnedDiscoveryReason,
+} from "@/features/discovery/personalization";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 
@@ -14,9 +20,59 @@ interface ForYouCardProps {
 
 export function ForYouCard({ spotlight }: ForYouCardProps) {
   const preferences = useDiscoveryPreferences();
-  const { followedAuthors, joinedCircles, trackedPlannedFeatures } = preferences;
+  const { followedAuthors, joinedCircles, pinnedDiscoverySignal, trackedPlannedFeatures } =
+    preferences;
 
   const recommendation = useMemo(() => {
+    if (pinnedDiscoverySignal?.kind === "circle") {
+      const pinnedCircle = featuredBookCircles.find(
+        (circle) => circle.id === pinnedDiscoverySignal.id,
+      );
+      if (pinnedCircle) {
+        return {
+          eyebrow: "Because you pinned this circle",
+          title: pinnedCircle.title,
+          detail: `${pinnedCircle.memberCount} listeners are following ${pinnedCircle.checkpoint.toLowerCase()}.`,
+          href: `/import?edition=${pinnedCircle.editionId}`,
+          action: "Continue with your pinned circle",
+        };
+      }
+    }
+
+    if (pinnedDiscoverySignal?.kind === "author") {
+      const pinnedAuthor = featuredAuthorSpotlights.find(
+        (author) => author.name === pinnedDiscoverySignal.id,
+      );
+      if (pinnedAuthor) {
+        return {
+          eyebrow: "Because you pinned this author path",
+          title: `${pinnedAuthor.name} starter path`,
+          detail: `Try ${pinnedAuthor.recommendedEdition} to keep your preferred author path one tap away.`,
+          href: `/import?edition=${pinnedAuthor.recommendedEditionId}`,
+          action: "Use the pinned edition",
+        };
+      }
+    }
+
+    if (pinnedDiscoverySignal?.kind === "feature") {
+      return {
+        eyebrow: "Because you pinned a future path",
+        title:
+          pinnedDiscoverySignal.id === "private-audio-files"
+            ? "Private audiobook files"
+            : "Richer document imports",
+        detail:
+          pinnedDiscoverySignal.id === "private-audio-files"
+            ? "You pinned the audiobook-file path, so the private-library roadmap stays in front."
+            : "You pinned a future import path, so the roadmap stays in front while today’s text flow remains simple.",
+        href:
+          pinnedDiscoverySignal.id === "private-audio-files"
+            ? "/import?source=audio"
+            : "/import",
+        action: "Open your pinned path",
+      };
+    }
+
     const joinedCircle = featuredBookCircles.find((circle) => joinedCircles.includes(circle.id));
     if (joinedCircle) {
       return {
@@ -68,7 +124,11 @@ export function ForYouCard({ spotlight }: ForYouCardProps) {
       href: `/import?edition=${edition.id}`,
       action: "Start with this edition",
     };
-  }, [followedAuthors, joinedCircles, spotlight, trackedPlannedFeatures]);
+  }, [followedAuthors, joinedCircles, pinnedDiscoverySignal, spotlight, trackedPlannedFeatures]);
+  const pinnedReason = useMemo(
+    () => getPinnedDiscoveryReason(pinnedDiscoverySignal),
+    [pinnedDiscoverySignal],
+  );
   const rationale = useMemo(
     () =>
       getHomeDiscoveryReason(
@@ -93,9 +153,11 @@ export function ForYouCard({ spotlight }: ForYouCardProps) {
         </h2>
         <div className="mt-4 rounded-[1.1rem] border border-emerald-200 bg-emerald-50/80 px-4 py-3">
           <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-            {rationale.label}
+            {pinnedReason?.label ?? rationale.label}
           </p>
-          <p className="mt-2 text-sm leading-6 text-emerald-900">{rationale.detail}</p>
+          <p className="mt-2 text-sm leading-6 text-emerald-900">
+            {pinnedReason?.detail ?? rationale.detail}
+          </p>
         </div>
         <p className="mt-3 text-sm font-medium text-stone-700">
           {recommendation.eyebrow}
