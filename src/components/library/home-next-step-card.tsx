@@ -1,11 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import {
-  discoveryChangedEvent,
-  readTrackedPlannedFeatures,
-} from "@/features/discovery/local-discovery";
+import { useMemo } from "react";
+import { featuredBookCircles } from "@/features/discovery/book-circles";
+import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 
 interface HomeNextStepCardProps {
   hasSyncedBook: boolean;
@@ -24,22 +22,9 @@ export function HomeNextStepCard({
   listeningStreakDays,
   recommendedEdition,
 }: HomeNextStepCardProps) {
-  const [trackedPlannedFeatures, setTrackedPlannedFeatures] = useState<string[]>(() =>
-    typeof window === "undefined" ? [] : readTrackedPlannedFeatures(),
-  );
-
-  useEffect(() => {
-    function refreshTrackedFeatures() {
-      setTrackedPlannedFeatures(readTrackedPlannedFeatures());
-    }
-
-    refreshTrackedFeatures();
-    window.addEventListener(discoveryChangedEvent, refreshTrackedFeatures);
-
-    return () => {
-      window.removeEventListener(discoveryChangedEvent, refreshTrackedFeatures);
-    };
-  }, []);
+  const { followedAuthors, joinedCircles, trackedPlannedFeatures } =
+    useDiscoveryPreferences();
+  const joinedCircle = featuredBookCircles.find((circle) => joinedCircles.includes(circle.id));
 
   const primaryAction = useMemo(() => {
     if (hasSyncedBook && latestBookHref) {
@@ -50,6 +35,24 @@ export function HomeNextStepCard({
           : "Jump back into your latest synced title and keep the listening loop moving.",
         href: latestBookHref,
         label: "Resume listening",
+      };
+    }
+
+    if (joinedCircle) {
+      return {
+        title: "Return to your public circle",
+        body: `Jump back into ${joinedCircle.title} and use the shared edition path that other listeners are already following.`,
+        href: `/import?edition=${joinedCircle.editionId}`,
+        label: "Continue with your circle",
+      };
+    }
+
+    if (followedAuthors.length > 0 && recommendedEdition) {
+      return {
+        title: "Start from an author you followed",
+        body: `Use ${recommendedEdition} as the fastest way into a style you already told the app you want more of.`,
+        href: "/import?edition=cinematic-harbor",
+        label: "Try the recommended edition",
       };
     }
 
@@ -68,18 +71,28 @@ export function HomeNextStepCard({
       body:
         "Paste text or upload a file, preview the chapters, and move straight into setup.",
       href: "/import?source=paste",
-      label: "Start importing",
-    };
-  }, [hasSyncedBook, latestBookHref, latestBookTitle, trackedPlannedFeatures]);
+        label: "Start importing",
+      };
+  }, [
+    followedAuthors.length,
+    hasSyncedBook,
+    joinedCircle,
+    latestBookHref,
+    latestBookTitle,
+    recommendedEdition,
+    trackedPlannedFeatures,
+  ]);
 
   const secondaryActions = [
     {
-      title: "Start from discovery",
-      body: recommendedEdition
-        ? `Use ${recommendedEdition} if you want the app to make the first sound decision for you.`
-        : "Use a featured listening edition if you want the app to make the first sound decision for you.",
-      href: "/import?edition=cinematic-harbor",
-      label: "Try a featured edition",
+      title: joinedCircle ? "Keep your circle moving" : "Start from discovery",
+      body: joinedCircle
+        ? `You already joined ${joinedCircle.title}, so the shared edition and checkpoint are the easiest way back into social listening.`
+        : recommendedEdition
+          ? `Use ${recommendedEdition} if you want the app to make the first sound decision for you.`
+          : "Use a featured listening edition if you want the app to make the first sound decision for you.",
+      href: joinedCircle ? `/import?edition=${joinedCircle.editionId}` : "/import?edition=cinematic-harbor",
+      label: joinedCircle ? "Continue with your circle" : "Try a featured edition",
     },
     {
       title: "See the private audio path",

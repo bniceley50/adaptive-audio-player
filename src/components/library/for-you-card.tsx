@@ -1,45 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { AuthorSpotlight } from "@/features/discovery/author-spotlights";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
-import {
-  discoveryChangedEvent,
-  readFollowedAuthors,
-  readJoinedCircles,
-  readTrackedPlannedFeatures,
-} from "@/features/discovery/local-discovery";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
-import { workspaceContextChangedEvent } from "@/lib/library/local-state";
+import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 
 interface ForYouCardProps {
   spotlight: AuthorSpotlight | null;
 }
 
 export function ForYouCard({ spotlight }: ForYouCardProps) {
-  const [followedAuthors, setFollowedAuthors] = useState<string[]>(() => readFollowedAuthors());
-  const [joinedCircles, setJoinedCircles] = useState<string[]>(() => readJoinedCircles());
-  const [trackedPlannedFeatures, setTrackedPlannedFeatures] = useState<string[]>(() =>
-    readTrackedPlannedFeatures(),
-  );
-
-  useEffect(() => {
-    function refresh() {
-      setFollowedAuthors(readFollowedAuthors());
-      setJoinedCircles(readJoinedCircles());
-      setTrackedPlannedFeatures(readTrackedPlannedFeatures());
-    }
-
-    refresh();
-    window.addEventListener(discoveryChangedEvent, refresh);
-    window.addEventListener(workspaceContextChangedEvent, refresh);
-
-    return () => {
-      window.removeEventListener(discoveryChangedEvent, refresh);
-      window.removeEventListener(workspaceContextChangedEvent, refresh);
-    };
-  }, []);
+  const { followedAuthors, joinedCircles, trackedPlannedFeatures } =
+    useDiscoveryPreferences();
 
   const recommendation = useMemo(() => {
     const joinedCircle = featuredBookCircles.find((circle) => joinedCircles.includes(circle.id));

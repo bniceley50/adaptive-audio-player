@@ -5,10 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { AuthorSpotlight } from "@/features/discovery/author-spotlights";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
-import {
-  discoveryChangedEvent,
-  readTrackedPlannedFeatures,
-} from "@/features/discovery/local-discovery";
+import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 import { libraryChangedEvent, readLocalLibraryBooks } from "@/lib/library/local-library";
 import { workspaceContextChangedEvent } from "@/lib/library/local-state";
 
@@ -22,9 +19,8 @@ export function DiscoveryQuickStartCard({
   const [localBookCount, setLocalBookCount] = useState<number>(() =>
     typeof window === "undefined" ? 0 : readLocalLibraryBooks().length,
   );
-  const [trackedPlannedFeatures, setTrackedPlannedFeatures] = useState<string[]>(() =>
-    typeof window === "undefined" ? [] : readTrackedPlannedFeatures(),
-  );
+  const { followedAuthors, joinedCircles, trackedPlannedFeatures } =
+    useDiscoveryPreferences();
   const featuredEdition = featuredListeningEditions[0];
   const featuredCircle = featuredBookCircles[0];
 
@@ -43,20 +39,20 @@ export function DiscoveryQuickStartCard({
     };
   }, []);
 
-  useEffect(() => {
-    function refreshTrackedFeatures() {
-      setTrackedPlannedFeatures(readTrackedPlannedFeatures());
-    }
-
-    refreshTrackedFeatures();
-    window.addEventListener(discoveryChangedEvent, refreshTrackedFeatures);
-
-    return () => {
-      window.removeEventListener(discoveryChangedEvent, refreshTrackedFeatures);
-    };
-  }, []);
-
   const cards = useMemo(() => {
+    const joinedCircle = featuredBookCircles.find((circle) => joinedCircles.includes(circle.id));
+    const followedAuthorCard =
+      spotlight && followedAuthors.includes(spotlight.name)
+        ? {
+            eyebrow: "Followed author",
+            title: `${spotlight.name} starter path`,
+            detail:
+              "You already followed this author, so the app is keeping the recommended first edition closer to the top.",
+            meta: `Best next listen: ${spotlight.recommendedEdition}`,
+            href: `/import?edition=${spotlight.recommendedEditionId}`,
+            action: "Use the recommended edition",
+          }
+        : null;
     const personalizedFutureCard = trackedPlannedFeatures.includes("private-audio-files")
       ? {
           eyebrow: "Saved future path",
@@ -75,8 +71,8 @@ export function DiscoveryQuickStartCard({
               "You marked richer document imports as interesting, so the intake roadmap stays easy to find while text remains the fastest path.",
             meta: "Planned later: EPUB, PDF, and DOCX",
             href: "/import",
-            action: "Review the roadmap",
-          }
+          action: "Review the roadmap",
+        }
         : null;
 
     if (localBookCount === 0) {
@@ -99,6 +95,20 @@ export function DiscoveryQuickStartCard({
           href: `/import?edition=${featuredEdition.id}`,
           action: "Use this edition",
         },
+        ...(joinedCircle
+          ? [
+              {
+                eyebrow: "Joined circle",
+                title: joinedCircle.title,
+                detail:
+                  "You already joined this public circle, so the app keeps its recommended edition close for the fastest way back in.",
+                meta: `${joinedCircle.memberCount} listeners · ${joinedCircle.bookTitle}`,
+                href: `/import?edition=${joinedCircle.editionId}`,
+                action: "Start with your circle",
+              },
+            ]
+          : []),
+        ...(followedAuthorCard ? [followedAuthorCard] : []),
         ...(personalizedFutureCard ? [personalizedFutureCard] : []),
         {
           eyebrow: "Bring your own book",
@@ -146,6 +156,20 @@ export function DiscoveryQuickStartCard({
         href: `/import?edition=${featuredCircle.editionId}`,
         action: "Start with this circle",
       },
+      ...(joinedCircle
+        ? [
+            {
+              eyebrow: "Return to your circle",
+              title: joinedCircle.title,
+              detail:
+                "You already joined this public circle, so the app is keeping the shared title and edition in reach.",
+              meta: `${joinedCircle.memberCount} listeners · ${joinedCircle.checkpoint}`,
+              href: `/import?edition=${joinedCircle.editionId}`,
+              action: "Continue with your circle",
+            },
+          ]
+        : []),
+      ...(followedAuthorCard ? [followedAuthorCard] : []),
       ...(personalizedFutureCard ? [personalizedFutureCard] : []),
       {
         eyebrow: "Bring your own book",
@@ -172,7 +196,15 @@ export function DiscoveryQuickStartCard({
             },
           ]),
     ];
-  }, [featuredCircle, featuredEdition, localBookCount, spotlight, trackedPlannedFeatures]);
+  }, [
+    featuredCircle,
+    featuredEdition,
+    followedAuthors,
+    joinedCircles,
+    localBookCount,
+    spotlight,
+    trackedPlannedFeatures,
+  ]);
 
   return (
     <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#fffefb_0%,#ffffff_48%,#eef4ff_100%)] shadow-[0_22px_60px_-42px_rgba(28,25,23,0.4)]">
