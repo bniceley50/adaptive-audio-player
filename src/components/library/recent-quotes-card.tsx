@@ -47,16 +47,16 @@ export function RecentQuotesCard() {
   const pinnedQuotes = quotes.filter((quote) => quote.pinnedAt);
   const quoteCount = quotes.length;
   const helperCopy = useMemo(() => {
-    if (quoteCount === 0) {
-      return "Save memorable lines while listening and they’ll show up here.";
-    }
-
     if (quoteCount === 1) {
       return "One saved moment is ready to revisit.";
     }
 
     return `${quoteCount} saved moments are ready to revisit.`;
   }, [quoteCount]);
+
+  if (quoteCount === 0) {
+    return null;
+  }
 
   async function shareQuote(quote: QuoteWithBookMeta) {
     const shareText = `“${quote.text}”\n\n${quote.bookTitle ?? quote.bookId} · Chapter ${quote.chapterIndex + 1}`;

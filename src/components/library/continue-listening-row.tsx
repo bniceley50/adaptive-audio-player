@@ -129,10 +129,12 @@ const shelfGroups: Array<{
 
 interface ContinueListeningRowProps {
   initialSnapshot?: LibrarySyncSnapshot | null;
+  hideWhenEmpty?: boolean;
 }
 
 export function ContinueListeningRow({
   initialSnapshot = null,
+  hideWhenEmpty = false,
 }: ContinueListeningRowProps) {
   const [libraryBooks, setLibraryBooks] = useState<LocalLibraryBook[]>(
     () => mergeLibraryBooks([], initialSnapshot?.libraryBooks ?? []),
@@ -330,6 +332,10 @@ export function ContinueListeningRow({
     "taste-ready": shelfBooks.filter((entry) => entry.group === "taste-ready").length,
     "setup-needed": shelfBooks.filter((entry) => entry.group === "setup-needed").length,
   };
+
+  if (hideWhenEmpty && libraryBooks.length === 0 && removedBooks.length === 0) {
+    return null;
+  }
 
   function startRenaming(book: LocalLibraryBook) {
     setEditingBookId(book.bookId);

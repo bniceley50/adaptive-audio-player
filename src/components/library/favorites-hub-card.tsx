@@ -114,6 +114,13 @@ export function FavoritesHubCard() {
     () => featuredBookCircles.find((circle) => joinedCircles.includes(circle.id)) ?? null,
     [joinedCircles],
   );
+  const hasFavoritesContent = Boolean(
+    defaultTaste || latestBookmark || latestQuote || followedAuthors.length > 0 || latestJoinedCircle,
+  );
+
+  if (!hasFavoritesContent) {
+    return null;
+  }
 
   return (
     <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#fffdf7_0%,#ffffff_42%,#eef4ff_100%)] shadow-[0_22px_60px_-42px_rgba(28,25,23,0.4)]">

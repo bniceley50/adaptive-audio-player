@@ -315,7 +315,10 @@ export default async function HomePage() {
           <ListeningStatsCard initialStats={listeningStats} />
           <FavoritesHubCard />
           <ListeningEditionsFeedCard />
-          <ContinueListeningRow initialSnapshot={backendLibrarySnapshot} />
+          <ContinueListeningRow
+            initialSnapshot={backendLibrarySnapshot}
+            hideWhenEmpty
+          />
           <RecentQuotesCard />
           {circleBook ? (
             <BookCircleCard
