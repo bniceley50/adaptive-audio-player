@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { toggleTrackedPlannedFeature } from "@/features/discovery/local-discovery";
+import {
+  togglePinnedDiscoverySignal,
+  toggleTrackedPlannedFeature,
+} from "@/features/discovery/local-discovery";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 
 const comingSoonItems = [
@@ -39,7 +42,7 @@ const comingSoonItems = [
 ] as const;
 
 export function ComingNextCard() {
-  const { trackedPlannedFeatures } = useDiscoveryPreferences();
+  const { pinnedDiscoverySignal, trackedPlannedFeatures } = useDiscoveryPreferences();
 
   const trackedCount = trackedPlannedFeatures.length;
   const interestLabel = useMemo(() => {
@@ -56,11 +59,19 @@ export function ComingNextCard() {
   const orderedItems = useMemo(
     () =>
       [...comingSoonItems].sort((left, right) => {
+        const leftPinned =
+          pinnedDiscoverySignal?.kind === "feature" && pinnedDiscoverySignal.id === left.id ? 1 : 0;
+        const rightPinned =
+          pinnedDiscoverySignal?.kind === "feature" && pinnedDiscoverySignal.id === right.id ? 1 : 0;
+        if (leftPinned !== rightPinned) {
+          return rightPinned - leftPinned;
+        }
+
         const leftTracked = trackedPlannedFeatures.includes(left.id) ? 1 : 0;
         const rightTracked = trackedPlannedFeatures.includes(right.id) ? 1 : 0;
         return rightTracked - leftTracked;
       }),
-    [trackedPlannedFeatures],
+    [pinnedDiscoverySignal, trackedPlannedFeatures],
   );
 
   return (
@@ -100,6 +111,11 @@ export function ComingNextCard() {
                   Saved for you
                 </span>
               ) : null}
+              {pinnedDiscoverySignal?.kind === "feature" && pinnedDiscoverySignal.id === item.id ? (
+                <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-700">
+                  Pinned
+                </span>
+              ) : null}
             </div>
             <h3 className="mt-3 text-lg font-semibold text-stone-950">{item.title}</h3>
             <p className="mt-2 text-sm leading-6 text-stone-600">{item.detail}</p>
@@ -123,6 +139,20 @@ export function ComingNextCard() {
                 }}
               >
                 {trackedPlannedFeatures.includes(item.id) ? "Saved" : "Notify me"}
+              </button>
+              <button
+                className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                type="button"
+                onClick={() => {
+                  togglePinnedDiscoverySignal({
+                    kind: "feature",
+                    id: item.id,
+                  });
+                }}
+              >
+                {pinnedDiscoverySignal?.kind === "feature" && pinnedDiscoverySignal.id === item.id
+                  ? "Unpin path"
+                  : "Pin path"}
               </button>
             </div>
           </article>

@@ -10,7 +10,9 @@ import {
   discoveryChangedEvent,
   readFollowedAuthors,
   readJoinedCircles,
+  readPinnedDiscoverySignal,
   readTrackedPlannedFeatures,
+  togglePinnedDiscoverySignal,
 } from "@/features/discovery/local-discovery";
 import { getEditionDiscoveryReason } from "@/features/discovery/personalization";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
@@ -102,6 +104,9 @@ export default function ImportPage() {
   const [trackedPlannedFeatures, setTrackedPlannedFeatures] = useState<string[]>(() =>
     typeof window !== "undefined" ? readTrackedPlannedFeatures() : [],
   );
+  const [pinnedDiscoverySignal, setPinnedDiscoverySignal] = useState(() =>
+    typeof window !== "undefined" ? readPinnedDiscoverySignal() : null,
+  );
   const [selectedEditionId] = useState<string | null>(() => {
     if (typeof window === "undefined") {
       return null;
@@ -141,14 +146,39 @@ export default function ImportPage() {
     });
   }, [followedAuthors, joinedCircles, selectedEdition, trackedPlannedFeatures]);
   const highlightedFuturePath = useMemo(() => {
-    if (selectedSource === "audio" || trackedPlannedFeatures.includes("private-audio-files")) {
+    if (
+      selectedSource === "audio" ||
+      pinnedDiscoverySignal?.kind === "feature" && pinnedDiscoverySignal.id === "private-audio-files" ||
+      trackedPlannedFeatures.includes("private-audio-files")
+    ) {
       return {
-        eyebrow: "Saved future path",
+        eyebrow:
+          pinnedDiscoverySignal?.kind === "feature" &&
+          pinnedDiscoverySignal.id === "private-audio-files"
+            ? "Pinned future path"
+            : "Saved future path",
         title: "Private audiobook files",
         detail:
-          "You already showed interest in private audiobook imports, so this roadmap stays visible while the simple text flow remains the fastest path today.",
+          pinnedDiscoverySignal?.kind === "feature" &&
+          pinnedDiscoverySignal.id === "private-audio-files"
+            ? "You pinned private audiobook imports, so this roadmap stays ahead of the normal import guidance while the simple text flow remains the fastest path today."
+            : "You already showed interest in private audiobook imports, so this roadmap stays visible while the simple text flow remains the fastest path today.",
         actionLabel: "Review audio import plans",
         target: "audio-plan" as const,
+      };
+    }
+
+    if (
+      pinnedDiscoverySignal?.kind === "feature" &&
+      pinnedDiscoverySignal.id === "richer-document-imports"
+    ) {
+      return {
+        eyebrow: "Pinned future path",
+        title: "Richer document imports",
+        detail:
+          "You pinned richer document imports, so the roadmap stays in front while the live text flow remains simple and ready now.",
+        actionLabel: "Review the import roadmap",
+        target: "import-roadmap" as const,
       };
     }
 
@@ -164,7 +194,7 @@ export default function ImportPage() {
     }
 
     return null;
-  }, [selectedSource, trackedPlannedFeatures]);
+  }, [pinnedDiscoverySignal, selectedSource, trackedPlannedFeatures]);
   const importState = error
     ? {
         label: "Import needs attention",
@@ -293,6 +323,7 @@ export default function ImportPage() {
     function refreshTrackedFeatures() {
       setFollowedAuthors(readFollowedAuthors());
       setJoinedCircles(readJoinedCircles());
+      setPinnedDiscoverySignal(readPinnedDiscoverySignal());
       setTrackedPlannedFeatures(readTrackedPlannedFeatures());
     }
 
@@ -419,6 +450,28 @@ export default function ImportPage() {
                   onClick={() => openHighlightedFuturePath(highlightedFuturePath.target)}
                 >
                   {highlightedFuturePath.actionLabel}
+                </button>
+                <button
+                  className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                  type="button"
+                  onClick={() => {
+                    const id =
+                      highlightedFuturePath.target === "audio-plan"
+                        ? "private-audio-files"
+                        : "richer-document-imports";
+                    togglePinnedDiscoverySignal({
+                      kind: "feature",
+                      id,
+                    });
+                  }}
+                >
+                  {pinnedDiscoverySignal?.kind === "feature" &&
+                  ((highlightedFuturePath.target === "audio-plan" &&
+                    pinnedDiscoverySignal.id === "private-audio-files") ||
+                    (highlightedFuturePath.target === "import-roadmap" &&
+                      pinnedDiscoverySignal.id === "richer-document-imports"))
+                    ? "Unpin path"
+                    : "Pin path"}
                 </button>
               </div>
             </div>
