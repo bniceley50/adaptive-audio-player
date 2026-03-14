@@ -407,6 +407,7 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
   ).toHaveClass(/border-stone-950/);
   await page.goto("/");
   await expect(page.getByText("Books: 2")).toBeVisible();
+  await page.getByRole("heading", { level: 2, name: "Defaults, synced titles, and backend health" }).click();
   await expect(
     page.getByRole("heading", { level: 2, name: "Cloud library preview" }),
   ).toBeVisible();
@@ -495,6 +496,7 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
   await page.goto("/jobs");
   await page.getByRole("link", { name: "Back home" }).click();
   await page.waitForURL("**/");
+  await page.getByRole("heading", { level: 2, name: "Defaults, synced titles, and backend health" }).click();
   await expect(
     page.getByRole("heading", { level: 2, name: "How taste works" }),
   ).toBeVisible();
@@ -533,6 +535,7 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
   await expect(
     page.getByRole("heading", { level: 3, name: "Quiet Harbor Revised" }),
   ).toBeVisible();
+  await page.getByRole("heading", { level: 2, name: "Defaults, synced titles, and backend health" }).click();
   await page.getByRole("button", { name: "Clear default taste" }).click();
   await expect(page.getByText("No default taste saved yet.")).toBeVisible();
   await page
@@ -559,6 +562,7 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
   await expect(page.getByTestId("shelf-book-demo-book-1")).toBeVisible();
   await expect(page.getByTestId("shelf-book-demo-book-2")).not.toBeVisible();
   await page.reload();
+  await page.getByRole("heading", { level: 2, name: "Defaults, synced titles, and backend health" }).click();
   await expect(
     page.getByRole("heading", {
       level: 3,
@@ -566,7 +570,7 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
     }),
   ).toBeVisible();
   await expect(
-    page.locator("#system-intelligence").getByText("Quiet Harbor Revised"),
+    page.locator("#studio").getByText("Quiet Harbor Revised"),
   ).toBeVisible();
   await page.goto("/books/demo-book-2");
   await expect(
@@ -624,11 +628,13 @@ test("import page previews parsed chapters from pasted text", async ({ page }) =
   await expect(
     restoredStormHarborShelfCard.getByText("Saved taste"),
   ).toBeVisible();
+  await page.getByRole("heading", { level: 2, name: "Defaults, synced titles, and backend health" }).click();
   await expect(
     page.getByRole("heading", { level: 2, name: "Playback defaults" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Clear playback defaults" }).click();
   await page.goto("/");
+  await page.getByRole("heading", { level: 2, name: "Defaults, synced titles, and backend health" }).click();
   await expect(
     page.getByText("New player sessions start from 1.15x with 15 minute sleep timer."),
   ).toBeVisible();

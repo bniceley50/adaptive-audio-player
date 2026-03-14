@@ -12,6 +12,7 @@ import { RecentQuotesCard } from "@/components/library/recent-quotes-card";
 import { RecentTastesCard } from "@/components/library/recent-tastes-card";
 import { WorkspaceAccountCard } from "@/components/library/workspace-account-card";
 import { AppShell } from "@/components/shared/app-shell";
+import { StudioDisclosure } from "@/components/shared/studio-disclosure";
 import {
   getUserById,
   getWorkerHeartbeat,
@@ -240,9 +241,9 @@ export default async function HomePage() {
       eyebrow: "Then",
     },
     {
-      title: "Inspect backend intelligence",
-      body: "See synced titles, current renders, listening sessions, and active generation work.",
-      href: "#system-intelligence",
+      title: "Open Studio",
+      body: "Reveal default taste controls, synced restore state, and backend health only when you want the deeper system view.",
+      href: "#studio",
       eyebrow: "Then",
     },
   ];
@@ -400,100 +401,88 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section id="system-intelligence" className="space-y-4">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-              System intelligence
-            </p>
-            <h2 className="mt-2 text-2xl font-semibold text-stone-950">
-              Defaults, synced titles, and backend health
-            </h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
-              This section explains how new books inherit taste, what the server can restore,
-              and whether the backend is keeping up with the product experience.
-            </p>
-          </div>
-          <div className="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm text-stone-600 shadow-sm">
-            Preferences on the left, restore and queue state on the right.
-          </div>
-          </div>
-        <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-          <div className="space-y-6">
-          <div id="default-taste">
-            <DefaultTasteCard
-              initialProfile={backendLibrarySnapshot?.defaultListeningProfile ?? null}
-            />
-          </div>
-          <RecentTastesCard />
-          <div id="default-playback">
-            <DefaultPlaybackCard
-              initialDefaults={backendLibrarySnapshot?.playbackDefaults ?? null}
-            />
-          </div>
-          <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-white shadow-[0_22px_60px_-42px_rgba(28,25,23,0.4)]">
-            <div className="border-b border-stone-200/80 bg-[linear-gradient(135deg,#fffdf7_0%,#f7f3ea_52%,#eef4ff_100%)] p-6">
-              <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-                Listening model
-              </p>
-              <h2 className="mt-2 text-xl font-semibold text-stone-900">
-                How taste works
-              </h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-                The app uses a simple hierarchy so each book is predictable instead of
-                mysterious.
-              </p>
+      <section id="studio">
+        <StudioDisclosure
+          detail="Open this when you want to manage defaults, understand the listening hierarchy, inspect synced restore state, or verify backend health. Everyday listening stays above."
+          title="Defaults, synced titles, and backend health"
+        >
+          <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+            <div className="space-y-6">
+              <div id="default-taste">
+                <DefaultTasteCard
+                  initialProfile={backendLibrarySnapshot?.defaultListeningProfile ?? null}
+                />
+              </div>
+              <RecentTastesCard />
+              <div id="default-playback">
+                <DefaultPlaybackCard
+                  initialDefaults={backendLibrarySnapshot?.playbackDefaults ?? null}
+                />
+              </div>
+              <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-white shadow-[0_22px_60px_-42px_rgba(28,25,23,0.4)]">
+                <div className="border-b border-stone-200/80 bg-[linear-gradient(135deg,#fffdf7_0%,#f7f3ea_52%,#eef4ff_100%)] p-6">
+                  <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
+                    Listening model
+                  </p>
+                  <h2 className="mt-2 text-xl font-semibold text-stone-900">
+                    How taste works
+                  </h2>
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
+                    The app uses a simple hierarchy so each book is predictable instead of
+                    mysterious.
+                  </p>
+                </div>
+                <div className="grid gap-4 p-6 md:grid-cols-3">
+                  <article className="rounded-[1.5rem] border border-stone-200 bg-stone-50/80 p-4 shadow-sm">
+                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
+                      Saved taste
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-stone-600">
+                      A book-specific listening profile. This book keeps it until you change
+                      it.
+                    </p>
+                  </article>
+                  <article className="rounded-[1.5rem] border border-stone-200 bg-stone-50/80 p-4 shadow-sm">
+                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
+                      Default taste
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-stone-600">
+                      Your preferred narrator and mode for brand-new imports.
+                    </p>
+                  </article>
+                  <article className="rounded-[1.5rem] border border-stone-200 bg-stone-50/80 p-4 shadow-sm">
+                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
+                      Latest taste
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-stone-600">
+                      A fallback from the most recent book when no global default is saved.
+                    </p>
+                  </article>
+                </div>
+              </section>
             </div>
-            <div className="grid gap-4 p-6 md:grid-cols-3">
-              <article className="rounded-[1.5rem] border border-stone-200 bg-stone-50/80 p-4 shadow-sm">
-                <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
-                  Saved taste
-                </p>
-                <p className="mt-2 text-sm leading-6 text-stone-600">
-                  A book-specific listening profile. This book keeps it until you change
-                  it.
-                </p>
-              </article>
-              <article className="rounded-[1.5rem] border border-stone-200 bg-stone-50/80 p-4 shadow-sm">
-                <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
-                  Default taste
-                </p>
-                <p className="mt-2 text-sm leading-6 text-stone-600">
-                  Your preferred narrator and mode for brand-new imports.
-                </p>
-              </article>
-              <article className="rounded-[1.5rem] border border-stone-200 bg-stone-50/80 p-4 shadow-sm">
-                <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
-                  Latest taste
-                </p>
-                <p className="mt-2 text-sm leading-6 text-stone-600">
-                  A fallback from the most recent book when no global default is saved.
-                </p>
-              </article>
-            </div>
-          </section>
-        </div>
 
-          <div className="space-y-6">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-full bg-stone-950 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-white">
-                Backend
-              </span>
-              <p className="text-sm text-stone-500">
-                What the server can restore immediately and what it is processing right now.
-              </p>
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="rounded-full bg-stone-950 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-white">
+                  Backend
+                </span>
+                <p className="text-sm text-stone-500">
+                  What the server can restore immediately and what it is processing right now.
+                </p>
+              </div>
+              <BackendLibraryPreview snapshot={backendLibrarySnapshot} />
+              <BackendSyncCard
+                summary={backendSummary}
+                recentJobs={recentBackendJobs}
+                latestSession={currentLatestSession}
+                recentSessions={recentSessions}
+                workerHeartbeat={workerHeartbeat}
+                renderedAt={renderedAt}
+              />
             </div>
-            <BackendLibraryPreview snapshot={backendLibrarySnapshot} />
-            <BackendSyncCard
-              summary={backendSummary}
-              recentJobs={recentBackendJobs}
-              latestSession={currentLatestSession}
-              recentSessions={recentSessions}
-              workerHeartbeat={workerHeartbeat}
-              renderedAt={renderedAt}
-            />
           </div>
-        </div>
+        </StudioDisclosure>
       </section>
 
       <section
