@@ -46,6 +46,17 @@ const importJourney = [
   },
 ] as const;
 
+function suggestTitleFromFilename(filename: string): string {
+  const baseName = filename.replace(/\.[^.]+$/, "").trim();
+  const collapsed = baseName.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+
+  if (!collapsed) {
+    return "";
+  }
+
+  return collapsed.replace(/\b([a-z])/g, (match) => match.toUpperCase());
+}
+
 export default function ImportPage() {
   const router = useRouter();
   const titleInputRef = useRef<HTMLInputElement | null>(null);
@@ -218,6 +229,9 @@ export default function ImportPage() {
     }
 
     setFileLabel(file.name);
+    setTitle((currentTitle) =>
+      currentTitle.trim() ? currentTitle : suggestTitleFromFilename(file.name),
+    );
 
     try {
       const text = await extractImportText(file);
