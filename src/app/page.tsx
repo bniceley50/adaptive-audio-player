@@ -15,6 +15,7 @@ import { HomeNextStepCard } from "@/components/library/home-next-step-card";
 import { LibraryHero } from "@/components/library/library-hero";
 import { ListeningEditionsFeedCard } from "@/components/library/listening-editions-feed-card";
 import { ListeningStatsCard } from "@/components/library/listening-stats-card";
+import { ManageDiscoveryPreferencesCard } from "@/components/library/manage-discovery-preferences-card";
 import { RecentQuotesCard } from "@/components/library/recent-quotes-card";
 import { RecentPersonalizationCard } from "@/components/library/recent-personalization-card";
 import { RecentTastesCard } from "@/components/library/recent-tastes-card";
@@ -268,6 +269,7 @@ export default async function HomePage() {
         <DiscoveryQuickStartCard spotlight={authorSpotlight} />
         <ForYouCard spotlight={authorSpotlight} />
         <RecentPersonalizationCard />
+        <ManageDiscoveryPreferencesCard />
         <ListeningStatsCard initialStats={listeningStats} />
         <FavoritesHubCard />
         <ComingNextCard />
