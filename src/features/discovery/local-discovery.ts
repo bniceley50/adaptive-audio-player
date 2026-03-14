@@ -2,6 +2,8 @@ export const discoveryChangedEvent = "adaptive-audio-player:discovery-changed";
 
 const followedAuthorsStorageKey = "adaptive-audio-player.followed-authors";
 const joinedCirclesStorageKey = "adaptive-audio-player.joined-circles";
+const trackedPlannedFeaturesStorageKey =
+  "adaptive-audio-player.tracked-planned-features";
 
 function readStringList(storageKey: string): string[] {
   if (typeof window === "undefined") {
@@ -59,4 +61,22 @@ export function toggleJoinedCircle(circleId: string): string[] {
 
   writeJoinedCircles(nextCircles);
   return nextCircles;
+}
+
+export function readTrackedPlannedFeatures(): string[] {
+  return readStringList(trackedPlannedFeaturesStorageKey);
+}
+
+export function writeTrackedPlannedFeatures(featureIds: string[]) {
+  writeStringList(trackedPlannedFeaturesStorageKey, featureIds);
+}
+
+export function toggleTrackedPlannedFeature(featureId: string): string[] {
+  const currentFeatures = readTrackedPlannedFeatures();
+  const nextFeatures = currentFeatures.includes(featureId)
+    ? currentFeatures.filter((currentFeatureId) => currentFeatureId !== featureId)
+    : [...currentFeatures, featureId];
+
+  writeTrackedPlannedFeatures(nextFeatures);
+  return nextFeatures;
 }
