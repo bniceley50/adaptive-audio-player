@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/shared/app-shell";
 import { JourneyHero } from "@/components/shared/journey-hero";
+import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import { extractImportText } from "@/lib/import/extract-text";
 import {
   createNextLocalLibraryBook,
@@ -68,9 +69,21 @@ export default function ImportPage() {
   const [removedBooks, setRemovedBooks] = useState(() =>
     typeof window !== "undefined" ? readRemovedLocalLibraryBooks() : [],
   );
+  const [selectedEditionId, setSelectedEditionId] = useState<string | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    return new URLSearchParams(window.location.search).get("edition");
+  });
 
   const chapters = useMemo(() => parseChapters(sourceText), [sourceText]);
   const trimmedSourceText = sourceText.trim();
+  const selectedEdition = useMemo(() => {
+    return (
+      featuredListeningEditions.find((edition) => edition.id === selectedEditionId) ?? null
+    );
+  }, [selectedEditionId]);
   const importState = error
     ? {
         label: "Import needs attention",
@@ -135,6 +148,10 @@ export default function ImportPage() {
           actionLabel: "Focus text editor",
           action: () => sourceTextRef.current?.focus(),
         };
+
+  useEffect(() => {
+    setSelectedEditionId(new URLSearchParams(window.location.search).get("edition"));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -333,6 +350,41 @@ export default function ImportPage() {
               No default taste is saved yet, so new books will start from your latest
               synced taste: {defaultListeningProfile.narratorName} in{" "}
               <span className="capitalize">{defaultListeningProfile.mode}</span>.
+            </div>
+          ) : null}
+
+          {selectedEdition ? (
+            <div className="mt-5 rounded-[1.6rem] border border-stone-200 bg-[linear-gradient(135deg,#fffdf7_0%,#ffffff_52%,#eef4ff_100%)] px-5 py-5 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="max-w-3xl">
+                  <div className="flex flex-wrap items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                    <span className="rounded-full bg-stone-100 px-2.5 py-1">
+                      Selected edition
+                    </span>
+                    <span className="rounded-full bg-stone-100 px-2.5 py-1 capitalize">
+                      {selectedEdition.mode}
+                    </span>
+                    <span className="rounded-full bg-stone-100 px-2.5 py-1">
+                      {selectedEdition.genreLabel}
+                    </span>
+                  </div>
+                  <h3 className="mt-3 text-lg font-semibold text-stone-950">
+                    Start this import with {selectedEdition.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-stone-600">
+                    {selectedEdition.creator} recommends {selectedEdition.narratorName} for{" "}
+                    {selectedEdition.bookTitle}. It is best for {selectedEdition.bestFor}.
+                  </p>
+                </div>
+                <div className="rounded-[1.2rem] border border-stone-200 bg-white px-4 py-4 text-right shadow-sm">
+                  <p className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-stone-500">
+                    Best next move
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-stone-950">
+                    Paste the text and keep this edition in mind during setup
+                  </p>
+                </div>
+              </div>
             </div>
           ) : null}
 
