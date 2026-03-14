@@ -6,6 +6,10 @@ import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/shared/app-shell";
 import { JourneyHero } from "@/components/shared/journey-hero";
 import { StudioDisclosure } from "@/components/shared/studio-disclosure";
+import {
+  discoveryChangedEvent,
+  readTrackedPlannedFeatures,
+} from "@/features/discovery/local-discovery";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import { extractImportText } from "@/lib/import/extract-text";
 import {
@@ -62,6 +66,7 @@ export default function ImportPage() {
   const titleInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const audioPlanRef = useRef<HTMLElement | null>(null);
+  const importRoadmapRef = useRef<HTMLElement | null>(null);
   const sourceTextRef = useRef<HTMLTextAreaElement | null>(null);
   const [title, setTitle] = useState("");
   const [sourceText, setSourceText] = useState("");
@@ -85,6 +90,9 @@ export default function ImportPage() {
     typeof window !== "undefined" ? readRemovedLocalLibraryBooks() : [],
   );
   const [selectedEditionFeedback, setSelectedEditionFeedback] = useState(false);
+  const [trackedPlannedFeatures, setTrackedPlannedFeatures] = useState<string[]>(() =>
+    typeof window !== "undefined" ? readTrackedPlannedFeatures() : [],
+  );
   const [selectedEditionId] = useState<string | null>(() => {
     if (typeof window === "undefined") {
       return null;
@@ -112,6 +120,31 @@ export default function ImportPage() {
       featuredListeningEditions.find((edition) => edition.id === selectedEditionId) ?? null
     );
   }, [selectedEditionId]);
+  const highlightedFuturePath = useMemo(() => {
+    if (selectedSource === "audio" || trackedPlannedFeatures.includes("private-audio-files")) {
+      return {
+        eyebrow: "Saved future path",
+        title: "Private audiobook files",
+        detail:
+          "You already showed interest in private audiobook imports, so this roadmap stays visible while the simple text flow remains the fastest path today.",
+        actionLabel: "Review audio import plans",
+        target: "audio-plan" as const,
+      };
+    }
+
+    if (trackedPlannedFeatures.includes("richer-document-imports")) {
+      return {
+        eyebrow: "Saved future path",
+        title: "Richer document imports",
+        detail:
+          "You saved richer document imports for later, so the intake roadmap keeps EPUB, PDF, and DOCX plans visible without getting in the way of the live text flow.",
+        actionLabel: "Review the import roadmap",
+        target: "import-roadmap" as const,
+      };
+    }
+
+    return null;
+  }, [selectedSource, trackedPlannedFeatures]);
   const importState = error
     ? {
         label: "Import needs attention",
@@ -237,6 +270,19 @@ export default function ImportPage() {
   }, [defaultListeningProfile]);
 
   useEffect(() => {
+    function refreshTrackedFeatures() {
+      setTrackedPlannedFeatures(readTrackedPlannedFeatures());
+    }
+
+    refreshTrackedFeatures();
+    window.addEventListener(discoveryChangedEvent, refreshTrackedFeatures);
+
+    return () => {
+      window.removeEventListener(discoveryChangedEvent, refreshTrackedFeatures);
+    };
+  }, []);
+
+  useEffect(() => {
     if (selectedSource === "paste") {
       sourceTextRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       sourceTextRef.current?.focus();
@@ -298,6 +344,14 @@ export default function ImportPage() {
     router.push(`/books/${nextBook.bookId}`);
   }
 
+  function openHighlightedFuturePath(target: "audio-plan" | "import-roadmap") {
+    const ref = target === "audio-plan" ? audioPlanRef : importRoadmapRef;
+    ref.current?.scrollIntoView({
+      behavior: "smooth",
+      block: target === "audio-plan" ? "center" : "start",
+    });
+  }
+
   return (
     <AppShell eyebrow="Step 1" title="Import a book">
       <section className="overflow-hidden rounded-[1.75rem] border border-stone-200 bg-white shadow-sm">
@@ -323,6 +377,31 @@ export default function ImportPage() {
         </div>
 
         <div className="p-8">
+          {highlightedFuturePath ? (
+            <div className="mb-5 rounded-[1.5rem] border border-sky-200 bg-[linear-gradient(135deg,#eff6ff_0%,#ffffff_100%)] px-5 py-5 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="max-w-3xl">
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
+                    {highlightedFuturePath.eyebrow}
+                  </p>
+                  <h3 className="mt-2 text-lg font-semibold text-stone-950">
+                    {highlightedFuturePath.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-stone-600">
+                    {highlightedFuturePath.detail}
+                  </p>
+                </div>
+                <button
+                  className="rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-medium text-sky-900 transition hover:bg-sky-50"
+                  type="button"
+                  onClick={() => openHighlightedFuturePath(highlightedFuturePath.target)}
+                >
+                  {highlightedFuturePath.actionLabel}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
           <div
             className={`rounded-[1.6rem] border p-5 shadow-sm ${importState.accent}`}
           >
@@ -532,7 +611,10 @@ export default function ImportPage() {
             </article>
           </div>
 
-          <section className="mt-4 overflow-hidden rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(135deg,#fffefb_0%,#ffffff_100%)] shadow-sm">
+          <section
+            ref={importRoadmapRef}
+            className="mt-4 overflow-hidden rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(135deg,#fffefb_0%,#ffffff_100%)] shadow-sm"
+          >
             <div className="border-b border-stone-200 bg-white/80 px-5 py-4">
               <div className="flex flex-wrap items-end justify-between gap-4">
                 <div>

@@ -5,6 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import type { AuthorSpotlight } from "@/features/discovery/author-spotlights";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
+import {
+  discoveryChangedEvent,
+  readTrackedPlannedFeatures,
+} from "@/features/discovery/local-discovery";
 import { libraryChangedEvent, readLocalLibraryBooks } from "@/lib/library/local-library";
 import { workspaceContextChangedEvent } from "@/lib/library/local-state";
 
@@ -17,6 +21,9 @@ export function DiscoveryQuickStartCard({
 }: DiscoveryQuickStartCardProps) {
   const [localBookCount, setLocalBookCount] = useState<number>(() =>
     typeof window === "undefined" ? 0 : readLocalLibraryBooks().length,
+  );
+  const [trackedPlannedFeatures, setTrackedPlannedFeatures] = useState<string[]>(() =>
+    typeof window === "undefined" ? [] : readTrackedPlannedFeatures(),
   );
   const featuredEdition = featuredListeningEditions[0];
   const featuredCircle = featuredBookCircles[0];
@@ -36,7 +43,42 @@ export function DiscoveryQuickStartCard({
     };
   }, []);
 
+  useEffect(() => {
+    function refreshTrackedFeatures() {
+      setTrackedPlannedFeatures(readTrackedPlannedFeatures());
+    }
+
+    refreshTrackedFeatures();
+    window.addEventListener(discoveryChangedEvent, refreshTrackedFeatures);
+
+    return () => {
+      window.removeEventListener(discoveryChangedEvent, refreshTrackedFeatures);
+    };
+  }, []);
+
   const cards = useMemo(() => {
+    const personalizedFutureCard = trackedPlannedFeatures.includes("private-audio-files")
+      ? {
+          eyebrow: "Saved future path",
+          title: "Your audiobook-file plan",
+          detail:
+            "You already saved the private-audio path, so the app keeps that roadmap visible while the simple text flow stays live today.",
+          meta: "Planned first support: M4B and MP3",
+          href: "/import?source=audio",
+          action: "Review audio plans",
+        }
+      : trackedPlannedFeatures.includes("richer-document-imports")
+        ? {
+            eyebrow: "Saved future path",
+            title: "Your richer import plan",
+            detail:
+              "You marked richer document imports as interesting, so the intake roadmap stays easy to find while text remains the fastest path.",
+            meta: "Planned later: EPUB, PDF, and DOCX",
+            href: "/import",
+            action: "Review the roadmap",
+          }
+        : null;
+
     if (localBookCount === 0) {
       return [
         {
@@ -57,6 +99,7 @@ export function DiscoveryQuickStartCard({
           href: `/import?edition=${featuredEdition.id}`,
           action: "Use this edition",
         },
+        ...(personalizedFutureCard ? [personalizedFutureCard] : []),
         {
           eyebrow: "Bring your own book",
           title: "Import and listen your way",
@@ -68,15 +111,19 @@ export function DiscoveryQuickStartCard({
           href: "/import?source=paste",
           action: "Import your own book",
         },
-        {
-          eyebrow: "Private audio next",
-          title: "Bring your audiobook files later",
-          detail:
-            "The future private-audio path is being shaped for DRM-free or already-converted personal audiobook files.",
-          meta: "Planned first support: M4B and MP3",
-          href: "/import?source=audio",
-          action: "See audio import plans",
-        },
+        ...(personalizedFutureCard
+          ? []
+          : [
+              {
+                eyebrow: "Private audio next",
+                title: "Bring your audiobook files later",
+                detail:
+                  "The future private-audio path is being shaped for DRM-free or already-converted personal audiobook files.",
+                meta: "Planned first support: M4B and MP3",
+                href: "/import?source=audio",
+                action: "See audio import plans",
+              },
+            ]),
       ];
     }
 
@@ -99,6 +146,7 @@ export function DiscoveryQuickStartCard({
         href: `/import?edition=${featuredCircle.editionId}`,
         action: "Start with this circle",
       },
+      ...(personalizedFutureCard ? [personalizedFutureCard] : []),
       {
         eyebrow: "Bring your own book",
         title: "Import and listen your way",
@@ -110,17 +158,21 @@ export function DiscoveryQuickStartCard({
         href: "/import?source=paste",
         action: "Import your own book",
       },
-      {
-        eyebrow: "Private audio next",
-        title: "Plan for personal audiobook files",
-        detail:
-          "If your library already includes DRM-free or converted audiobook files, the future path is being shaped for that workflow too.",
-        meta: "Planned first support: M4B and MP3",
-        href: "/import?source=audio",
-        action: "See audio import plans",
-      },
+      ...(personalizedFutureCard
+        ? []
+        : [
+            {
+              eyebrow: "Private audio next",
+              title: "Plan for personal audiobook files",
+              detail:
+                "If your library already includes DRM-free or converted audiobook files, the future path is being shaped for that workflow too.",
+              meta: "Planned first support: M4B and MP3",
+              href: "/import?source=audio",
+              action: "See audio import plans",
+            },
+          ]),
     ];
-  }, [featuredCircle, featuredEdition, localBookCount, spotlight]);
+  }, [featuredCircle, featuredEdition, localBookCount, spotlight, trackedPlannedFeatures]);
 
   return (
     <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#fffefb_0%,#ffffff_48%,#eef4ff_100%)] shadow-[0_22px_60px_-42px_rgba(28,25,23,0.4)]">
