@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import {
   generationOutputChangedEvent,
@@ -17,8 +18,11 @@ import { clearAdaptiveAudioPlayerLocalState } from "@/lib/library/local-state";
 import { writePlaybackDefaults, writePersistedPlaybackState } from "@/lib/playback/local-playback";
 
 export function DemoModeCard() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [isApplying, setIsApplying] = useState(false);
   const [demoReady, setDemoReady] = useState(false);
+  const autoOpenRequestedRef = useRef(false);
 
   useEffect(() => {
     function refreshDemoReady() {
@@ -74,7 +78,7 @@ export function DemoModeCard() {
     [],
   );
 
-  function loadPortfolioDemo() {
+  function loadPortfolioDemo(onComplete?: () => void) {
     setIsApplying(true);
     clearAdaptiveAudioPlayerLocalState();
 
@@ -210,11 +214,38 @@ export function DemoModeCard() {
     }
 
     setIsApplying(false);
+    onComplete?.();
   }
 
   function resetDemo() {
     clearAdaptiveAudioPlayerLocalState();
   }
+
+  useEffect(() => {
+    const shouldAutoOpenDemo = searchParams.get("demo") === "1";
+
+    if (!shouldAutoOpenDemo) {
+      autoOpenRequestedRef.current = false;
+      return;
+    }
+
+    if (isApplying || autoOpenRequestedRef.current) {
+      return;
+    }
+
+    autoOpenRequestedRef.current = true;
+
+    if (demoReady) {
+      router.replace("/player/demo-book-1?artifact=full&renderState=current");
+      return;
+    }
+
+    window.setTimeout(() => {
+      loadPortfolioDemo(() => {
+        router.replace("/player/demo-book-1?artifact=full&renderState=current");
+      });
+    }, 0);
+  }, [demoReady, isApplying, router, searchParams]);
 
   return (
     <section
@@ -239,7 +270,7 @@ export function DemoModeCard() {
               className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-stone-950 transition hover:bg-stone-100 disabled:cursor-not-allowed disabled:bg-stone-400"
               type="button"
               disabled={isApplying}
-              onClick={loadPortfolioDemo}
+              onClick={() => loadPortfolioDemo()}
             >
               {isApplying ? "Loading demo..." : "Load portfolio demo"}
             </button>

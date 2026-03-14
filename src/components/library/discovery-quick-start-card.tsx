@@ -45,7 +45,7 @@ export function DiscoveryQuickStartCard({
           detail:
             "Start with the polished demo if you want playback, saved taste, generated audio, and a real shelf immediately.",
           meta: "Three staged books · guided tour ready",
-          href: "/#demo-mode",
+          href: "/?demo=1",
           action: "Open the demo",
         },
         {
