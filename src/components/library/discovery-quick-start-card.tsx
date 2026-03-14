@@ -68,6 +68,15 @@ export function DiscoveryQuickStartCard({
           href: "/import?source=paste",
           action: "Import your own book",
         },
+        {
+          eyebrow: "Private audio next",
+          title: "Bring your audiobook files later",
+          detail:
+            "The future private-audio path is being shaped for DRM-free or already-converted personal audiobook files.",
+          meta: "Planned first support: M4B and MP3",
+          href: "/import?source=audio",
+          action: "See audio import plans",
+        },
       ];
     }
 
@@ -101,6 +110,15 @@ export function DiscoveryQuickStartCard({
         href: "/import?source=paste",
         action: "Import your own book",
       },
+      {
+        eyebrow: "Private audio next",
+        title: "Plan for personal audiobook files",
+        detail:
+          "If your library already includes DRM-free or converted audiobook files, the future path is being shaped for that workflow too.",
+        meta: "Planned first support: M4B and MP3",
+        href: "/import?source=audio",
+        action: "See audio import plans",
+      },
     ];
   }, [featuredCircle, featuredEdition, localBookCount, spotlight]);
 
@@ -126,7 +144,7 @@ export function DiscoveryQuickStartCard({
           </div>
         </div>
       </div>
-      <div className="grid gap-4 p-6 xl:grid-cols-3">
+      <div className="grid gap-4 p-6 xl:grid-cols-4">
         {cards.map((card) => (
           <article
             key={card.title}

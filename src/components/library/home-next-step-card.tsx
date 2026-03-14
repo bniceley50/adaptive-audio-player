@@ -43,6 +43,13 @@ export function HomeNextStepCard({
       label: "Try a featured edition",
     },
     {
+      title: "See the private audio path",
+      body:
+        "If your personal library already has DRM-free or converted audiobook files, the app now shows where that future import path will live.",
+      href: "/import?source=audio",
+      label: "View audio import plans",
+    },
+    {
       title: isSignedIn ? "Keep your progress portable" : "Create an account when you are ready",
       body: isSignedIn
         ? "Your current library can follow you across workspaces and browsers."
