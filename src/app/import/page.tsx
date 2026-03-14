@@ -299,7 +299,7 @@ export default function ImportPage() {
           <JourneyHero
             eyebrow="Import flow"
             title="Import your manuscript"
-            detail="Start with pasted text or a plain text file. EPUB, PDF, and DOCX extraction will layer onto this same flow next."
+            detail="Start with pasted text or a plain text file. EPUB, PDF, DOCX, and private audiobook-file support will layer onto this same flow next."
             currentIndex={0}
             steps={importJourney}
             sectionClassName="border-0 bg-transparent p-0 shadow-none"
@@ -506,12 +506,19 @@ export default function ImportPage() {
                 Planned next
               </p>
               <h3 className="mt-3 text-lg font-semibold text-stone-950">
-                EPUB, PDF, DOCX, and audiobook files
+                EPUB, PDF, DOCX, and private audiobook files
               </h3>
               <p className="mt-2 text-sm leading-6 text-stone-600">
-                Richer import support is coming next. For now, bring in plain text for the most reliable path.
+                Richer import support is coming next. For audiobook imports, the future path is DRM-free or already-converted personal files such as M4B or MP3.
               </p>
             </article>
+          </div>
+
+          <div className="mt-4 rounded-[1.4rem] border border-stone-200 bg-[linear-gradient(135deg,#fffefb_0%,#ffffff_100%)] px-5 py-4 text-sm text-stone-700 shadow-sm">
+            <p className="font-medium text-stone-950">Private library note</p>
+            <p className="mt-2 leading-6 text-stone-600">
+              This app is being shaped around private-use imports. Plain text works today. Future audiobook-file imports are intended for DRM-free or already-converted personal library files, not DRM removal inside the app.
+            </p>
           </div>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
