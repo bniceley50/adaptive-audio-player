@@ -1,5 +1,14 @@
 import { expect, test } from "@playwright/test";
 
+async function openAccountPanel(page: import("@playwright/test").Page) {
+  const details = page.locator("#account-context details").first();
+  const isOpen = await details.evaluate((element) => element.hasAttribute("open"));
+
+  if (!isOpen) {
+    await details.locator("summary").click();
+  }
+}
+
 test("home page loads", async ({ page }) => {
   await page.goto("/");
 
@@ -22,8 +31,8 @@ test("home page loads", async ({ page }) => {
   ).toBeVisible();
   await expect(
     page.getByRole("heading", {
-      level: 3,
-      name: "Show the same product through three different listening moments",
+      level: 2,
+      name: "Pick the easiest first step",
     }),
   ).toBeVisible();
 });
@@ -35,6 +44,7 @@ test("user can create an account, revoke other sessions, and sign out", async ({
   const uniqueEmail = `gillian-session-${Date.now()}@example.com`;
 
   await page.goto("/");
+  await openAccountPanel(page);
 
   await page.getByLabel("Display name").fill("Gillian");
   await page.getByLabel("Email").fill(uniqueEmail);
@@ -53,6 +63,7 @@ test("user can create an account, revoke other sessions, and sign out", async ({
   const secondContext = await browser.newContext();
   const secondPage = await secondContext.newPage();
   await secondPage.goto("/");
+  await openAccountPanel(secondPage);
   await secondPage.getByLabel("Display name").fill("Gillian");
   await secondPage.getByLabel("Email").fill(uniqueEmail);
   await secondPage
@@ -82,6 +93,8 @@ test("user can create an account, revoke other sessions, and sign out", async ({
   ).toBeVisible();
 
   await page.getByRole("button", { name: "Sign out" }).click();
+  await page.waitForLoadState("networkidle");
+  await openAccountPanel(page);
   await expect(
     page.getByRole("button", { name: "Create account and sync this library" }),
   ).toBeVisible();
@@ -91,6 +104,7 @@ test("signed-in user can switch to another linked workspace", async ({ page }) =
   const uniqueEmail = `gillian-switch-${Date.now()}@example.com`;
 
   await page.goto("/");
+  await openAccountPanel(page);
   await page.getByLabel("Display name").fill("Gillian");
   await page.getByLabel("Email").fill(uniqueEmail);
   await page
@@ -105,7 +119,10 @@ test("signed-in user can switch to another linked workspace", async ({ page }) =
   await page.getByRole("button", { name: "Continue to voice setup" }).click();
 
   await page.goto("/");
+  await openAccountPanel(page);
   await page.getByRole("button", { name: "Sign out" }).click();
+  await page.waitForLoadState("networkidle");
+  await openAccountPanel(page);
   await expect(
     page.getByRole("button", { name: "Create account and sync this library" }),
   ).toBeVisible();

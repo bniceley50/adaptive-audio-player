@@ -242,124 +242,71 @@ export default async function HomePage() {
         listeningStreakDays={listeningStats.listeningStreakDays}
         recommendedEdition={authorSpotlight?.recommendedEdition ?? null}
       />
-      <section className="space-y-4">
+      <section className="space-y-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-              Library command center
+              Everyday listening
             </p>
             <h2 className="mt-2 text-2xl font-semibold text-stone-950">
-              What to listen to and what account it belongs to
+              Start fast, then let the app get smarter around you
             </h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
-              The left side is the listening product: imports, resume state, and taste.
-              The right side is the security and ownership model behind it.
+              Discovery, playback, circles, and favorites stay up front. Account,
+              backend, and deeper system controls stay available without taking over the
+              first-run experience.
             </p>
           </div>
           <div className="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm text-stone-600 shadow-sm">
-            Home is split into library context and account context.
+            Everyday mode stays focused on what to hear next
           </div>
         </div>
-        <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
-          <div className="space-y-6">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-full bg-stone-950 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-white">
-                Library
-              </span>
-              <p className="text-sm text-stone-500">
-                Start with the listening experience, then move into setup or playback.
-              </p>
-            </div>
-          <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#f7ecd8_0%,#fffdf7_42%,#eef4ff_100%)] shadow-[0_24px_70px_-46px_rgba(28,25,23,0.42)]">
-            <div className="grid gap-4 p-6 md:grid-cols-3">
-              <article className="rounded-[1.5rem] border border-white/80 bg-white/80 p-5 shadow-sm backdrop-blur">
-                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
-                  Step 1
-                </p>
-                <h2 className="mt-2 text-lg font-semibold text-stone-950">
-                  Import and parse
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-stone-600">
-                  Bring in a manuscript or book file and let the app shape it into
-                  chapters.
-                </p>
-              </article>
-              <article className="rounded-[1.5rem] border border-white/80 bg-white/80 p-5 shadow-sm backdrop-blur">
-                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
-                  Step 2
-                </p>
-                <h2 className="mt-2 text-lg font-semibold text-stone-950">
-                  Design the taste
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-stone-600">
-                  Choose the narrator, listening mode, and defaults that define the
-                  experience.
-                </p>
-              </article>
-              <article className="rounded-[1.5rem] border border-white/80 bg-white/80 p-5 shadow-sm backdrop-blur">
-                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
-                  Step 3
-                </p>
-                <h2 className="mt-2 text-lg font-semibold text-stone-950">
-                  Listen and orchestrate
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-stone-600">
-                  Resume playback, monitor jobs, and prove the backend is doing real work.
-                </p>
-              </article>
-            </div>
-          </section>
 
-          <DiscoveryQuickStartCard spotlight={authorSpotlight} />
-          <ForYouCard spotlight={authorSpotlight} />
-          <ListeningStatsCard initialStats={listeningStats} />
-          <FavoritesHubCard />
-          <ListeningEditionsFeedCard />
-          <ContinueListeningRow
-            initialSnapshot={backendLibrarySnapshot}
-            hideWhenEmpty
+        <DiscoveryQuickStartCard spotlight={authorSpotlight} />
+        <ForYouCard spotlight={authorSpotlight} />
+        <ListeningStatsCard initialStats={listeningStats} />
+        <FavoritesHubCard />
+        <ListeningEditionsFeedCard />
+        <ContinueListeningRow initialSnapshot={backendLibrarySnapshot} hideWhenEmpty />
+        <RecentQuotesCard />
+        {circleBook ? (
+          <BookCircleCard
+            bookId={circleBook.bookId}
+            bookTitle={circleBook.title}
+            coverGlyph={circleBook.coverGlyph ?? null}
+            coverLabel={circleBook.coverLabel ?? null}
+            coverTheme={circleBook.coverTheme ?? null}
+            genreLabel={circleBook.genreLabel ?? null}
+            href={
+              currentLatestSession && currentLatestSession.bookId === circleBook.bookId
+                ? currentLatestSession.href
+                : `/player/${circleBook.bookId}`
+            }
+            mode={circleProfile?.mode ?? null}
+            narratorName={circleProfile?.narratorName ?? null}
           />
-          <RecentQuotesCard />
-          {circleBook ? (
-            <BookCircleCard
-              bookId={circleBook.bookId}
-              bookTitle={circleBook.title}
-              coverGlyph={circleBook.coverGlyph ?? null}
-              coverLabel={circleBook.coverLabel ?? null}
-              coverTheme={circleBook.coverTheme ?? null}
-              genreLabel={circleBook.genreLabel ?? null}
-              href={
-                currentLatestSession && currentLatestSession.bookId === circleBook.bookId
-                  ? currentLatestSession.href
-                  : `/player/${circleBook.bookId}`
-              }
-              mode={circleProfile?.mode ?? null}
-              narratorName={circleProfile?.narratorName ?? null}
-            />
-          ) : null}
-          <BookCirclesFeedCard />
-          <AuthorSpotlightCard spotlight={authorSpotlight} title="Author spotlight" />
-        </div>
+        ) : null}
+        <BookCirclesFeedCard />
+        <AuthorSpotlightCard spotlight={authorSpotlight} title="Author spotlight" />
+      </section>
 
-          <div id="account-context" className="space-y-4">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="rounded-full bg-white px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-600 shadow-sm">
-                Account
-              </span>
-              <p className="text-sm text-stone-500">
-                Security, linked workspaces, and signed-in identity for the same library.
-              </p>
-            </div>
-            <WorkspaceAccountCard
-              currentUser={currentUser}
-              currentWorkspaceId={workspaceId}
-              linkedWorkspaces={linkedWorkspaces}
-              accountSessions={accountSessions}
-              endedAccountSessions={endedAccountSessions}
-              renderedAt={renderedAt}
-            />
-          </div>
-        </div>
+      <section id="account-context">
+        <StudioDisclosure
+          eyebrow="Account"
+          title="Account"
+          detail="Open sign-in, linked workspaces, and session controls when you want to sync the listening experience across devices and libraries."
+          badgeLabel="Open sign-in, workspaces, and session controls"
+          defaultOpen={Boolean(currentUser)}
+        >
+          <WorkspaceAccountCard
+            currentUser={currentUser}
+            currentWorkspaceId={workspaceId}
+            linkedWorkspaces={linkedWorkspaces}
+            accountSessions={accountSessions}
+            endedAccountSessions={endedAccountSessions}
+            renderedAt={renderedAt}
+          />
+        </StudioDisclosure>
       </section>
 
       <section id="studio">
