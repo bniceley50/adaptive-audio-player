@@ -7,6 +7,7 @@ import { ContinueListeningRow } from "@/components/library/continue-listening-ro
 import { DefaultPlaybackCard } from "@/components/library/default-playback-card";
 import { DefaultTasteCard } from "@/components/library/default-taste-card";
 import { DemoModeCard } from "@/components/library/demo-mode-card";
+import { DiscoveryQuickStartCard } from "@/components/library/discovery-quick-start-card";
 import { FavoritesHubCard } from "@/components/library/favorites-hub-card";
 import { LibraryHero } from "@/components/library/library-hero";
 import { ListeningEditionsFeedCard } from "@/components/library/listening-editions-feed-card";
@@ -367,6 +368,7 @@ export default async function HomePage() {
             </div>
           </section>
 
+          <DiscoveryQuickStartCard spotlight={authorSpotlight} />
           <ListeningStatsCard initialStats={listeningStats} />
           <FavoritesHubCard />
           <ListeningEditionsFeedCard />
