@@ -159,10 +159,11 @@ Open:
 
 ## Live Demo
 
-> **Coming soon** — a hosted demo with pre-seeded portfolio data is planned.
-> For now, clone the repo and run `pnpm dev:all` to see the full experience.
-> The demo seeds automatically when you click `Load portfolio demo` on the
-> home screen.
+Hosted demo: [adaptive-audio-player.vercel.app](https://adaptive-audio-player.vercel.app)
+
+- Open the home screen and click `Load portfolio demo`
+- The hosted build uses the same seeded portfolio flow as local development
+- If you want the local worker-backed path, run `pnpm dev:all`
 
 ## Key Scripts
 

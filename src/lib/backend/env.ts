@@ -1,4 +1,5 @@
 import path from "node:path";
+import { tmpdir } from "node:os";
 
 const developmentSessionSecret = "adaptive-audio-player-dev-session-secret";
 
@@ -29,7 +30,14 @@ function readPositiveNumberEnv(name: string, fallback: number) {
 export function getDatabasePath() {
   return (
     readOptionalStringEnv("ADAPTIVE_AUDIO_PLAYER_DB_PATH") ??
-    path.join(process.cwd(), "data", "adaptive-audio-player.sqlite")
+    path.join(getDataRoot(), "adaptive-audio-player.sqlite")
+  );
+}
+
+export function getDataRoot() {
+  return (
+    readOptionalStringEnv("ADAPTIVE_AUDIO_PLAYER_DATA_ROOT") ??
+    (process.env.VERCEL ? path.join(tmpdir(), "adaptive-audio-player") : path.join(process.cwd(), "data"))
   );
 }
 

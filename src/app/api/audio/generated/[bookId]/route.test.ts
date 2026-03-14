@@ -181,6 +181,62 @@ describe("generated audio route", () => {
     });
   });
 
+  it("falls back to deterministic demo audio when the synced asset path is a portfolio demo path", async () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), "adaptive-audio-player-"));
+    createdDirs.push(tempDir);
+    process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
+
+    syncWorkspaceLibrarySnapshot("workspace-audio", {
+      libraryBooks: [
+        {
+          bookId: "demo-book-1",
+          title: "Harbor Lights",
+          chapterCount: 3,
+          updatedAt: "2026-03-08T12:00:00.000Z",
+        },
+      ],
+      draftTexts: [{ bookId: "demo-book-1", text: "Chapter 1\nHarbor Lights" }],
+      listeningProfiles: [],
+      defaultListeningProfile: null,
+      sampleRequest: null,
+      playbackStates: [],
+      playbackDefaults: null,
+      syncedAt: "2026-03-08T12:01:00.000Z",
+    });
+
+    const job = enqueueGenerationJob({
+      workspaceId: "workspace-audio",
+      kind: "full-book-generation",
+      bookId: "demo-book-1",
+      narratorId: "sloane",
+      mode: "immersive",
+    });
+
+    completeGenerationJob(job?.id ?? "", "workspace-audio", {
+      assetPath: "generated/demo/demo-book-1/full-book-generation.wav",
+      mimeType: "audio/wav",
+      provider: "mock",
+    });
+
+    const response = await GET(
+      new Request(
+        "http://localhost/api/audio/generated/demo-book-1?kind=full-book-generation",
+        {
+          headers: {
+            cookie: `adaptive-audio-player.workspace=${createSignedWorkspaceCookieValue("workspace-audio")}`,
+          },
+        },
+      ),
+      { params: Promise.resolve({ bookId: "demo-book-1" }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("audio/wav");
+    expect(Buffer.from(await response.arrayBuffer()).subarray(0, 4).toString()).toBe(
+      "RIFF",
+    );
+  });
+
   it("rejects access when the signed-in account does not own the linked workspace", async () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), "adaptive-audio-player-"));
     createdDirs.push(tempDir);

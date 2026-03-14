@@ -1,9 +1,11 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
+import { getDataRoot } from "@/lib/backend/env";
+import { generateMockWav } from "@/lib/backend/mock-audio";
 
 function resolveAudioRoot() {
-  return path.join(process.cwd(), "data", "generated-audio");
+  return path.join(getDataRoot(), "generated-audio");
 }
 
 function ensureAudioRoot() {
@@ -44,6 +46,18 @@ export function readGeneratedAudioAsset(relativePath: string) {
     : path.join(process.cwd(), relativePath);
 
   if (!existsSync(absolutePath)) {
+    if (relativePath.startsWith("generated/demo/")) {
+      const demoLabel = relativePath
+        .replace(/^generated\/demo\//, "")
+        .replace(/\.[^.]+$/, "")
+        .replaceAll("/", " ");
+
+      return {
+        absolutePath,
+        data: generateMockWav(`Portfolio demo audio for ${demoLabel}`),
+      };
+    }
+
     return null;
   }
 
