@@ -8,6 +8,7 @@ import { DefaultTasteCard } from "@/components/library/default-taste-card";
 import { DemoModeCard } from "@/components/library/demo-mode-card";
 import { FavoritesHubCard } from "@/components/library/favorites-hub-card";
 import { LibraryHero } from "@/components/library/library-hero";
+import { ListeningEditionsFeedCard } from "@/components/library/listening-editions-feed-card";
 import { ListeningStatsCard } from "@/components/library/listening-stats-card";
 import { RecentQuotesCard } from "@/components/library/recent-quotes-card";
 import { RecentTastesCard } from "@/components/library/recent-tastes-card";
@@ -367,6 +368,7 @@ export default async function HomePage() {
 
           <ListeningStatsCard initialStats={listeningStats} />
           <FavoritesHubCard />
+          <ListeningEditionsFeedCard />
           <ContinueListeningRow initialSnapshot={backendLibrarySnapshot} />
           <RecentQuotesCard />
           {circleBook ? (
