@@ -2,6 +2,7 @@ import { AuthorSpotlightCard } from "@/components/library/author-spotlight-card"
 import { BackendSyncCard } from "@/components/library/backend-sync-card";
 import { BackendLibraryPreview } from "@/components/library/backend-library-preview";
 import { BookCircleCard } from "@/components/library/book-circle-card";
+import { BookCirclesFeedCard } from "@/components/library/book-circles-feed-card";
 import { ContinueListeningRow } from "@/components/library/continue-listening-row";
 import { DefaultPlaybackCard } from "@/components/library/default-playback-card";
 import { DefaultTasteCard } from "@/components/library/default-taste-card";
@@ -388,6 +389,7 @@ export default async function HomePage() {
               narratorName={circleProfile?.narratorName ?? null}
             />
           ) : null}
+          <BookCirclesFeedCard />
           <AuthorSpotlightCard spotlight={authorSpotlight} title="Author spotlight" />
         </div>
 
