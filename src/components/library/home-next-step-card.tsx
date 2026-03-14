@@ -2,8 +2,12 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
+import { featuredAuthorSpotlights } from "@/features/discovery/author-spotlights";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
-import { getHomeDiscoveryReason } from "@/features/discovery/personalization";
+import {
+  getHomeDiscoveryReason,
+  getPinnedDiscoveryReason,
+} from "@/features/discovery/personalization";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 
 interface HomeNextStepCardProps {
@@ -25,9 +29,13 @@ export function HomeNextStepCard({
   recommendedEdition,
   spotlightName,
 }: HomeNextStepCardProps) {
-  const { followedAuthors, joinedCircles, trackedPlannedFeatures } =
+  const { followedAuthors, joinedCircles, pinnedDiscoverySignal, trackedPlannedFeatures } =
     useDiscoveryPreferences();
   const joinedCircle = featuredBookCircles.find((circle) => joinedCircles.includes(circle.id));
+  const pinnedReason = useMemo(
+    () => getPinnedDiscoveryReason(pinnedDiscoverySignal),
+    [pinnedDiscoverySignal],
+  );
   const homeReason = useMemo(
     () =>
       getHomeDiscoveryReason(
@@ -61,6 +69,47 @@ export function HomeNextStepCard({
           : "Jump back into your latest synced title and keep the listening loop moving.",
         href: latestBookHref,
         label: "Resume listening",
+      };
+    }
+
+    if (pinnedDiscoverySignal?.kind === "circle") {
+      const pinnedCircle = featuredBookCircles.find(
+        (circle) => circle.id === pinnedDiscoverySignal.id,
+      );
+      if (pinnedCircle) {
+        return {
+          title: "Return to your pinned circle",
+          body: `You pinned ${pinnedCircle.title}, so it stays ahead of the normal discovery order.`,
+          href: `/import?edition=${pinnedCircle.editionId}`,
+          label: "Continue with your pinned circle",
+        };
+      }
+    }
+
+    if (pinnedDiscoverySignal?.kind === "author") {
+      const pinnedAuthor = featuredAuthorSpotlights.find(
+        (author) => author.name === pinnedDiscoverySignal.id,
+      );
+      if (pinnedAuthor) {
+        return {
+          title: "Start from your pinned author",
+          body: `You pinned ${pinnedAuthor.name}, so the recommended edition stays ready for the next import.`,
+          href: `/import?edition=${pinnedAuthor.recommendedEditionId}`,
+          label: "Use the pinned edition",
+        };
+      }
+    }
+
+    if (pinnedDiscoverySignal?.kind === "feature") {
+      return {
+        title: "Keep your pinned future path visible",
+        body:
+          "You pinned a future import path, so it stays ahead of the usual discovery suggestions.",
+        href:
+          pinnedDiscoverySignal.id === "private-audio-files"
+            ? "/import?source=audio"
+            : "/import",
+        label: "Open the pinned path",
       };
     }
 
@@ -105,6 +154,7 @@ export function HomeNextStepCard({
     joinedCircle,
     latestBookHref,
     latestBookTitle,
+    pinnedDiscoverySignal,
     recommendedEdition,
     trackedPlannedFeatures,
   ]);
@@ -165,9 +215,11 @@ export function HomeNextStepCard({
           </p>
           <div className="mt-4 rounded-[1.1rem] border border-emerald-200 bg-emerald-50/80 px-4 py-3">
             <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-              {homeReason.label}
+              {pinnedReason?.label ?? homeReason.label}
             </p>
-            <p className="mt-2 text-sm leading-6 text-emerald-900">{homeReason.detail}</p>
+            <p className="mt-2 text-sm leading-6 text-emerald-900">
+              {pinnedReason?.detail ?? homeReason.detail}
+            </p>
           </div>
           <h3 className="mt-3 text-xl font-semibold text-stone-950">
             {primaryAction.title}

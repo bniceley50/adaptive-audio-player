@@ -3,6 +3,7 @@ import {
   getCircleDiscoveryReason,
   getEditionDiscoveryReason,
   getHomeDiscoveryReason,
+  getPinnedDiscoveryReason,
 } from "@/features/discovery/personalization";
 
 describe("discovery personalization helpers", () => {
@@ -77,6 +78,17 @@ describe("discovery personalization helpers", () => {
       ),
     ).toMatchObject({
       label: "Because you already have a live listening path",
+    });
+  });
+
+  it("explains a pinned circle signal", () => {
+    expect(
+      getPinnedDiscoveryReason({
+        kind: "circle",
+        id: "storm-harbor-night-watch",
+      }),
+    ).toMatchObject({
+      label: expect.stringContaining("Night Watch Circle"),
     });
   });
 });

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   discoveryChangedEvent,
+  readPinnedDiscoverySignal,
   readFollowedAuthors,
   readFollowedAuthorTimestamps,
   readJoinedCircles,
@@ -30,6 +31,9 @@ export function useDiscoveryPreferences() {
   const [trackedFeatureTimestamps, setTrackedFeatureTimestamps] = useState<
     Record<string, string>
   >(() => (typeof window === "undefined" ? {} : readTrackedFeatureTimestamps()));
+  const [pinnedDiscoverySignal, setPinnedDiscoverySignal] = useState(() =>
+    typeof window === "undefined" ? null : readPinnedDiscoverySignal(),
+  );
 
   useEffect(() => {
     function refresh() {
@@ -39,6 +43,7 @@ export function useDiscoveryPreferences() {
       setFollowedAuthorTimestamps(readFollowedAuthorTimestamps());
       setJoinedCircleTimestamps(readJoinedCircleTimestamps());
       setTrackedFeatureTimestamps(readTrackedFeatureTimestamps());
+      setPinnedDiscoverySignal(readPinnedDiscoverySignal());
     }
 
     refresh();
@@ -54,6 +59,7 @@ export function useDiscoveryPreferences() {
     followedAuthorTimestamps,
     joinedCircles,
     joinedCircleTimestamps,
+    pinnedDiscoverySignal,
     trackedPlannedFeatures,
     trackedFeatureTimestamps,
   };

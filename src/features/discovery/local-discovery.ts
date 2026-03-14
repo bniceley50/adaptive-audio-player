@@ -10,8 +10,14 @@ const joinedCircleTimestampsStorageKey =
   "adaptive-audio-player.joined-circle-timestamps";
 const trackedFeatureTimestampsStorageKey =
   "adaptive-audio-player.tracked-feature-timestamps";
+const pinnedDiscoverySignalStorageKey =
+  "adaptive-audio-player.pinned-discovery-signal";
 
 type TimestampMap = Record<string, string>;
+export type PinnedDiscoverySignal = {
+  kind: "circle" | "author" | "feature";
+  id: string;
+} | null;
 
 function emitDiscoveryChange() {
   if (typeof window === "undefined") {
@@ -47,6 +53,19 @@ function readTimestampMap(storageKey: string): TimestampMap {
   }
 }
 
+function readJsonValue<T>(storageKey: string, fallback: T): T {
+  if (typeof window === "undefined") {
+    return fallback;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function writeStringList(storageKey: string, values: string[], emit = true) {
   if (typeof window === "undefined") {
     return;
@@ -64,6 +83,17 @@ function writeTimestampMap(storageKey: string, values: TimestampMap, emit = true
   }
 
   window.localStorage.setItem(storageKey, JSON.stringify(values));
+  if (emit) {
+    emitDiscoveryChange();
+  }
+}
+
+function writeJsonValue<T>(storageKey: string, value: T, emit = true) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(storageKey, JSON.stringify(value));
   if (emit) {
     emitDiscoveryChange();
   }
@@ -167,4 +197,23 @@ export function toggleTrackedPlannedFeature(featureId: string): string[] {
     nextFeatures.includes(featureId),
   );
   return nextFeatures;
+}
+
+export function readPinnedDiscoverySignal(): PinnedDiscoverySignal {
+  return readJsonValue<PinnedDiscoverySignal>(pinnedDiscoverySignalStorageKey, null);
+}
+
+export function writePinnedDiscoverySignal(signal: PinnedDiscoverySignal) {
+  writeJsonValue(pinnedDiscoverySignalStorageKey, signal);
+}
+
+export function togglePinnedDiscoverySignal(
+  signal: NonNullable<PinnedDiscoverySignal>,
+): PinnedDiscoverySignal {
+  const currentSignal = readPinnedDiscoverySignal();
+  const nextSignal =
+    currentSignal?.kind === signal.kind && currentSignal.id === signal.id ? null : signal;
+
+  writePinnedDiscoverySignal(nextSignal);
+  return nextSignal;
 }

@@ -1,5 +1,6 @@
 import { featuredAuthorSpotlights } from "@/features/discovery/author-spotlights";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
+import type { PinnedDiscoverySignal } from "@/features/discovery/local-discovery";
 
 export interface DiscoveryPreferenceState {
   followedAuthors: string[];
@@ -149,4 +150,44 @@ export function getRelativeDiscoveryBadge(updatedAt: string | null | undefined):
   }
 
   return null;
+}
+
+export function getPinnedDiscoveryReason(
+  pinnedSignal: PinnedDiscoverySignal,
+): DiscoveryReason | null {
+  if (!pinnedSignal) {
+    return null;
+  }
+
+  if (pinnedSignal.kind === "circle") {
+    const circle = featuredBookCircles.find((item) => item.id === pinnedSignal.id);
+    if (!circle) {
+      return null;
+    }
+
+    return {
+      label: `Pinned: ${circle.title}`,
+      detail:
+        "You pinned this circle, so the app keeps it ahead of the usual discovery rotation.",
+    };
+  }
+
+  if (pinnedSignal.kind === "author") {
+    const author = featuredAuthorSpotlights.find((item) => item.name === pinnedSignal.id);
+    if (!author) {
+      return null;
+    }
+
+    return {
+      label: `Pinned: ${author.name}`,
+      detail:
+        "You pinned this author path, so the recommended edition stays in front even if other discovery signals change.",
+    };
+  }
+
+  return {
+    label: "Pinned: future path",
+    detail:
+      "You pinned this future path, so the roadmap stays ahead of the rest of the discovery stack.",
+  };
 }

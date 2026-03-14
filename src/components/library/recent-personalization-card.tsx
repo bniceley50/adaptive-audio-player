@@ -5,10 +5,12 @@ import { useMemo } from "react";
 import { featuredAuthorSpotlights } from "@/features/discovery/author-spotlights";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
 import { getRelativeDiscoveryBadge } from "@/features/discovery/personalization";
+import { togglePinnedDiscoverySignal } from "@/features/discovery/local-discovery";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 
 type PersonalizationItem = {
   id: string;
+  kind: "circle" | "author" | "feature";
   eyebrow: string;
   title: string;
   detail: string;
@@ -59,6 +61,7 @@ export function RecentPersonalizationCard() {
     joinedCircleTimestamps,
     trackedPlannedFeatures,
     trackedFeatureTimestamps,
+    pinnedDiscoverySignal,
   } = useDiscoveryPreferences();
 
   const items = useMemo(() => {
@@ -70,6 +73,7 @@ export function RecentPersonalizationCard() {
         )
         .map<PersonalizationItem>((circle) => ({
           id: circle.id,
+          kind: "circle",
           eyebrow: "Recent circle",
           title: circle.title,
           detail: `You joined this circle recently, so its shared checkpoint and edition stay close.`,
@@ -88,6 +92,7 @@ export function RecentPersonalizationCard() {
         )
         .map<PersonalizationItem>((spotlight) => ({
           id: spotlight.name,
+          kind: "author",
           eyebrow: "Recent follow",
           title: spotlight.name,
           detail: `You followed this author recently, so the recommended edition stays easy to reuse.`,
@@ -106,6 +111,7 @@ export function RecentPersonalizationCard() {
         )
         .map<PersonalizationItem>((featureId) => ({
           id: featureId,
+          kind: "feature",
           eyebrow: "Saved future path",
           title: plannedFeatureMeta[featureId].title,
           detail: plannedFeatureMeta[featureId].detail,
@@ -176,6 +182,11 @@ export function RecentPersonalizationCard() {
                     {freshnessBadge}
                   </span>
                 ) : null}
+                {pinnedDiscoverySignal?.kind === item.kind && pinnedDiscoverySignal.id === item.id ? (
+                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
+                    Pinned
+                  </span>
+                ) : null}
               </div>
               <h3 className="mt-3 text-lg font-semibold text-stone-950">{item.title}</h3>
               <p className="mt-2 text-sm leading-6 text-stone-600">{item.detail}</p>
@@ -185,6 +196,20 @@ export function RecentPersonalizationCard() {
               >
                 {item.action}
               </Link>
+              <button
+                className="mt-3 inline-flex rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                type="button"
+                onClick={() => {
+                  togglePinnedDiscoverySignal({
+                    kind: item.kind,
+                    id: item.id,
+                  });
+                }}
+              >
+                {pinnedDiscoverySignal?.kind === item.kind && pinnedDiscoverySignal.id === item.id
+                  ? "Unpin"
+                  : "Pin near the top"}
+              </button>
             </article>
           );
         })}
