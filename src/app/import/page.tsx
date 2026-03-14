@@ -8,8 +8,11 @@ import { JourneyHero } from "@/components/shared/journey-hero";
 import { StudioDisclosure } from "@/components/shared/studio-disclosure";
 import {
   discoveryChangedEvent,
+  readFollowedAuthors,
+  readJoinedCircles,
   readTrackedPlannedFeatures,
 } from "@/features/discovery/local-discovery";
+import { getEditionDiscoveryReason } from "@/features/discovery/personalization";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import { extractImportText } from "@/lib/import/extract-text";
 import {
@@ -90,6 +93,12 @@ export default function ImportPage() {
     typeof window !== "undefined" ? readRemovedLocalLibraryBooks() : [],
   );
   const [selectedEditionFeedback, setSelectedEditionFeedback] = useState(false);
+  const [followedAuthors, setFollowedAuthors] = useState<string[]>(() =>
+    typeof window !== "undefined" ? readFollowedAuthors() : [],
+  );
+  const [joinedCircles, setJoinedCircles] = useState<string[]>(() =>
+    typeof window !== "undefined" ? readJoinedCircles() : [],
+  );
   const [trackedPlannedFeatures, setTrackedPlannedFeatures] = useState<string[]>(() =>
     typeof window !== "undefined" ? readTrackedPlannedFeatures() : [],
   );
@@ -120,6 +129,17 @@ export default function ImportPage() {
       featuredListeningEditions.find((edition) => edition.id === selectedEditionId) ?? null
     );
   }, [selectedEditionId]);
+  const selectedEditionReason = useMemo(() => {
+    if (!selectedEdition) {
+      return null;
+    }
+
+    return getEditionDiscoveryReason(selectedEdition.id, {
+      followedAuthors,
+      joinedCircles,
+      trackedPlannedFeatures,
+    });
+  }, [followedAuthors, joinedCircles, selectedEdition, trackedPlannedFeatures]);
   const highlightedFuturePath = useMemo(() => {
     if (selectedSource === "audio" || trackedPlannedFeatures.includes("private-audio-files")) {
       return {
@@ -271,6 +291,8 @@ export default function ImportPage() {
 
   useEffect(() => {
     function refreshTrackedFeatures() {
+      setFollowedAuthors(readFollowedAuthors());
+      setJoinedCircles(readJoinedCircles());
       setTrackedPlannedFeatures(readTrackedPlannedFeatures());
     }
 
@@ -499,6 +521,16 @@ export default function ImportPage() {
                     {selectedEdition.creator} recommends {selectedEdition.narratorName} for{" "}
                     {selectedEdition.bookTitle}. It is best for {selectedEdition.bestFor}.
                   </p>
+                  {selectedEditionReason ? (
+                    <div className="mt-4 rounded-[1.1rem] border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-left">
+                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                        {selectedEditionReason.label}
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-emerald-900">
+                        {selectedEditionReason.detail}
+                      </p>
+                    </div>
+                  ) : null}
                   <div className="mt-4 flex flex-wrap gap-3">
                     <button
                       className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"

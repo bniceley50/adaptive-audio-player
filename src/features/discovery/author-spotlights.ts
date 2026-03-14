@@ -100,6 +100,8 @@ const byTitle: Record<string, AuthorSpotlight> = {
   "quiet orbit": byBookId["demo-book-3"],
 };
 
+export const featuredAuthorSpotlights: AuthorSpotlight[] = Object.values(byBookId);
+
 export function getAuthorSpotlight({
   bookId,
   title,

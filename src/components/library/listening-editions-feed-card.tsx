@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
+import { getEditionDiscoveryReason } from "@/features/discovery/personalization";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 import {
   defaultTasteChangedEvent,
@@ -48,7 +49,8 @@ function readLibraryEditions(): FeedEdition[] {
 }
 
 export function ListeningEditionsFeedCard() {
-  const { joinedCircles } = useDiscoveryPreferences();
+  const preferences = useDiscoveryPreferences();
+  const { joinedCircles } = preferences;
   const [feedbackId, setFeedbackId] = useState<string | null>(null);
   const [libraryEditions, setLibraryEditions] = useState<FeedEdition[]>(() =>
     typeof window === "undefined" ? [] : readLibraryEditions(),
@@ -123,6 +125,17 @@ export function ListeningEditionsFeedCard() {
             key={edition.id}
             className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm"
           >
+            {(() => {
+              const reason = getEditionDiscoveryReason(edition.id, preferences);
+              return reason ? (
+                <div className="mb-4 rounded-[1.1rem] border border-emerald-200 bg-emerald-50/80 px-4 py-3">
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                    {reason.label}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-emerald-900">{reason.detail}</p>
+                </div>
+              ) : null;
+            })()}
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="max-w-xl">
                 <div className="flex flex-wrap items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">

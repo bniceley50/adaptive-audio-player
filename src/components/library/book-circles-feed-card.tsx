@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
+import { getCircleDiscoveryReason } from "@/features/discovery/personalization";
 import {
   toggleJoinedCircle,
 } from "@/features/discovery/local-discovery";
@@ -10,7 +11,8 @@ import { featuredListeningEditions } from "@/features/discovery/listening-editio
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 
 export function BookCirclesFeedCard() {
-  const { joinedCircles } = useDiscoveryPreferences();
+  const preferences = useDiscoveryPreferences();
+  const { joinedCircles } = preferences;
   const [sharedCircleId, setSharedCircleId] = useState<string | null>(null);
 
   const circles = useMemo(
@@ -91,6 +93,17 @@ export function BookCirclesFeedCard() {
               key={circle.id}
               className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm"
             >
+              {(() => {
+                const reason = getCircleDiscoveryReason(circle.id, preferences);
+                return reason ? (
+                  <div className="mb-4 rounded-[1.1rem] border border-emerald-200 bg-emerald-50/80 px-4 py-3">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                      {reason.label}
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-emerald-900">{reason.detail}</p>
+                  </div>
+                ) : null;
+              })()}
               <div className="flex flex-wrap items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
                 <span className="rounded-full bg-stone-100 px-2.5 py-1">Public</span>
                 <span className="rounded-full bg-stone-100 px-2.5 py-1">
