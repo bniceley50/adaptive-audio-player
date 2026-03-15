@@ -5,17 +5,24 @@ import { useEffect, useMemo, useState } from "react";
 import type { AuthorSpotlight } from "@/features/discovery/author-spotlights";
 import { featuredAuthorSpotlights } from "@/features/discovery/author-spotlights";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
+import {
+  getTrendingCircles,
+  getTrendingEditions,
+} from "@/features/discovery/community-trending";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
+import type { SocialCommunityPulseSummary } from "@/lib/backend/types";
 import { libraryChangedEvent, readLocalLibraryBooks } from "@/lib/library/local-library";
 import { workspaceContextChangedEvent } from "@/lib/library/local-state";
 
 interface DiscoveryQuickStartCardProps {
   spotlight: AuthorSpotlight | null;
+  pulse?: SocialCommunityPulseSummary | null;
 }
 
 export function DiscoveryQuickStartCard({
   spotlight,
+  pulse,
 }: DiscoveryQuickStartCardProps) {
   const [localBookCount, setLocalBookCount] = useState<number>(() =>
     typeof window === "undefined" ? 0 : readLocalLibraryBooks().length,
@@ -43,8 +50,10 @@ export function DiscoveryQuickStartCard({
     () => (personalizationPaused ? [] : trackedPlannedFeatures),
     [personalizationPaused, trackedPlannedFeatures],
   );
-  const featuredEdition = featuredListeningEditions[0];
-  const featuredCircle = featuredBookCircles[0];
+  const trendingEdition = useMemo(() => getTrendingEditions(pulse, 1)[0] ?? null, [pulse]);
+  const trendingCircle = useMemo(() => getTrendingCircles(pulse, 1)[0] ?? null, [pulse]);
+  const featuredEdition = trendingEdition?.edition ?? featuredListeningEditions[0];
+  const featuredCircle = trendingCircle?.circle ?? featuredBookCircles[0];
 
   useEffect(() => {
     function refreshLibraryCount() {
@@ -180,11 +189,14 @@ export function DiscoveryQuickStartCard({
         },
         ...(pinnedCard ? [pinnedCard] : []),
         {
-          eyebrow: "Start with an edition",
+          eyebrow: trendingEdition ? "Trending edition" : "Start with an edition",
           title: featuredEdition.title,
-          detail:
-            "Borrow a proven sound first, then import a book with that taste already in mind.",
-          meta: `${featuredEdition.narratorName} · ${featuredEdition.mode}`,
+          detail: trendingEdition
+            ? "Borrow the edition listeners are saving most right now, then import a book with that taste already in mind."
+            : "Borrow a proven sound first, then import a book with that taste already in mind.",
+          meta: trendingEdition
+            ? `${trendingEdition.stats.saves} saves · ${featuredEdition.narratorName} · ${featuredEdition.mode}`
+            : `${featuredEdition.narratorName} · ${featuredEdition.mode}`,
           href: `/import?edition=${featuredEdition.id}`,
           action: "Use this edition",
         },
@@ -237,20 +249,26 @@ export function DiscoveryQuickStartCard({
     return [
       ...(pinnedCard ? [pinnedCard] : []),
       {
-        eyebrow: "Start with an edition",
+        eyebrow: trendingEdition ? "Trending edition" : "Start with an edition",
         title: featuredEdition.title,
-        detail:
-          "Borrow a proven sound first, then import a book with that taste already in mind.",
-        meta: `${featuredEdition.narratorName} · ${featuredEdition.mode}`,
+        detail: trendingEdition
+          ? "Borrow the edition listeners are saving most right now, then import a book with that taste already in mind."
+          : "Borrow a proven sound first, then import a book with that taste already in mind.",
+        meta: trendingEdition
+          ? `${trendingEdition.stats.saves} saves · ${featuredEdition.narratorName} · ${featuredEdition.mode}`
+          : `${featuredEdition.narratorName} · ${featuredEdition.mode}`,
         href: `/import?edition=${featuredEdition.id}`,
         action: "Use this edition",
       },
       {
-        eyebrow: "Join a circle",
+        eyebrow: trendingCircle ? "Trending circle" : "Join a circle",
         title: featuredCircle.title,
-        detail:
-          "Start where other listeners already are, with one title, one checkpoint, and one recommended edition.",
-        meta: `${featuredCircle.memberCount} listeners · ${featuredCircle.bookTitle}`,
+        detail: trendingCircle
+          ? "Start where listeners are joining most right now, with one title, one checkpoint, and one recommended edition."
+          : "Start where other listeners already are, with one title, one checkpoint, and one recommended edition.",
+        meta: trendingCircle
+          ? `${trendingCircle.stats.joins} joins · ${featuredCircle.bookTitle}`
+          : `${featuredCircle.memberCount} listeners · ${featuredCircle.bookTitle}`,
         href: `/import?edition=${featuredCircle.editionId}`,
         action: "Start with this circle",
       },
@@ -307,6 +325,8 @@ export function DiscoveryQuickStartCard({
     effectiveTrackedFeatures,
     localBookCount,
     spotlight,
+    trendingCircle,
+    trendingEdition,
   ]);
 
   return (

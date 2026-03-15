@@ -272,8 +272,11 @@ export default async function HomePage() {
           </div>
         </div>
 
-        <DiscoveryQuickStartCard spotlight={authorSpotlight} />
-        <ForYouCard spotlight={authorSpotlight} />
+        <DiscoveryQuickStartCard
+          spotlight={authorSpotlight}
+          pulse={socialCommunityPulse}
+        />
+        <ForYouCard spotlight={authorSpotlight} pulse={socialCommunityPulse} />
         <HomeSocialProofCard pulse={socialCommunityPulse} />
         <HomeTrendingNowCard pulse={socialCommunityPulse} />
         <RecentPersonalizationCard />

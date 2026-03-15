@@ -7,18 +7,21 @@ import {
   type AuthorSpotlight,
 } from "@/features/discovery/author-spotlights";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
+import { getTrendingEditions } from "@/features/discovery/community-trending";
 import {
   getHomeDiscoveryReason,
   getPinnedDiscoveryReason,
 } from "@/features/discovery/personalization";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
+import type { SocialCommunityPulseSummary } from "@/lib/backend/types";
 
 interface ForYouCardProps {
   spotlight: AuthorSpotlight | null;
+  pulse?: SocialCommunityPulseSummary | null;
 }
 
-export function ForYouCard({ spotlight }: ForYouCardProps) {
+export function ForYouCard({ spotlight, pulse }: ForYouCardProps) {
   const preferences = useDiscoveryPreferences();
   const {
     followedAuthors,
@@ -139,11 +142,14 @@ export function ForYouCard({ spotlight }: ForYouCardProps) {
       };
     }
 
-    const edition = featuredListeningEditions[0];
+    const trendingEdition = getTrendingEditions(pulse, 1)[0] ?? null;
+    const edition = trendingEdition?.edition ?? featuredListeningEditions[0];
     return {
-      eyebrow: "Recommended for first-time listeners",
+      eyebrow: trendingEdition ? "Trending with listeners right now" : "Recommended for first-time listeners",
       title: edition.title,
-      detail: `${edition.narratorName} in ${edition.mode} is the easiest way to hear what the app does well fast.`,
+      detail: trendingEdition
+        ? `${edition.narratorName} in ${edition.mode} is getting saved the most right now, so it is the fastest live way to hear the app at its best.`
+        : `${edition.narratorName} in ${edition.mode} is the easiest way to hear what the app does well fast.`,
       href: `/import?edition=${edition.id}`,
       action: "Start with this edition",
     };
@@ -152,6 +158,7 @@ export function ForYouCard({ spotlight }: ForYouCardProps) {
     effectiveJoinedCircles,
     effectivePinnedSignal,
     effectiveTrackedFeatures,
+    pulse,
     spotlight,
   ]);
   const pinnedReason = useMemo(

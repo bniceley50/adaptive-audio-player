@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { featuredBookCircles } from "@/features/discovery/book-circles";
-import { featuredListeningEditions } from "@/features/discovery/listening-editions";
+import {
+  getTrendingCircles,
+  getTrendingEditions,
+} from "@/features/discovery/community-trending";
 import type { SocialCommunityPulseSummary } from "@/lib/backend/types";
 
 export function HomeTrendingNowCard({
@@ -8,22 +10,8 @@ export function HomeTrendingNowCard({
 }: {
   pulse: SocialCommunityPulseSummary;
 }) {
-  const topEditions = pulse.editionCounts
-    .map((entry) => ({
-      entry,
-      edition:
-        featuredListeningEditions.find((edition) => edition.id === entry.editionId) ?? null,
-    }))
-    .filter((value): value is { entry: (typeof pulse.editionCounts)[number]; edition: NonNullable<(typeof featuredListeningEditions)[number] | null> } => value.edition !== null)
-    .slice(0, 2);
-
-  const topCircles = pulse.circleCounts
-    .map((entry) => ({
-      entry,
-      circle: featuredBookCircles.find((circle) => circle.id === entry.circleId) ?? null,
-    }))
-    .filter((value): value is { entry: (typeof pulse.circleCounts)[number]; circle: NonNullable<(typeof featuredBookCircles)[number] | null> } => value.circle !== null)
-    .slice(0, 2);
+  const topEditions = getTrendingEditions(pulse, 2);
+  const topCircles = getTrendingCircles(pulse, 2);
 
   if (topEditions.length === 0 && topCircles.length === 0) {
     return null;
@@ -49,18 +37,18 @@ export function HomeTrendingNowCard({
             Top editions
           </p>
           <div className="mt-4 space-y-3">
-            {topEditions.map(({ entry, edition }) => (
+            {topEditions.map(({ stats, edition }) => (
               <div
                 key={edition.id}
                 className="rounded-[1.2rem] border border-stone-200 bg-white px-4 py-4"
               >
                 <div className="flex flex-wrap items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
                   <span className="rounded-full bg-sky-50 px-2.5 py-1 text-sky-700">
-                    {entry.saves} saves
+                    {stats.saves} saves
                   </span>
-                  {entry.reuses > 0 ? (
+                  {stats.reuses > 0 ? (
                     <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
-                      {entry.reuses} reuses
+                      {stats.reuses} reuses
                     </span>
                   ) : null}
                 </div>
@@ -84,18 +72,18 @@ export function HomeTrendingNowCard({
             Top circles
           </p>
           <div className="mt-4 space-y-3">
-            {topCircles.map(({ entry, circle }) => (
+            {topCircles.map(({ stats, circle }) => (
               <div
                 key={circle.id}
                 className="rounded-[1.2rem] border border-stone-200 bg-white px-4 py-4"
               >
                 <div className="flex flex-wrap items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
                   <span className="rounded-full bg-sky-50 px-2.5 py-1 text-sky-700">
-                    {entry.joins} joins
+                    {stats.joins} joins
                   </span>
-                  {entry.shares > 0 ? (
+                  {stats.shares > 0 ? (
                     <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
-                      {entry.shares} shares
+                      {stats.shares} shares
                     </span>
                   ) : null}
                 </div>
