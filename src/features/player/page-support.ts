@@ -18,7 +18,11 @@ export function buildPlayerListeningState({
 }: {
   historicalArtifactId: string | null;
   renderState: "current" | "archived" | null;
-  preferredAudioKind: "sample-generation" | "full-book-generation" | null;
+  preferredAudioKind:
+    | "sample-generation"
+    | "full-book-generation"
+    | "imported-audio"
+    | null;
 }) {
   if (historicalArtifactId && renderState === "archived") {
     return {
@@ -44,6 +48,15 @@ export function buildPlayerListeningState({
       detail:
         "You are previewing the current sample for this narrator and mode before or instead of the full-book render.",
       action: "Use this to judge the taste or return to setup to render the full book",
+    };
+  }
+
+  if (preferredAudioKind === "imported-audio") {
+    return {
+      label: "Listening to your imported audiobook",
+      detail:
+        "This session is playing the original private audiobook file you imported into this browser.",
+      action: "Keep listening or import another personal audiobook file",
     };
   }
 

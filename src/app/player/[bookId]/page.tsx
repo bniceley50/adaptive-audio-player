@@ -24,6 +24,7 @@ import {
   tastePresets,
 } from "@/features/player/page-support";
 import { restoreBookFromBackendSnapshot } from "@/lib/backend/client-restore";
+import { readImportedAudioAssetUrl } from "@/lib/import/local-audio-assets";
 import {
   describeListeningTasteSource,
   readLocalGenerationOutput,
@@ -107,6 +108,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
       ? readLocalGenerationOutput(bookId, "full-book-generation")
       : null,
   );
+  const [importedAudioUrl, setImportedAudioUrl] = useState<string | null>(null);
   const [recoveryState, setRecoveryState] = useState<
     "idle" | "recovering" | "missing"
   >(() =>
@@ -115,6 +117,11 @@ export default function PlayerPage({ params }: PlayerPageProps) {
 
   const chapters = useMemo(() => parseChapters(draftText), [draftText]);
   const narratorName = narratorNames[narratorId] ?? narratorNames.marlowe;
+  const isImportedAudioBook = hydratedBookMeta?.sourceType === "audio";
+  const displayNarratorName = isImportedAudioBook ? "Original audio" : narratorName;
+  const displayMode = isImportedAudioBook
+    ? hydratedBookMeta?.importedAudioFormat?.toUpperCase() ?? "Imported file"
+    : mode;
   const authorSpotlight = getAuthorSpotlight({
     bookId,
     title: bookTitle,
@@ -135,6 +142,8 @@ export default function PlayerPage({ params }: PlayerPageProps) {
       generatedSample.mode === mode);
   const fullBookIsReady = !!fullBookOutput?.assetPath;
   const persistedArtifactKind = persistedPlaybackState?.playbackArtifactKind ?? null;
+  const importedAudioKind =
+    isImportedAudioBook && importedAudioUrl ? "imported-audio" : null;
   const historicalArtifactId = searchParams.get("artifactId");
   const jumpChapterIndex = Number(searchParams.get("quoteChapter"));
   const jumpProgressSeconds = Number(searchParams.get("quoteProgress"));
@@ -161,7 +170,8 @@ export default function PlayerPage({ params }: PlayerPageProps) {
         ? "archived"
         : null;
   const preferredAudioKind =
-    historicalArtifactId && historicalArtifactKind
+    importedAudioKind ??
+    (historicalArtifactId && historicalArtifactKind
       ? historicalArtifactKind
       : searchParams.get("artifact") === "sample"
       ? sampleIsReady
@@ -182,14 +192,18 @@ export default function PlayerPage({ params }: PlayerPageProps) {
           : fullBookIsReady
             ? "full-book-generation"
             : sampleIsReady
-              ? "sample-generation"
+            ? "sample-generation"
               : null
-      ;
+      );
   const audioUrl =
-    historicalArtifactId && historicalArtifactKind
+    importedAudioKind
+      ? importedAudioUrl
+      : historicalArtifactId && historicalArtifactKind
       ? `/api/audio/generated/artifacts/${historicalArtifactId}`
       : preferredAudioKind
-        ? `/api/audio/generated/${bookId}?kind=${preferredAudioKind}`
+        ? preferredAudioKind === "imported-audio"
+          ? importedAudioUrl
+          : `/api/audio/generated/${bookId}?kind=${preferredAudioKind}`
         : null;
   const playerChapters: Chapter[] =
     chapters.length > 0
@@ -207,7 +221,16 @@ export default function PlayerPage({ params }: PlayerPageProps) {
     renderState,
     preferredAudioKind,
   });
-  const playerNextMove = preferredAudioKind === "full-book-generation"
+  const playerNextMove = preferredAudioKind === "imported-audio"
+    ? {
+        eyebrow: "Recommended next move",
+        label: "Keep listening to your imported audiobook",
+        detail:
+          "This private audiobook file is already in the player, so the next useful move is simply to keep listening or resume from where you left off.",
+        href: `/player/${bookId}`,
+        cta: "Keep listening",
+      }
+    : preferredAudioKind === "full-book-generation"
     ? {
         eyebrow: "Recommended next move",
         label: "Stay with the current full-book render",
@@ -233,7 +256,16 @@ export default function PlayerPage({ params }: PlayerPageProps) {
           href: `/books/${bookId}?from=player`,
           cta: "Back to setup",
         };
-  const playerFollowUp = fullBookIsReady || sampleIsReady
+  const playerFollowUp = preferredAudioKind === "imported-audio"
+    ? {
+        eyebrow: "After that",
+        label: "Bring in another private audiobook",
+        detail:
+          "Use the same local import path for the next MP3 or M4B file you want on your shelf.",
+        href: "/import?source=audio",
+        cta: "Import another audiobook",
+      }
+    : fullBookIsReady || sampleIsReady
     ? {
         eyebrow: "After that",
         label: "Review the render timeline",
@@ -252,11 +284,16 @@ export default function PlayerPage({ params }: PlayerPageProps) {
       };
   const playerSupport = {
     eyebrow: "Keep moving",
-    label: "Bring another title into the flow",
+    label:
+      preferredAudioKind === "imported-audio"
+        ? "Return to your library"
+        : "Bring another title into the flow",
     detail:
-      "When this listening session is on track, jump back to import and bring the next book through the same taste-first workflow.",
-    href: "/import",
-    cta: "Import another draft",
+      preferredAudioKind === "imported-audio"
+        ? "Jump back home to see this audiobook alongside your other imports, circles, and listening memory."
+        : "When this listening session is on track, jump back to import and bring the next book through the same taste-first workflow.",
+    href: preferredAudioKind === "imported-audio" ? "/" : "/import",
+    cta: preferredAudioKind === "imported-audio" ? "Back to home" : "Import another draft",
   };
   const playerLaunchpad: readonly ActionLaunchpadItem[] = [
     {
@@ -304,7 +341,9 @@ export default function PlayerPage({ params }: PlayerPageProps) {
       ),
     },
   ] as const;
-  const playerJourneyIndex = preferredAudioKind === "full-book-generation"
+  const playerJourneyIndex = preferredAudioKind === "imported-audio"
+    ? 3
+    : preferredAudioKind === "full-book-generation"
     ? 3
     : preferredAudioKind === "sample-generation"
       ? 2
@@ -335,6 +374,37 @@ export default function PlayerPage({ params }: PlayerPageProps) {
       detail: "Play the approved version",
     },
   ] as const;
+
+  useEffect(() => {
+    if (!isImportedAudioBook) {
+      return;
+    }
+
+    let cancelled = false;
+    let nextUrl: string | null = null;
+
+    async function hydrateImportedAudio() {
+      const url = await readImportedAudioAssetUrl(bookId).catch(() => null);
+      if (cancelled) {
+        if (url) {
+          URL.revokeObjectURL(url);
+        }
+        return;
+      }
+
+      nextUrl = url;
+      setImportedAudioUrl(url);
+    }
+
+    void hydrateImportedAudio();
+
+    return () => {
+      cancelled = true;
+      if (nextUrl) {
+        URL.revokeObjectURL(nextUrl);
+      }
+    };
+  }, [bookId, isImportedAudioBook]);
 
   useEffect(() => {
     let cancelled = false;
@@ -708,6 +778,8 @@ export default function PlayerPage({ params }: PlayerPageProps) {
             <p className="mt-2 text-lg font-semibold text-stone-950">
               {historicalArtifactId && renderState === "archived"
                 ? "Archived render"
+                : preferredAudioKind === "imported-audio"
+                  ? "Imported audiobook"
                 : preferredAudioKind === "full-book-generation"
                   ? "Current full book"
                   : preferredAudioKind === "sample-generation"
@@ -720,10 +792,11 @@ export default function PlayerPage({ params }: PlayerPageProps) {
               Active taste
             </p>
             <p className="mt-2 text-lg font-semibold text-stone-950">
-              {narratorName} in {mode}
+              {displayNarratorName} in {displayMode}
             </p>
           </article>
         </StateSummaryPanel>
+        {preferredAudioKind !== "imported-audio" ? (
         <div className="mt-5 rounded-[1.5rem] border border-stone-200/80 bg-white/85 p-4 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-2xl">
@@ -781,6 +854,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
             })}
           </div>
         </div>
+        ) : null}
       </section>
       <AuthorSpotlightCard spotlight={authorSpotlight} />
       {experienceMode === "studio" && sampleIsReady && fullBookIsReady ? (
@@ -891,9 +965,9 @@ export default function PlayerPage({ params }: PlayerPageProps) {
         initialJumpTarget={initialJumpTarget}
         initialPlaybackDefaults={hydratedPlaybackDefaults}
         initialPlaybackState={hydratedPlaybackState}
-        mode={mode}
-        narratorName={narratorName}
-        playbackIsReady={preferredAudioKind !== null}
+        mode={displayMode}
+        narratorName={displayNarratorName}
+        playbackIsReady={Boolean(audioUrl)}
       />
       <section className="rounded-[1.75rem] border border-stone-200 bg-white p-6 shadow-sm">
         {experienceMode === "studio" ? (

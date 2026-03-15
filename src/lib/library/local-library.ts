@@ -10,6 +10,10 @@ export interface LocalLibraryBook {
   title: string;
   chapterCount: number;
   updatedAt: string;
+  sourceType?: "text" | "audio";
+  importedAudioFormat?: "mp3" | "m4b" | null;
+  importedAudioDurationSeconds?: number | null;
+  importedAudioFileName?: string | null;
   coverTheme?: string;
   coverLabel?: string;
   coverGlyph?: string;
@@ -240,6 +244,9 @@ export function replaceRemovedLocalLibraryBooks(
 export function createNextLocalLibraryBook(
   title: string,
   chapterCount: number,
+  options: Partial<
+    Omit<LocalLibraryBook, "bookId" | "title" | "chapterCount" | "updatedAt">
+  > = {},
 ): LocalLibraryBook {
   const existingBooks = readLocalLibraryBooks();
   const nextIndex = existingBooks.length + 1;
@@ -249,6 +256,7 @@ export function createNextLocalLibraryBook(
     title: title || `Imported draft ${nextIndex}`,
     chapterCount,
     updatedAt: new Date().toISOString(),
+    ...options,
   };
 }
 

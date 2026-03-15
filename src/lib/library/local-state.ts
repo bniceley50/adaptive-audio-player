@@ -1,5 +1,7 @@
 "use client";
 
+import { clearImportedAudioAssets } from "@/lib/import/local-audio-assets";
+
 const localKeyPrefix = "adaptive-audio-player.";
 export const workspaceContextChangedEvent =
   "adaptive-audio-player.workspace-context-changed";
@@ -22,6 +24,7 @@ export function clearAdaptiveAudioPlayerLocalState() {
     window.localStorage.removeItem(key);
   }
 
+  clearImportedAudioAssets();
   window.dispatchEvent(new Event("storage"));
 }
 

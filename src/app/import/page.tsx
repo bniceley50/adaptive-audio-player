@@ -15,6 +15,7 @@ import { getEditionDiscoveryReason } from "@/features/discovery/personalization"
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 import { extractImportText } from "@/lib/import/extract-text";
+import { saveImportedAudioFile } from "@/lib/import/local-audio-assets";
 import {
   createNextLocalLibraryBook,
   readRemovedLocalLibraryBooks,
@@ -25,13 +26,17 @@ import {
   writeLocalDraftText,
 } from "@/lib/library/local-library";
 import { parseChapters } from "@/lib/parser/parse-chapters";
+import {
+  getSupportedAudioImportExtension,
+  isSupportedAudioImportExtension,
+} from "@/lib/validation/import-validation";
 
 const importJourney = [
   {
     id: "import",
     label: "01",
     title: "Import the source",
-    detail: "Paste text or upload a file to start the listening workflow.",
+    detail: "Paste text, upload TXT, or bring in a private audiobook file.",
   },
   {
     id: "taste",
@@ -64,10 +69,43 @@ function suggestTitleFromFilename(filename: string): string {
   return collapsed.replace(/\b([a-z])/g, (match) => match.toUpperCase());
 }
 
+function formatAudioDuration(durationSeconds: number | null): string {
+  if (!durationSeconds || durationSeconds <= 0) {
+    return "Duration will appear after import.";
+  }
+
+  const totalSeconds = Math.round(durationSeconds);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
+
+  return `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
+}
+
+function buildImportedAudioPlaceholderText(input: {
+  title: string;
+  fileName: string;
+  format: "mp3" | "m4b";
+  durationSeconds: number | null;
+}) {
+  return [
+    "Chapter 1",
+    `${input.title} was imported from your private ${input.format.toUpperCase()} audiobook file.`,
+    `Source file: ${input.fileName}.`,
+    `Duration: ${formatAudioDuration(input.durationSeconds)}`,
+    "Open the player to start listening to the original audio immediately.",
+  ].join("\n");
+}
+
 export default function ImportPage() {
   const router = useRouter();
   const titleInputRef = useRef<HTMLInputElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const audioFileInputRef = useRef<HTMLInputElement | null>(null);
   const audioPlanRef = useRef<HTMLElement | null>(null);
   const importRoadmapRef = useRef<HTMLElement | null>(null);
   const sourceTextRef = useRef<HTMLTextAreaElement | null>(null);
@@ -75,6 +113,9 @@ export default function ImportPage() {
   const [sourceText, setSourceText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [fileLabel, setFileLabel] = useState<string>("Paste text or upload a file");
+  const [audioFileLabel, setAudioFileLabel] = useState<string>(
+    "Import an MP3 or M4B audiobook file",
+  );
   const [defaultListeningProfile, setDefaultListeningProfile] = useState(() =>
     typeof window !== "undefined" ? readDefaultListeningProfile() : null,
   );
@@ -374,11 +415,12 @@ export default function ImportPage() {
     }
 
     if (selectedSource === "audio") {
-      audioPlanRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      audioFileInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      audioFileInputRef.current?.focus();
     }
   }, [selectedSource]);
 
-  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+  async function handleTextFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) {
       return;
@@ -395,6 +437,62 @@ export default function ImportPage() {
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to read import.");
+    }
+  }
+
+  async function handleAudioFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    if (!isSupportedAudioImportExtension(file.name)) {
+      setError("Private audiobook imports currently support MP3 and M4B files.");
+      return;
+    }
+
+    const nextTitle = title.trim() || suggestTitleFromFilename(file.name);
+    const format = getSupportedAudioImportExtension(file.name);
+    if (!format) {
+      setError("Private audiobook imports currently support MP3 and M4B files.");
+      return;
+    }
+
+    setAudioFileLabel(file.name);
+    setTitle(nextTitle);
+    setError(null);
+
+    const nextBook = createNextLocalLibraryBook(nextTitle, 1, {
+      sourceType: "audio",
+      importedAudioFormat: format,
+      importedAudioFileName: file.name,
+      genreLabel: "Imported audio",
+      coverLabel: "Private audio",
+      coverGlyph: "AU",
+    });
+
+    try {
+      const metadata = await saveImportedAudioFile(nextBook.bookId, file);
+      const nextBookWithAudio = {
+        ...nextBook,
+        importedAudioDurationSeconds: metadata.durationSeconds,
+      };
+
+      writeLocalDraftText(
+        nextBookWithAudio.bookId,
+        buildImportedAudioPlaceholderText({
+          title: nextBookWithAudio.title,
+          fileName: metadata.fileName,
+          format: metadata.format,
+          durationSeconds: metadata.durationSeconds,
+        }),
+      );
+      upsertLocalLibraryBook(nextBookWithAudio);
+      router.push(`/player/${nextBookWithAudio.bookId}`);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to import the audiobook file.",
+      );
     }
   }
 
@@ -437,7 +535,7 @@ export default function ImportPage() {
           <JourneyHero
             eyebrow="Import flow"
             title="Import your manuscript"
-            detail="Start with pasted text or a plain text file. EPUB, PDF, DOCX, and private audiobook-file support will layer onto this same flow next."
+            detail="Start with pasted text, a plain text file, or a private DRM-free audiobook file. Richer document connectors can layer onto this same flow later."
             currentIndex={0}
             steps={importJourney}
             sectionClassName="border-0 bg-transparent p-0 shadow-none"
@@ -696,15 +794,31 @@ export default function ImportPage() {
                 Choose a `.txt` file
               </button>
             </article>
+            <article className="rounded-[1.4rem] border border-cyan-200 bg-[linear-gradient(180deg,#ecfeff_0%,#ffffff_100%)] p-5 shadow-sm">
+              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-cyan-700">
+                Private audio
+              </p>
+              <h3 className="mt-3 text-lg font-semibold text-stone-950">Import MP3 or M4B</h3>
+              <p className="mt-2 text-sm leading-6 text-stone-600">
+                Bring in a DRM-free or already-converted personal audiobook file and open it directly in the player.
+              </p>
+              <button
+                className="mt-4 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                type="button"
+                onClick={() => audioFileInputRef.current?.click()}
+              >
+                Choose MP3 or M4B
+              </button>
+            </article>
             <article className="rounded-[1.4rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm">
               <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
                 Planned next
               </p>
               <h3 className="mt-3 text-lg font-semibold text-stone-950">
-                EPUB, PDF, DOCX, and private audiobook files
+                EPUB, PDF, DOCX, and richer library connectors
               </h3>
               <p className="mt-2 text-sm leading-6 text-stone-600">
-                Richer import support is coming next. For audiobook imports, the future path is DRM-free or already-converted personal files such as M4B or MP3.
+                Richer document imports and cloud-style connectors can layer on without changing the simple intake path that already works today.
               </p>
               <button
                 className="mt-4 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
@@ -766,18 +880,17 @@ export default function ImportPage() {
               <article className="rounded-[1.4rem] border border-sky-200 bg-[linear-gradient(180deg,#eff6ff_0%,#ffffff_100%)] p-5 shadow-sm">
                 <div className="flex items-center gap-2">
                   <span className="rounded-full border border-sky-200 bg-white px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
-                    Next
+                    Today
                   </span>
                   <span className="rounded-full border border-sky-200 bg-white px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
                     Private audio
                   </span>
                 </div>
                 <h4 className="mt-3 text-lg font-semibold text-stone-950">
-                  DRM-free audiobook files
+                  MP3 and M4B audiobook files
                 </h4>
                 <p className="mt-2 text-sm leading-6 text-stone-600">
-                  The next audiobook-file path is for DRM-free or already-converted personal
-                  files such as M4B or MP3.
+                  Bring in DRM-free or already-converted personal audiobook files and open them directly in the player.
                 </p>
               </article>
               <article className="rounded-[1.4rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm">
@@ -810,12 +923,12 @@ export default function ImportPage() {
                   Private audiobook files
                 </p>
                 <h3 className="mt-2 text-lg font-semibold text-stone-950">
-                  A real place for personal audio imports is coming next
+                  Private audiobook import works locally in this browser
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-stone-600">
-                  This future path is for private-use audiobook files you already control,
-                  such as DRM-free purchases or already-converted personal files. The app
-                  will treat them like a cleaner listening intake, not a DRM-removal tool.
+                  This intake is for private-use audiobook files you already control, such
+                  as DRM-free purchases or already-converted personal files. The app treats
+                  them like a clean listening intake, not a DRM-removal tool.
                 </p>
               </div>
               <div className="rounded-[1.2rem] border border-sky-200 bg-white px-4 py-4 text-right shadow-sm">
@@ -841,7 +954,7 @@ export default function ImportPage() {
                   Step 2
                 </p>
                 <p className="mt-2 text-sm leading-6 text-stone-600">
-                  Keep chapter structure, cover, and book identity intact where possible.
+                  Keep the source file local to this browser and open it in the player immediately.
                 </p>
               </article>
               <article className="rounded-2xl border border-sky-200 bg-white/85 px-4 py-3 shadow-sm">
@@ -849,7 +962,7 @@ export default function ImportPage() {
                   Step 3
                 </p>
                 <p className="mt-2 text-sm leading-6 text-stone-600">
-                  Layer Adaptive Audio taste, circles, and listening editions onto that file.
+                  Layer circles, discovery, and shelf memory onto that imported audiobook next.
                 </p>
               </article>
             </div>
@@ -889,10 +1002,30 @@ export default function ImportPage() {
                   type="file"
                   accept=".txt,text/plain"
                   ref={fileInputRef}
-                  onChange={handleFileChange}
+                  onChange={handleTextFileChange}
                 />
                 <p className="mt-3 text-sm text-stone-500">
                   Uploads currently support plain text files only.
+                </p>
+              </label>
+
+              <label className="block rounded-[1.5rem] border border-cyan-200 bg-[linear-gradient(180deg,#ecfeff_0%,#ffffff_100%)] p-6 text-sm text-stone-700 shadow-sm">
+                <span className="block text-xs font-medium uppercase tracking-[0.18em] text-cyan-700">
+                  Private audiobook
+                </span>
+                <span className="mt-2 block text-lg font-semibold text-stone-900">
+                  Import an MP3 or M4B file
+                </span>
+                <span className="mt-2 block text-stone-600">{audioFileLabel}</span>
+                <input
+                  className="mt-5 block w-full text-sm text-stone-700 file:mr-4 file:rounded-full file:border-0 file:bg-stone-950 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white"
+                  type="file"
+                  accept=".mp3,.m4b,audio/mpeg,audio/mp4"
+                  ref={audioFileInputRef}
+                  onChange={handleAudioFileChange}
+                />
+                <p className="mt-3 text-sm text-stone-500">
+                  The file stays local to this browser and opens directly in the player.
                 </p>
               </label>
 

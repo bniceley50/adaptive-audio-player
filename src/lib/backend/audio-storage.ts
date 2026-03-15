@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { getDataRoot } from "@/lib/backend/env";
-import { generateMockWav } from "@/lib/backend/mock-audio";
+import { getDataRoot } from "./env.ts";
+import { generateMockWav } from "./mock-audio.ts";
 
 function resolveAudioRoot() {
   return path.join(getDataRoot(), "generated-audio");

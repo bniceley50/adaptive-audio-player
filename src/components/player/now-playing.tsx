@@ -40,7 +40,11 @@ export function NowPlaying({
   mode,
   playbackIsReady,
 }: {
-  audioKind: "sample-generation" | "full-book-generation" | null;
+  audioKind:
+    | "sample-generation"
+    | "full-book-generation"
+    | "imported-audio"
+    | null;
   audioUrl: string | null;
   bookId: string;
   bookTitle: string;
@@ -524,6 +528,8 @@ export function NowPlaying({
                 ? "Using full-book audio"
                 : audioKind === "sample-generation"
                   ? "Using generated sample audio"
+                  : audioKind === "imported-audio"
+                    ? "Using imported audiobook audio"
                   : "Generate audio to unlock playback"}
             </p>
           </div>
@@ -588,9 +594,13 @@ export function NowPlaying({
                   ? isPlaying
                     ? audioKind === "full-book-generation"
                       ? "Pause full book"
+                      : audioKind === "imported-audio"
+                        ? "Pause audiobook"
                       : "Pause sample"
                     : audioKind === "full-book-generation"
                       ? "Play full book"
+                      : audioKind === "imported-audio"
+                        ? "Play audiobook"
                       : "Play sample"
                   : "Audio locked"}
               </button>
@@ -666,6 +676,8 @@ export function NowPlaying({
             ))}
           </div>
         </div>
+        {audioKind !== "imported-audio" ? (
+        <>
         <div className="mt-5 rounded-[1.4rem] border border-fuchsia-300/20 bg-[linear-gradient(135deg,rgba(217,70,239,0.12)_0%,rgba(255,255,255,0.06)_100%)] p-4 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="max-w-xl">
@@ -780,22 +792,31 @@ export function NowPlaying({
             ) : null}
           </div>
         </div>
+        </>
+        ) : null}
       </section>
 
       <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(180deg,#fffefb_0%,#ffffff_100%)] p-6 shadow-[0_22px_60px_-42px_rgba(28,25,23,0.4)]">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b border-stone-200/80 pb-5">
           <div className="max-w-xl">
             <p className="text-sm uppercase tracking-[0.22em] text-stone-500">
-              {audioKind === "full-book-generation" ? "Full-book audio" : "Sample preview"}
+              {audioKind === "imported-audio"
+                ? "Imported audiobook"
+                : audioKind === "full-book-generation"
+                  ? "Full-book audio"
+                  : "Sample preview"}
             </p>
             <h3 className="mt-2 text-2xl font-semibold text-stone-950">
-              {audioKind === "full-book-generation"
+              {audioKind === "imported-audio"
+                ? "Original audiobook playback"
+                : audioKind === "full-book-generation"
                 ? "Generated full-book playback"
                 : "Generated sample playback"}
             </h3>
             <p className="mt-2 text-sm leading-6 text-stone-600">
-              Move between chapters, review the source text, and keep your listening
-              preferences locked to this book.
+              {audioKind === "imported-audio"
+                ? "Listen to the original file, keep your progress, and save moments from the book as you go."
+                : "Move between chapters, review the source text, and keep your listening preferences locked to this book."}
             </p>
           </div>
           <div className="rounded-[1.4rem] border border-stone-200 bg-stone-50/80 px-4 py-3 shadow-sm">
@@ -810,12 +831,16 @@ export function NowPlaying({
         {audioUrl ? (
           <div className="mt-5 rounded-[1.6rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm">
             <p className="text-sm font-medium text-stone-900">
-              {audioKind === "full-book-generation"
+              {audioKind === "imported-audio"
+                ? "Imported audiobook file"
+                : audioKind === "full-book-generation"
                 ? "Generated full-book audio"
                 : "Generated sample audio"}
             </p>
             <p className="mt-1 text-sm text-stone-600">
-              {audioKind === "full-book-generation"
+              {audioKind === "imported-audio"
+                ? "This is the original private audiobook file stored locally in this browser."
+                : audioKind === "full-book-generation"
                 ? "This is the backend-rendered full-book output from the worker queue."
                 : "This is the backend-rendered narration for the current sample setup."}
             </p>

@@ -44,6 +44,7 @@ import {
 
 type ShelfGroupKey =
   | "active"
+  | "audio-ready"
   | "sample-ready"
   | "taste-ready"
   | "setup-needed";
@@ -109,6 +110,11 @@ const shelfGroups: Array<{
     key: "active",
     heading: "Continue listening",
     description: "Books with listening progress you can resume immediately.",
+  },
+  {
+    key: "audio-ready",
+    heading: "Imported audiobooks",
+    description: "Private audiobook files that are ready to open directly in the player.",
   },
   {
     key: "sample-ready",
@@ -259,12 +265,16 @@ export function ContinueListeningRow({
           initialGenerationOutputsByKey.get(`${book.bookId}:full-book-generation`) ??
             null,
         );
+        const isImportedAudio = book.sourceType === "audio";
         const hasSample =
+          isImportedAudio ||
           !!sampleOutput ||
           ((sampleRequest ?? initialSnapshot?.sampleRequest ?? null)?.bookId === book.bookId &&
             (resolvedTaste.source !== "none" || !!resolvedTaste.profile));
         const group: ShelfGroupKey = playbackState
           ? "active"
+          : isImportedAudio
+            ? "audio-ready"
           : hasSample
             ? "sample-ready"
             : resolvedTaste.source === "none"
@@ -275,7 +285,7 @@ export function ContinueListeningRow({
           book,
           group,
           searchText:
-            `${book.title} ${book.genreLabel ?? ""} ${resolvedTaste.profile?.narratorName ?? ""} ${resolvedTaste.profile?.mode ?? ""} ${sampleOutput?.provider ?? ""} ${fullBookOutput ? "full book ready" : ""}`.toLowerCase(),
+            `${book.title} ${book.genreLabel ?? ""} ${resolvedTaste.profile?.narratorName ?? ""} ${resolvedTaste.profile?.mode ?? ""} ${book.importedAudioFormat ?? ""} ${sampleOutput?.provider ?? ""} ${fullBookOutput ? "full book ready" : ""} ${isImportedAudio ? "imported audiobook original audio" : ""}`.toLowerCase(),
         };
       })
       .sort((left, right) => {
@@ -319,6 +329,7 @@ export function ContinueListeningRow({
     },
     {
       active: [],
+      "audio-ready": [],
       "sample-ready": [],
       "taste-ready": [],
       "setup-needed": [],
@@ -328,6 +339,7 @@ export function ContinueListeningRow({
   const totalStats = {
     all: shelfBooks.length,
     active: shelfBooks.filter((entry) => entry.group === "active").length,
+    "audio-ready": shelfBooks.filter((entry) => entry.group === "audio-ready").length,
     "sample-ready": shelfBooks.filter((entry) => entry.group === "sample-ready").length,
     "taste-ready": shelfBooks.filter((entry) => entry.group === "taste-ready").length,
     "setup-needed": shelfBooks.filter((entry) => entry.group === "setup-needed").length,
@@ -416,6 +428,9 @@ export function ContinueListeningRow({
               Active: {totalStats.active}
             </span>
             <span className="rounded-full border border-white/80 bg-white/80 px-3 py-2 backdrop-blur">
+              Audiobooks: {totalStats["audio-ready"]}
+            </span>
+            <span className="rounded-full border border-white/80 bg-white/80 px-3 py-2 backdrop-blur">
               Samples: {totalStats["sample-ready"]}
             </span>
             <span className="rounded-full border border-white/80 bg-white/80 px-3 py-2 backdrop-blur">
@@ -430,6 +445,7 @@ export function ContinueListeningRow({
         {[
           ["all", "All books"],
           ["active", "Continue listening"],
+          ["audio-ready", "Imported audiobooks"],
           ["sample-ready", "Resume sample"],
           ["taste-ready", "Start with taste"],
           ["setup-needed", "Needs setup"],
@@ -534,6 +550,7 @@ export function ContinueListeningRow({
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   {groupBooks.map(({ book }, index) => {
+                    const isImportedAudio = book.sourceType === "audio";
                     const playbackState = resolvePreferredPlaybackState(
                       readPersistedPlaybackState(book.bookId),
                       initialPlaybackStatesByBook.get(book.bookId) ?? null,
@@ -583,7 +600,9 @@ export function ContinueListeningRow({
                                 }
                               : localResolvedTaste;
                     const narratorLabel =
-                      resolvedTaste.profile?.narratorName ??
+                      isImportedAudio
+                        ? "Original audio"
+                        : resolvedTaste.profile?.narratorName ??
                       sampleOutput?.narratorId ??
                       ((sampleRequest ?? initialSnapshot?.sampleRequest ?? null)?.bookId ===
                       book.bookId
@@ -591,7 +610,9 @@ export function ContinueListeningRow({
                             ?.narratorId
                         : "Not chosen yet");
                     const modeLabel =
-                      resolvedTaste.profile?.mode ??
+                      isImportedAudio
+                        ? book.importedAudioFormat?.toUpperCase() ?? "Audio file"
+                        : resolvedTaste.profile?.mode ??
                       sampleOutput?.mode ??
                       ((sampleRequest ?? initialSnapshot?.sampleRequest ?? null)?.bookId ===
                       book.bookId
@@ -618,8 +639,9 @@ export function ContinueListeningRow({
                                 ?.mode ?? "ambient",
                           }
                         : null);
-                    const resumeArtifact =
-                      playbackState?.playbackArtifactKind === "sample-generation" &&
+                    const resumeArtifact = isImportedAudio
+                      ? "imported"
+                      : playbackState?.playbackArtifactKind === "sample-generation" &&
                       sampleOutput
                         ? "sample"
                         : playbackState?.playbackArtifactKind ===
@@ -630,14 +652,18 @@ export function ContinueListeningRow({
                             : sampleOutput
                               ? "sample"
                               : null;
-                    const resumeHref =
-                      sampleResumeProfile
+                    const resumeHref = isImportedAudio
+                      ? `/player/${book.bookId}`
+                      : sampleResumeProfile
                         ? `/player/${book.bookId}?narrator=${sampleResumeProfile.narratorId}&mode=${sampleResumeProfile.mode}${resumeArtifact ? `&artifact=${resumeArtifact}` : ""}`
                         : resumeArtifact
                           ? `/player/${book.bookId}?artifact=${resumeArtifact}`
                         : `/books/${book.bookId}`;
-                    const ctaLabel =
-                      resumeArtifact === "full" && !playbackState
+                    const ctaLabel = isImportedAudio
+                      ? playbackState
+                        ? "Continue audiobook"
+                        : "Open audiobook"
+                      : resumeArtifact === "full" && !playbackState
                         ? "Listen full book"
                         : sampleResumeProfile && playbackState
                         ? "Continue listening"
@@ -649,15 +675,27 @@ export function ContinueListeningRow({
                               ? "Start with latest taste"
                               : "Continue setup";
                     const defaultableProfile = resolvedTaste.profile;
-                    const tasteSource = describeListeningTasteSource(resolvedTaste);
-                    const secondaryHref =
-                      resolvedTaste.source === "saved"
+                    const tasteSource = isImportedAudio
+                      ? {
+                          badge: "Original audio",
+                          summary: book.importedAudioFormat?.toUpperCase() ?? "Imported file",
+                          detail:
+                            "This title uses the original private audiobook file you imported into this browser, so it does not depend on narrator setup or generated sample state.",
+                          actionHint:
+                            "Open the player to keep listening, or import another private audiobook file.",
+                        }
+                      : describeListeningTasteSource(resolvedTaste);
+                    const secondaryHref = isImportedAudio
+                      ? "/import?source=audio"
+                      : resolvedTaste.source === "saved"
                         ? `/books/${book.bookId}`
                         : resolvedTaste.source === "none"
                           ? `/books/${book.bookId}`
                           : `/import`;
                     const resumeArtifactLabel =
-                      resumeArtifact === "full"
+                      resumeArtifact === "imported"
+                        ? "Resumes imported audiobook"
+                        : resumeArtifact === "full"
                         ? "Resumes full-book audio"
                         : resumeArtifact === "sample"
                           ? "Resumes sample audio"
@@ -665,6 +703,8 @@ export function ContinueListeningRow({
                     const statusLabel =
                       key === "active"
                         ? "In progress"
+                        : key === "audio-ready"
+                          ? "Audiobook ready"
                         : key === "sample-ready"
                           ? "Sample is ready"
                           : key === "taste-ready"
@@ -735,9 +775,9 @@ export function ContinueListeningRow({
                               </h3>
                             )}
                             <p className="mt-2 text-sm leading-6 text-stone-600">
-                              {book.chapterCount} chapter
-                              {book.chapterCount === 1 ? "" : "s"} ready in your private
-                              library.
+                              {isImportedAudio
+                                ? `Private ${book.importedAudioFormat?.toUpperCase() ?? "audio"} file ready in your library${book.importedAudioDurationSeconds ? ` · ${Math.round(book.importedAudioDurationSeconds / 60)} min` : ""}.`
+                                : `${book.chapterCount} chapter${book.chapterCount === 1 ? "" : "s"} ready in your private library.`}
                             </p>
                           </div>
                         </div>
@@ -751,6 +791,11 @@ export function ContinueListeningRow({
                           {book.genreLabel ? (
                             <span className="rounded-full border border-fuchsia-200 bg-fuchsia-50 px-3 py-2 text-fuchsia-800">
                               {book.genreLabel}
+                            </span>
+                          ) : null}
+                          {isImportedAudio ? (
+                            <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-2 text-sky-800">
+                              Imported {book.importedAudioFormat?.toUpperCase() ?? "audio"}
                             </span>
                           ) : null}
                           <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">

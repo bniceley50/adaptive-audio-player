@@ -18,7 +18,11 @@ export interface PersistedPlaybackState {
   speed: number;
   isBookmarked: boolean;
   sleepTimerMinutes: number | null;
-  playbackArtifactKind?: "sample-generation" | "full-book-generation" | null;
+  playbackArtifactKind?:
+    | "sample-generation"
+    | "full-book-generation"
+    | "imported-audio"
+    | null;
   bookmarks?: PersistedBookmark[];
   updatedAt?: string;
 }
