@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/shared/app-shell";
 import { JourneyHero } from "@/components/shared/journey-hero";
 import { StudioDisclosure } from "@/components/shared/studio-disclosure";
+import { featuredBookCircles } from "@/features/discovery/book-circles";
 import {
   discoveryChangedEvent,
   readPinnedDiscoverySignal,
@@ -14,6 +15,7 @@ import {
 import { getEditionDiscoveryReason } from "@/features/discovery/personalization";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
+import { useSocialState } from "@/features/social/use-social-state";
 import { extractImportText } from "@/lib/import/extract-text";
 import {
   buildImportedAudioPlaceholderText,
@@ -73,6 +75,25 @@ function suggestTitleFromFilename(filename: string): string {
   return collapsed.replace(/\b([a-z])/g, (match) => match.toUpperCase());
 }
 
+function sortByRecent<
+  T extends {
+    savedAt?: string;
+    joinedAt?: string;
+    lastUsedAt?: string | null;
+    lastOpenedAt?: string | null;
+  },
+>(items: T[]) {
+  return [...items].sort((left, right) => {
+    const leftTime = new Date(
+      left.lastUsedAt ?? left.lastOpenedAt ?? left.savedAt ?? left.joinedAt ?? 0,
+    ).getTime();
+    const rightTime = new Date(
+      right.lastUsedAt ?? right.lastOpenedAt ?? right.savedAt ?? right.joinedAt ?? 0,
+    ).getTime();
+    return rightTime - leftTime;
+  });
+}
+
 export default function ImportPage() {
   const router = useRouter();
   const titleInputRef = useRef<HTMLInputElement | null>(null);
@@ -109,6 +130,7 @@ export default function ImportPage() {
   const [pinnedDiscoverySignal, setPinnedDiscoverySignal] = useState(() =>
     typeof window !== "undefined" ? readPinnedDiscoverySignal() : null,
   );
+  const { savedEditions, circleMemberships } = useSocialState();
   const discoveryPreferences = useDiscoveryPreferences();
   const effectiveFollowedAuthors = useMemo(
     () =>
@@ -176,6 +198,27 @@ export default function ImportPage() {
     effectiveTrackedFeatures,
     selectedEdition,
   ]);
+  const socialSeedEdition = useMemo(() => {
+    const latestSavedEdition = sortByRecent(savedEditions)[0] ?? null;
+    if (!latestSavedEdition) {
+      return null;
+    }
+
+    return (
+      featuredListeningEditions.find((edition) => edition.id === latestSavedEdition.editionId) ??
+      null
+    );
+  }, [savedEditions]);
+  const socialSeedCircle = useMemo(() => {
+    const latestCircleMembership = sortByRecent(circleMemberships)[0] ?? null;
+    if (!latestCircleMembership) {
+      return null;
+    }
+
+    return (
+      featuredBookCircles.find((circle) => circle.id === latestCircleMembership.circleId) ?? null
+    );
+  }, [circleMemberships]);
   const highlightedFuturePath = useMemo(() => {
     if (
       selectedSource === "audio" ||
@@ -527,6 +570,72 @@ export default function ImportPage() {
         </div>
 
         <div className="p-8">
+          {!selectedEdition && (socialSeedEdition || socialSeedCircle) ? (
+            <div className="mb-5 rounded-[1.6rem] border border-amber-200 bg-[linear-gradient(135deg,#fff8e8_0%,#ffffff_100%)] px-5 py-5 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="max-w-3xl">
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-amber-700">
+                    Synced social memory
+                  </p>
+                  <h3 className="mt-2 text-lg font-semibold text-stone-950">
+                    Pick up from a saved edition or joined circle
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-stone-600">
+                    Your social shelf now syncs with the workspace. Start this import from
+                    something you already saved instead of beginning from a blank state.
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    {socialSeedEdition ? (
+                      <Link
+                        className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
+                        href={`/import?edition=${socialSeedEdition.id}`}
+                      >
+                        Use saved edition
+                      </Link>
+                    ) : null}
+                    {socialSeedCircle ? (
+                      <Link
+                        className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                        href={`/import?edition=${socialSeedCircle.editionId}`}
+                      >
+                        Start with joined circle
+                      </Link>
+                    ) : null}
+                  </div>
+                </div>
+                <div className="grid min-w-[250px] gap-3">
+                  {socialSeedEdition ? (
+                    <div className="rounded-[1.2rem] border border-white/70 bg-white/90 px-4 py-4 shadow-sm">
+                      <p className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-stone-500">
+                        Latest saved edition
+                      </p>
+                      <p className="mt-2 text-sm font-semibold text-stone-950">
+                        {socialSeedEdition.title}
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-stone-600">
+                        {socialSeedEdition.narratorName} in{" "}
+                        <span className="capitalize">{socialSeedEdition.mode}</span>
+                      </p>
+                    </div>
+                  ) : null}
+                  {socialSeedCircle ? (
+                    <div className="rounded-[1.2rem] border border-white/70 bg-white/90 px-4 py-4 shadow-sm">
+                      <p className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-stone-500">
+                        Latest joined circle
+                      </p>
+                      <p className="mt-2 text-sm font-semibold text-stone-950">
+                        {socialSeedCircle.title}
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-stone-600">
+                        {socialSeedCircle.checkpoint}
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           {highlightedFuturePath ? (
             <div className="mb-5 rounded-[1.5rem] border border-sky-200 bg-[linear-gradient(135deg,#eff6ff_0%,#ffffff_100%)] px-5 py-5 shadow-sm">
               <div className="flex flex-wrap items-start justify-between gap-4">
