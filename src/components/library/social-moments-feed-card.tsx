@@ -4,15 +4,18 @@ import type {
   SocialCommunityActivityEventSummary,
   SocialCommunityPulseSummary,
 } from "@/lib/backend/types";
+import type { SyncedSocialState } from "@/lib/types/social";
 
 export function SocialMomentsFeedCard({
   pulse,
   events,
+  socialState = null,
 }: {
   pulse: SocialCommunityPulseSummary;
   events: SocialCommunityActivityEventSummary[];
+  socialState?: SyncedSocialState | null;
 }) {
-  const moments = getPublicMomentsFeed(pulse, events).slice(0, 3);
+  const moments = getPublicMomentsFeed(pulse, events, socialState).slice(0, 3);
 
   if (moments.length === 0) {
     return null;
@@ -40,6 +43,11 @@ export function SocialMomentsFeedCard({
           >
             <div className="flex flex-wrap items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
               <span className="rounded-full bg-stone-100 px-2.5 py-1">{moment.moodLabel}</span>
+              {moment.source === "promoted" ? (
+                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
+                  From your player
+                </span>
+              ) : null}
               {activity.heatBadge ? (
                 <span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700">
                   {activity.heatBadge}
@@ -62,8 +70,8 @@ export function SocialMomentsFeedCard({
               </span>
             </div>
             <div className="mt-4 space-y-2 text-sm text-stone-600">
-              <p>{edition ? `${edition.title} · ${edition.narratorName}` : "Edition"}</p>
-              <p>{circle ? `${circle.title}` : "Circle"}</p>
+              <p>{edition ? `${edition.title} · ${edition.narratorName}` : "No linked edition yet"}</p>
+              <p>{circle ? `${circle.title}` : "No linked circle yet"}</p>
             </div>
             <div className="mt-4 flex flex-wrap gap-3">
               <Link

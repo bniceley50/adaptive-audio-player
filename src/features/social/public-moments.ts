@@ -5,16 +5,18 @@ import type {
   SocialCommunityActivityEventSummary,
   SocialCommunityPulseSummary,
 } from "@/lib/backend/types";
+import type { PromotedSocialMomentRecord, SyncedSocialState } from "@/lib/types/social";
 
 export type PublicSocialMoment = {
   id: string;
-  editionId: string;
-  circleId: string;
+  editionId: string | null;
+  circleId: string | null;
   bookTitle: string;
   chapterLabel: string;
   quote: string;
   curatorNote: string;
   moodLabel: string;
+  source: "curated" | "promoted";
 };
 
 export const publicSocialMoments: PublicSocialMoment[] = [
@@ -28,6 +30,7 @@ export const publicSocialMoments: PublicSocialMoment[] = [
     curatorNote:
       "This is the moment the cinematic edition starts paying off. The voice and pacing make the reveal feel expensive without losing clarity.",
     moodLabel: "Big reveal",
+    source: "curated",
   },
   {
     id: "ashen-signals-interview-room",
@@ -39,6 +42,7 @@ export const publicSocialMoments: PublicSocialMoment[] = [
     curatorNote:
       "A dialogue-first moment that shows why a cleaner, quieter edition works for this book circle.",
     moodLabel: "Close read",
+    source: "curated",
   },
   {
     id: "observatory-sky-log",
@@ -50,8 +54,52 @@ export const publicSocialMoments: PublicSocialMoment[] = [
     curatorNote:
       "Late-night listeners keep sharing this because the softer ambient profile still leaves the line feeling sharp.",
     moodLabel: "Night listen",
+    source: "curated",
   },
 ];
+
+export function resolveMatchingPublicEdition(input: {
+  bookTitle: string;
+  narratorName?: string | null;
+  mode?: string | null;
+}) {
+  return (
+    featuredListeningEditions.find(
+      (edition) =>
+        edition.bookTitle === input.bookTitle &&
+        (input.narratorName ? edition.narratorName === input.narratorName : true) &&
+        (input.mode ? edition.mode === input.mode : true),
+    ) ?? featuredListeningEditions.find((edition) => edition.bookTitle === input.bookTitle) ?? null
+  );
+}
+
+export function resolveMatchingPublicCircle(editionId: string | null) {
+  if (!editionId) {
+    return null;
+  }
+
+  return featuredBookCircles.find((circle) => circle.editionId === editionId) ?? null;
+}
+
+function buildPromotedPublicMoment(record: PromotedSocialMomentRecord): PublicSocialMoment {
+  return {
+    id: record.id,
+    editionId: record.editionId,
+    circleId: record.circleId,
+    bookTitle: record.bookTitle,
+    chapterLabel: record.chapterLabel,
+    quote: record.quoteText,
+    curatorNote:
+      "Promoted from a saved quote in your player so it can live inside the social layer.",
+    moodLabel: "Your moment",
+    source: "promoted",
+  };
+}
+
+export function getAllPublicSocialMoments(socialState: SyncedSocialState | null = null) {
+  const promotedMoments = (socialState?.promotedMoments ?? []).map(buildPromotedPublicMoment);
+  return [...promotedMoments, ...publicSocialMoments];
+}
 
 export function getMomentActivityScore(
   moment: PublicSocialMoment,
@@ -59,10 +107,15 @@ export function getMomentActivityScore(
   events: SocialCommunityActivityEventSummary[],
 ) {
   const editionSummary =
-    pulse.editionCounts.find((entry) => entry.editionId === moment.editionId) ?? null;
+    moment.editionId
+      ? pulse.editionCounts.find((entry) => entry.editionId === moment.editionId) ?? null
+      : null;
   const circleSummary =
-    pulse.circleCounts.find((entry) => entry.circleId === moment.circleId) ?? null;
-  const editionHeat = getEditionCommunityHeat(events).get(moment.editionId) ?? null;
+    moment.circleId
+      ? pulse.circleCounts.find((entry) => entry.circleId === moment.circleId) ?? null
+      : null;
+  const editionHeat =
+    moment.editionId ? getEditionCommunityHeat(events).get(moment.editionId) ?? null : null;
 
   return {
     editionSummary,
@@ -73,7 +126,8 @@ export function getMomentActivityScore(
       (editionSummary?.reuses ?? 0) * 4 +
       (circleSummary?.joins ?? 0) * 8 +
       (circleSummary?.shares ?? 0) * 3 +
-      (editionHeat?.score ?? 0),
+      (editionHeat?.score ?? 0) +
+      (moment.source === "promoted" ? 12 : 0),
   };
 }
 
@@ -81,19 +135,25 @@ export function getPublicMomentDetail(
   momentId: string,
   pulse: SocialCommunityPulseSummary,
   events: SocialCommunityActivityEventSummary[],
+  socialState: SyncedSocialState | null = null,
 ) {
-  const moment = publicSocialMoments.find((entry) => entry.id === momentId) ?? null;
+  const allMoments = getAllPublicSocialMoments(socialState);
+  const moment = allMoments.find((entry) => entry.id === momentId) ?? null;
 
   if (!moment) {
     return null;
   }
 
   const edition =
-    featuredListeningEditions.find((entry) => entry.id === moment.editionId) ?? null;
+    moment.editionId
+      ? featuredListeningEditions.find((entry) => entry.id === moment.editionId) ?? null
+      : null;
   const circle =
-    featuredBookCircles.find((entry) => entry.id === moment.circleId) ?? null;
+    moment.circleId
+      ? featuredBookCircles.find((entry) => entry.id === moment.circleId) ?? null
+      : null;
   const activity = getMomentActivityScore(moment, pulse, events);
-  const relatedMoments = publicSocialMoments
+  const relatedMoments = allMoments
     .filter((entry) => entry.id !== moment.id)
     .map((entry) => ({
       moment: entry,
@@ -114,13 +174,19 @@ export function getPublicMomentDetail(
 export function getPublicMomentsFeed(
   pulse: SocialCommunityPulseSummary,
   events: SocialCommunityActivityEventSummary[],
+  socialState: SyncedSocialState | null = null,
 ) {
-  return publicSocialMoments
+  return getAllPublicSocialMoments(socialState)
     .map((moment) => ({
       moment,
       edition:
-        featuredListeningEditions.find((entry) => entry.id === moment.editionId) ?? null,
-      circle: featuredBookCircles.find((entry) => entry.id === moment.circleId) ?? null,
+        moment.editionId
+          ? featuredListeningEditions.find((entry) => entry.id === moment.editionId) ?? null
+          : null,
+      circle:
+        moment.circleId
+          ? featuredBookCircles.find((entry) => entry.id === moment.circleId) ?? null
+          : null,
       activity: getMomentActivityScore(moment, pulse, events),
     }))
     .sort((left, right) => right.activity.score - left.activity.score);

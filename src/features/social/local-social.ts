@@ -2,6 +2,7 @@
 
 import type {
   CircleMembershipRecord,
+  PromotedSocialMomentRecord,
   SavedListeningEditionRecord,
   SyncedSocialState,
 } from "@/lib/types/social";
@@ -11,6 +12,7 @@ export const socialStateChangedEvent = "adaptive-audio-player:social-state-chang
 const savedEditionsStorageKey = "adaptive-audio-player.social.saved-editions";
 const circleMembershipsStorageKey =
   "adaptive-audio-player.social.circle-memberships";
+const promotedMomentsStorageKey = "adaptive-audio-player.social.promoted-moments";
 
 function emitSocialStateChanged() {
   if (typeof window === "undefined") {
@@ -52,10 +54,15 @@ export function readCircleMemberships(): CircleMembershipRecord[] {
   return readJsonValue<CircleMembershipRecord[]>(circleMembershipsStorageKey, []);
 }
 
+export function readPromotedSocialMoments(): PromotedSocialMomentRecord[] {
+  return readJsonValue<PromotedSocialMomentRecord[]>(promotedMomentsStorageKey, []);
+}
+
 export function readSocialStateSnapshot(): SyncedSocialState {
   return {
     savedEditions: readSavedListeningEditions(),
     circleMemberships: readCircleMemberships(),
+    promotedMoments: readPromotedSocialMoments(),
   };
 }
 
@@ -63,10 +70,12 @@ export function writeSocialStateSnapshot(snapshot: SyncedSocialState | null) {
   const nextSnapshot = snapshot ?? {
     savedEditions: [],
     circleMemberships: [],
+    promotedMoments: [],
   };
 
   writeJsonValue(savedEditionsStorageKey, nextSnapshot.savedEditions, false);
-  writeJsonValue(circleMembershipsStorageKey, nextSnapshot.circleMemberships, true);
+  writeJsonValue(circleMembershipsStorageKey, nextSnapshot.circleMemberships, false);
+  writeJsonValue(promotedMomentsStorageKey, nextSnapshot.promotedMoments, true);
 }
 
 export function toggleSavedListeningEdition(editionId: string) {
@@ -163,5 +172,16 @@ export function incrementCircleShareCount(circleId: string) {
       : entry,
   );
   writeJsonValue(circleMembershipsStorageKey, next);
+  return next;
+}
+
+export function togglePromotedSocialMoment(moment: PromotedSocialMomentRecord) {
+  const current = readPromotedSocialMoments();
+  const existing = current.find((entry) => entry.id === moment.id);
+  const next = existing
+    ? current.filter((entry) => entry.id !== moment.id)
+    : [moment, ...current];
+
+  writeJsonValue(promotedMomentsStorageKey, next);
   return next;
 }

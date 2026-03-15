@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { SocialCommunityDetailTimeline } from "@/components/library/social-community-detail-timeline";
-import { publicSocialMoments } from "@/features/social/public-moments";
 import {
   incrementCircleShareCount,
   joinCircleMembership,
@@ -28,6 +27,7 @@ export function SocialCircleDetailCard({
   heatBadge,
   recentEvents,
   otherActiveCircles,
+  relatedMoments,
   initialSocialState = null,
 }: {
   circle: FeaturedBookCircle;
@@ -42,6 +42,13 @@ export function SocialCircleDetailCard({
     heatBadge: string | null;
     score: number;
   }[];
+  relatedMoments: {
+    id: string;
+    chapterLabel: string;
+    quote: string;
+    moodLabel: string;
+    source: "curated" | "promoted";
+  }[];
   initialSocialState?: SyncedSocialState | null;
 }) {
   const { circleMemberships } = useSocialState(initialSocialState);
@@ -50,11 +57,6 @@ export function SocialCircleDetailCard({
     () => circleMemberships.find((entry) => entry.circleId === circle.id) ?? null,
     [circle.id, circleMemberships],
   );
-  const relatedMoments = useMemo(
-    () => publicSocialMoments.filter((moment) => moment.circleId === circle.id).slice(0, 2),
-    [circle.id],
-  );
-
   function handleToggleMembership() {
     if (membership) {
       leaveCircleMembership(circle.id);
@@ -306,9 +308,14 @@ export function SocialCircleDetailCard({
                 key={moment.id}
                 className="rounded-[1.2rem] border border-stone-200 bg-stone-50/80 p-4"
               >
-                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
-                  {moment.chapterLabel}
-                </p>
+                <div className="flex flex-wrap items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                  <span>{moment.chapterLabel}</span>
+                  {moment.source === "promoted" ? (
+                    <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
+                      From your player
+                    </span>
+                  ) : null}
+                </div>
                 <p className="mt-3 text-sm italic leading-6 text-stone-700">“{moment.quote}”</p>
                 <Link
                   className="mt-3 inline-flex rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"

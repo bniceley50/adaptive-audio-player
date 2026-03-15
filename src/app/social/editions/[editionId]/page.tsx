@@ -7,6 +7,7 @@ import {
   listRecentSocialActivityEvents,
 } from "@/lib/backend/sqlite";
 import { getPublicEditionDetail } from "@/features/social/public-social";
+import { getAllPublicSocialMoments } from "@/features/social/public-moments";
 import { readWorkspaceIdFromRequest } from "@/lib/backend/workspace-session";
 
 export default async function SocialEditionPage({
@@ -22,6 +23,9 @@ export default async function SocialEditionPage({
   const pulse = getSocialCommunityPulse();
   const events = listRecentSocialActivityEvents(12);
   const detail = getPublicEditionDetail(editionId, pulse, events);
+  const relatedMoments = getAllPublicSocialMoments(backendLibrarySnapshot?.socialState ?? null)
+    .filter((moment) => moment.editionId === editionId)
+    .slice(0, 2);
 
   if (!detail) {
     notFound();
@@ -37,6 +41,7 @@ export default async function SocialEditionPage({
         recentEvents={detail.recentEvents}
         relatedCircleSummary={detail.relatedCircleSummary}
         otherActiveEditions={detail.otherActiveEditions}
+        relatedMoments={relatedMoments}
         initialSocialState={backendLibrarySnapshot?.socialState ?? null}
       />
     </AppShell>

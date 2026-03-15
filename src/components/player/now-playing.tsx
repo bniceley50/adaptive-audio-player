@@ -1,6 +1,15 @@
 "use client";
 
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import {
+  readPromotedSocialMoments,
+  socialStateChangedEvent,
+  togglePromotedSocialMoment,
+} from "@/features/social/local-social";
+import {
+  resolveMatchingPublicCircle,
+  resolveMatchingPublicEdition,
+} from "@/features/social/public-moments";
 import type { Chapter } from "@/lib/types/models";
 import {
   chapterDurationSeconds,
@@ -99,6 +108,9 @@ export function NowPlaying({
     persistedState?.bookmarks ?? [],
   );
   const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>(() => readSavedQuotes(bookId));
+  const [promotedMomentIds, setPromotedMomentIds] = useState<string[]>(() =>
+    readPromotedSocialMoments().map((entry) => entry.id),
+  );
   const [sleepTimerMinutes, setSleepTimerMinutes] = useState<number | null>(
     persistedState?.sleepTimerMinutes ?? playbackDefaults?.sleepTimerMinutes ?? null,
   );
@@ -315,6 +327,40 @@ export function NowPlaying({
   useEffect(() => {
     writeSavedQuotes(bookId, savedQuotes);
   }, [bookId, savedQuotes]);
+
+  useEffect(() => {
+    function refreshPromotedMoments() {
+      setPromotedMomentIds(readPromotedSocialMoments().map((entry) => entry.id));
+    }
+
+    refreshPromotedMoments();
+    window.addEventListener(socialStateChangedEvent, refreshPromotedMoments);
+    return () => {
+      window.removeEventListener(socialStateChangedEvent, refreshPromotedMoments);
+    };
+  }, []);
+
+  function toggleQuotePromotion(quote: SavedQuote) {
+    const matchingEdition = resolveMatchingPublicEdition({
+      bookTitle,
+      narratorName,
+      mode,
+    });
+    const matchingCircle = resolveMatchingPublicCircle(matchingEdition?.id ?? null);
+
+    togglePromotedSocialMoment({
+      id: `promoted-${quote.id}`,
+      bookId,
+      bookTitle,
+      chapterIndex: quote.chapterIndex,
+      chapterLabel: chapters[quote.chapterIndex]?.title ?? `Chapter ${quote.chapterIndex + 1}`,
+      progressSeconds: quote.progressSeconds,
+      quoteText: quote.text,
+      promotedAt: new Date().toISOString(),
+      editionId: matchingEdition?.id ?? null,
+      circleId: matchingCircle?.id ?? null,
+    });
+  }
 
   function togglePlayback() {
     if (!playbackIsReady) {
@@ -1162,6 +1208,15 @@ export function NowPlaying({
                   >
                     {latestQuote.pinnedAt ? "Unpin quote" : "Pin quote"}
                   </button>
+                  <button
+                    className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                    type="button"
+                    onClick={() => toggleQuotePromotion(latestQuote)}
+                  >
+                    {promotedMomentIds.includes(`promoted-${latestQuote.id}`)
+                      ? "Remove from social"
+                      : "Promote to social"}
+                  </button>
                 </div>
               </div>
             </div>
@@ -1213,6 +1268,15 @@ export function NowPlaying({
                           onClick={() => togglePinnedQuote(quote.id)}
                         >
                           {quote.pinnedAt ? "Unpin" : "Pin"}
+                        </button>
+                        <button
+                          className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                          type="button"
+                          onClick={() => toggleQuotePromotion(quote)}
+                        >
+                          {promotedMomentIds.includes(`promoted-${quote.id}`)
+                            ? "Remove from social"
+                            : "Promote"}
                         </button>
                         <button
                           className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"

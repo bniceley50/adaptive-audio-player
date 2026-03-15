@@ -79,6 +79,17 @@ export function buildSocialTimelineEvents(
     }
   }
 
+  for (const entry of socialState.promotedMoments) {
+    nextEvents.push({
+      id: `moment-${entry.id}`,
+      occurredAt: entry.promotedAt,
+      label: "Promoted moment",
+      title: entry.bookTitle,
+      detail: `“${entry.quoteText}” · ${entry.chapterLabel}`,
+      href: `/social/moments/${entry.id}`,
+    });
+  }
+
   return nextEvents
     .sort(
       (left, right) =>

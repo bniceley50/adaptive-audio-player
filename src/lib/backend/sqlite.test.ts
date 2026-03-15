@@ -151,6 +151,7 @@ describe("backend sqlite library sync", () => {
             shareCount: 2,
           },
         ],
+        promotedMoments: [],
       },
       syncedAt: "2026-03-08T12:03:00.000Z",
     });
@@ -205,6 +206,7 @@ describe("backend sqlite library sync", () => {
             shareCount: 0,
           },
         ],
+        promotedMoments: [],
       },
       syncedAt: "2026-03-08T12:05:00.000Z",
     });
@@ -247,6 +249,7 @@ describe("backend sqlite library sync", () => {
             shareCount: 0,
           },
         ],
+        promotedMoments: [],
       },
     });
 

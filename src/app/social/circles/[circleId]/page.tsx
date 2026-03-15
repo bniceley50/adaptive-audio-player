@@ -7,6 +7,7 @@ import {
   listRecentSocialActivityEvents,
 } from "@/lib/backend/sqlite";
 import { getPublicCircleDetail } from "@/features/social/public-social";
+import { getAllPublicSocialMoments } from "@/features/social/public-moments";
 import { readWorkspaceIdFromRequest } from "@/lib/backend/workspace-session";
 
 export default async function SocialCirclePage({
@@ -22,6 +23,9 @@ export default async function SocialCirclePage({
   const pulse = getSocialCommunityPulse();
   const events = listRecentSocialActivityEvents(12);
   const detail = getPublicCircleDetail(circleId, pulse, events);
+  const relatedMoments = getAllPublicSocialMoments(backendLibrarySnapshot?.socialState ?? null)
+    .filter((moment) => moment.circleId === circleId)
+    .slice(0, 2);
 
   if (!detail) {
     notFound();
@@ -37,6 +41,7 @@ export default async function SocialCirclePage({
         heatBadge={detail.heatBadge}
         recentEvents={detail.recentEvents}
         otherActiveCircles={detail.otherActiveCircles}
+        relatedMoments={relatedMoments}
         initialSocialState={backendLibrarySnapshot?.socialState ?? null}
       />
     </AppShell>

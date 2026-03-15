@@ -2,7 +2,12 @@ import { notFound } from "next/navigation";
 import { SocialMomentDetailCard } from "@/components/library/social-moment-detail-card";
 import { AppShell } from "@/components/shared/app-shell";
 import { getPublicMomentDetail } from "@/features/social/public-moments";
-import { getSocialCommunityPulse, listRecentSocialActivityEvents } from "@/lib/backend/sqlite";
+import {
+  getSocialCommunityPulse,
+  getWorkspaceLibrarySnapshot,
+  listRecentSocialActivityEvents,
+} from "@/lib/backend/sqlite";
+import { readWorkspaceIdFromRequest } from "@/lib/backend/workspace-session";
 
 export default async function SocialMomentPage({
   params,
@@ -10,9 +15,18 @@ export default async function SocialMomentPage({
   params: Promise<{ momentId: string }>;
 }) {
   const { momentId } = await params;
+  const workspaceId = await readWorkspaceIdFromRequest();
+  const backendLibrarySnapshot = workspaceId
+    ? getWorkspaceLibrarySnapshot(workspaceId)
+    : null;
   const pulse = getSocialCommunityPulse();
   const events = listRecentSocialActivityEvents(12);
-  const detail = getPublicMomentDetail(momentId, pulse, events);
+  const detail = getPublicMomentDetail(
+    momentId,
+    pulse,
+    events,
+    backendLibrarySnapshot?.socialState ?? null,
+  );
 
   if (!detail) {
     notFound();

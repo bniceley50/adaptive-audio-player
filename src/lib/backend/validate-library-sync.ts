@@ -675,14 +675,61 @@ export function parseLibrarySyncSnapshot(
                   })
                   .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
               : null;
+            const promotedMoments = Array.isArray(input.socialState.promotedMoments)
+              ? input.socialState.promotedMoments
+                  .map((entry) => {
+                    if (!isRecord(entry)) {
+                      return null;
+                    }
 
-            if (!savedEditions || !circleMemberships) {
+                    const id = readString(entry.id);
+                    const bookId = readString(entry.bookId);
+                    const bookTitle = readString(entry.bookTitle);
+                    const chapterIndex = readNumber(entry.chapterIndex);
+                    const chapterLabel = readString(entry.chapterLabel);
+                    const progressSeconds = readNumber(entry.progressSeconds);
+                    const quoteText = readString(entry.quoteText);
+                    const promotedAt = readString(entry.promotedAt);
+                    const editionId = readString(entry.editionId) ?? null;
+                    const circleId = readString(entry.circleId) ?? null;
+
+                    if (
+                      !id ||
+                      !bookId ||
+                      !bookTitle ||
+                      chapterIndex === null ||
+                      !chapterLabel ||
+                      progressSeconds === null ||
+                      !quoteText ||
+                      !promotedAt
+                    ) {
+                      return null;
+                    }
+
+                    return {
+                      id,
+                      bookId,
+                      bookTitle,
+                      chapterIndex,
+                      chapterLabel,
+                      progressSeconds,
+                      quoteText,
+                      promotedAt,
+                      editionId,
+                      circleId,
+                    };
+                  })
+                  .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+              : null;
+
+            if (!savedEditions || !circleMemberships || !promotedMoments) {
               return null;
             }
 
             return {
               savedEditions,
               circleMemberships,
+              promotedMoments,
             } satisfies SyncedSocialState;
           })()
         : null;

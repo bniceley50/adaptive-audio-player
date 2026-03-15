@@ -3,6 +3,15 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
+  readPromotedSocialMoments,
+  socialStateChangedEvent,
+  togglePromotedSocialMoment,
+} from "@/features/social/local-social";
+import {
+  resolveMatchingPublicCircle,
+  resolveMatchingPublicEdition,
+} from "@/features/social/public-moments";
+import {
   readAllSavedQuotes,
   savedQuotesChangedEvent,
   type SavedQuote,
@@ -23,6 +32,9 @@ function readQuotesWithMeta(): QuoteWithBookMeta[] {
 
 export function RecentQuotesCard() {
   const [quotes, setQuotes] = useState<QuoteWithBookMeta[]>(() => readQuotesWithMeta());
+  const [promotedMomentIds, setPromotedMomentIds] = useState<string[]>(() =>
+    readPromotedSocialMoments().map((entry) => entry.id),
+  );
   const [shareFeedback, setShareFeedback] = useState<"idle" | "copied" | "shared">(
     "idle",
   );
@@ -33,12 +45,15 @@ export function RecentQuotesCard() {
   useEffect(() => {
     function refreshQuotes() {
       setQuotes(readQuotesWithMeta());
+      setPromotedMomentIds(readPromotedSocialMoments().map((entry) => entry.id));
     }
 
     window.addEventListener(savedQuotesChangedEvent, refreshQuotes);
+    window.addEventListener(socialStateChangedEvent, refreshQuotes);
     window.addEventListener("storage", refreshQuotes);
     return () => {
       window.removeEventListener(savedQuotesChangedEvent, refreshQuotes);
+      window.removeEventListener(socialStateChangedEvent, refreshQuotes);
       window.removeEventListener("storage", refreshQuotes);
     };
   }, []);
@@ -105,6 +120,26 @@ export function RecentQuotesCard() {
       await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
       setCircleFeedback("copied");
     }
+  }
+
+  function toggleQuotePromotion(quote: QuoteWithBookMeta) {
+    const matchingEdition = resolveMatchingPublicEdition({
+      bookTitle: quote.bookTitle ?? quote.bookId,
+    });
+    const matchingCircle = resolveMatchingPublicCircle(matchingEdition?.id ?? null);
+
+    togglePromotedSocialMoment({
+      id: `promoted-${quote.id}`,
+      bookId: quote.bookId,
+      bookTitle: quote.bookTitle ?? quote.bookId,
+      chapterIndex: quote.chapterIndex,
+      chapterLabel: `Chapter ${quote.chapterIndex + 1}`,
+      progressSeconds: quote.progressSeconds,
+      quoteText: quote.text,
+      promotedAt: new Date().toISOString(),
+      editionId: matchingEdition?.id ?? null,
+      circleId: matchingCircle?.id ?? null,
+    });
   }
 
   return (
@@ -178,6 +213,23 @@ export function RecentQuotesCard() {
                   ? "Invite copied"
                   : "Start book circle"}
             </button>
+            <button
+              className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+              type="button"
+              onClick={() => toggleQuotePromotion(latestQuote)}
+            >
+              {promotedMomentIds.includes(`promoted-${latestQuote.id}`)
+                ? "Remove from social"
+                : "Promote to social"}
+            </button>
+            {promotedMomentIds.includes(`promoted-${latestQuote.id}`) ? (
+              <Link
+                className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                href={`/social/moments/promoted-${latestQuote.id}`}
+              >
+                Open social moment
+              </Link>
+            ) : null}
           </div>
         </div>
       ) : null}

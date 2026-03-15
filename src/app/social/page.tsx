@@ -93,7 +93,11 @@ export default async function SocialPage({
       />
       <SocialCommunityPulseCard pulse={communityPulse} />
       <SocialCommunityActivityCard events={communityEvents} />
-      <SocialMomentsFeedCard pulse={communityPulse} events={communityEvents} />
+      <SocialMomentsFeedCard
+        pulse={communityPulse}
+        events={communityEvents}
+        socialState={backendLibrarySnapshot?.socialState ?? null}
+      />
       <SocialActivitySummaryCard />
       <SocialActivityTimelineCard
         initialSocialState={backendLibrarySnapshot?.socialState ?? null}
