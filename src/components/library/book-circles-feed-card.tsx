@@ -20,6 +20,7 @@ import {
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 import { useSocialState } from "@/features/social/use-social-state";
+import type { SyncedSocialState } from "@/lib/types/social";
 
 function getCircleActivityTime(
   entry:
@@ -32,9 +33,13 @@ function getCircleActivityTime(
   return new Date(entry?.lastOpenedAt ?? entry?.joinedAt ?? 0).getTime();
 }
 
-export function BookCirclesFeedCard() {
+export function BookCirclesFeedCard({
+  initialSocialState = null,
+}: {
+  initialSocialState?: SyncedSocialState | null;
+}) {
   const preferences = useDiscoveryPreferences();
-  const { circleMemberships } = useSocialState();
+  const { circleMemberships } = useSocialState(initialSocialState);
   const { joinedCircleTimestamps, personalizationPaused } = preferences;
   const effectivePreferences = useMemo(
     () => ({

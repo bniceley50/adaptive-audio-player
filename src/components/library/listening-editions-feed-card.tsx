@@ -14,6 +14,7 @@ import {
   touchSavedListeningEdition,
 } from "@/features/social/local-social";
 import { useSocialState } from "@/features/social/use-social-state";
+import type { SyncedSocialState } from "@/lib/types/social";
 import {
   defaultTasteChangedEvent,
   listeningProfileChangedEvent,
@@ -68,9 +69,13 @@ function readLibraryEditions(): FeedEdition[] {
     });
 }
 
-export function ListeningEditionsFeedCard() {
+export function ListeningEditionsFeedCard({
+  initialSocialState = null,
+}: {
+  initialSocialState?: SyncedSocialState | null;
+}) {
   const preferences = useDiscoveryPreferences();
-  const { savedEditions } = useSocialState();
+  const { savedEditions } = useSocialState(initialSocialState);
   const { followedAuthorTimestamps, joinedCircleTimestamps, personalizationPaused } = preferences;
   const effectivePreferences = useMemo(
     () => ({

@@ -6,13 +6,16 @@ import {
   readSavedListeningEditions,
   socialStateChangedEvent,
 } from "@/features/social/local-social";
+import type { SyncedSocialState } from "@/lib/types/social";
 
-export function useSocialState() {
+export function useSocialState(initialSocialState: SyncedSocialState | null = null) {
   const [savedEditions, setSavedEditions] = useState(() =>
-    typeof window === "undefined" ? [] : readSavedListeningEditions(),
+    initialSocialState?.savedEditions ??
+    (typeof window === "undefined" ? [] : readSavedListeningEditions()),
   );
   const [circleMemberships, setCircleMemberships] = useState(() =>
-    typeof window === "undefined" ? [] : readCircleMemberships(),
+    initialSocialState?.circleMemberships ??
+    (typeof window === "undefined" ? [] : readCircleMemberships()),
   );
 
   useEffect(() => {

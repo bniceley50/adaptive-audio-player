@@ -40,8 +40,12 @@ export default async function SocialPage() {
       />
       <SocialMemoryCard />
       <SocialShelfCard />
-      <ListeningEditionsFeedCard />
-      <BookCirclesFeedCard />
+      <ListeningEditionsFeedCard
+        initialSocialState={backendLibrarySnapshot?.socialState ?? null}
+      />
+      <BookCirclesFeedCard
+        initialSocialState={backendLibrarySnapshot?.socialState ?? null}
+      />
     </AppShell>
   );
 }
