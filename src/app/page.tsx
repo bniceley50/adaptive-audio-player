@@ -13,6 +13,7 @@ import { FavoritesHubCard } from "@/components/library/favorites-hub-card";
 import { ForYouCard } from "@/components/library/for-you-card";
 import { HomeNextStepCard } from "@/components/library/home-next-step-card";
 import { HomeSocialProofCard } from "@/components/library/home-social-proof-card";
+import { HomeTrendingNowCard } from "@/components/library/home-trending-now-card";
 import { LibraryHero } from "@/components/library/library-hero";
 import { ListeningEditionsFeedCard } from "@/components/library/listening-editions-feed-card";
 import { ListeningStatsCard } from "@/components/library/listening-stats-card";
@@ -274,6 +275,7 @@ export default async function HomePage() {
         <DiscoveryQuickStartCard spotlight={authorSpotlight} />
         <ForYouCard spotlight={authorSpotlight} />
         <HomeSocialProofCard pulse={socialCommunityPulse} />
+        <HomeTrendingNowCard pulse={socialCommunityPulse} />
         <RecentPersonalizationCard />
         <SocialMemoryCard />
         <SocialShelfCard />
