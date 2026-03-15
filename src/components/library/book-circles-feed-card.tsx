@@ -46,10 +46,12 @@ export function BookCirclesFeedCard({
   initialSocialState = null,
   communityPulse = null,
   communityEvents = null,
+  initialPublicCircles = null,
 }: {
   initialSocialState?: SyncedSocialState | null;
   communityPulse?: SocialCommunityPulseSummary | null;
   communityEvents?: SocialCommunityActivityEventSummary[] | null;
+  initialPublicCircles?: ReturnType<typeof getAllPublicBookCircles> | null;
 }) {
   const searchParams = useSearchParams();
   const preferences = useDiscoveryPreferences();
@@ -79,8 +81,8 @@ export function BookCirclesFeedCard({
         circleMemberships: [],
         createdCircles,
         promotedMoments: [],
-      }, communityEvents ?? []),
-    [communityEvents, createdCircles],
+      }, communityEvents ?? [], initialPublicCircles ?? []),
+    [communityEvents, createdCircles, initialPublicCircles],
   );
 
   const circles = useMemo(

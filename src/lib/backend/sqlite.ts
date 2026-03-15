@@ -13,6 +13,7 @@ import type {
   GenerationOutputSummary,
   GenerationJobKind,
   LibrarySyncSnapshot,
+  PublicSocialCircleRecord,
   SocialActivityEventKind,
   SocialCommunityActivityEventSummary,
   SocialCommunityPulseSummary,
@@ -199,6 +200,23 @@ function ensureDbSchema(db: DatabaseSync) {
       occurred_at text not null,
       metadata_json text,
       foreign key (workspace_id) references workspaces(id) on delete cascade
+    );
+
+    create table if not exists public_social_circles (
+      id text primary key,
+      owner_workspace_id text not null,
+      edition_id text not null,
+      title text not null,
+      host text not null,
+      book_title text not null,
+      member_count integer not null default 1,
+      checkpoint text not null,
+      vibe text not null,
+      summary text not null,
+      source_moment_id text,
+      created_at text not null,
+      updated_at text not null,
+      foreign key (owner_workspace_id) references workspaces(id) on delete cascade
     );
   `);
 
@@ -1348,6 +1366,76 @@ function deleteMissingRows(
   ).run(workspaceId, ...nextIds);
 }
 
+function syncPublicSocialCircles(
+  db: DatabaseSync,
+  workspaceId: string,
+  snapshot: LibrarySyncSnapshot,
+) {
+  const nextCircles = snapshot.socialState?.createdCircles ?? [];
+
+  if (nextCircles.length === 0) {
+    db.prepare("delete from public_social_circles where owner_workspace_id = ?").run(workspaceId);
+    return;
+  }
+
+  const placeholders = nextCircles.map(() => "?").join(", ");
+  db.prepare(
+    `delete from public_social_circles
+     where owner_workspace_id = ?
+       and id not in (${placeholders})`,
+  ).run(workspaceId, ...nextCircles.map((circle) => circle.id));
+
+  for (const circle of nextCircles) {
+    db.prepare(
+      `
+        insert into public_social_circles (
+          id,
+          owner_workspace_id,
+          edition_id,
+          title,
+          host,
+          book_title,
+          member_count,
+          checkpoint,
+          vibe,
+          summary,
+          source_moment_id,
+          created_at,
+          updated_at
+        )
+        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        on conflict(id) do update set
+          owner_workspace_id = excluded.owner_workspace_id,
+          edition_id = excluded.edition_id,
+          title = excluded.title,
+          host = excluded.host,
+          book_title = excluded.book_title,
+          member_count = excluded.member_count,
+          checkpoint = excluded.checkpoint,
+          vibe = excluded.vibe,
+          summary = excluded.summary,
+          source_moment_id = excluded.source_moment_id,
+          created_at = excluded.created_at,
+          updated_at = excluded.updated_at
+      `,
+    ).run(
+      circle.id,
+      workspaceId,
+      circle.editionId,
+      circle.title,
+      circle.host,
+      circle.bookTitle,
+      circle.memberCount,
+      circle.checkpoint,
+      circle.vibe,
+      circle.summary,
+      circle.sourceMomentId ?? null,
+      circle.createdAt,
+      snapshot.syncedAt,
+    );
+  }
+}
+
 export function syncWorkspaceLibrarySnapshot(
   workspaceId: string,
   snapshot: LibrarySyncSnapshot,
@@ -1527,6 +1615,8 @@ export function syncWorkspaceLibrarySnapshot(
       snapshot.socialState ? JSON.stringify(snapshot.socialState) : null,
       snapshot.syncedAt,
     );
+
+    syncPublicSocialCircles(db, workspaceId, snapshot);
 
     recordSocialActivityDiff(
       db,
@@ -2075,6 +2165,61 @@ export function listAllSocialActivityEvents(): SocialCommunityActivityEventSumma
     quantity: row.quantity,
     occurredAt: row.occurred_at,
     metadata: readSocialActivityMetadata(row.metadata_json),
+  }));
+}
+
+export function listPublicSocialCircles(): PublicSocialCircleRecord[] {
+  const db = getDatabase();
+  const rows = db
+    .prepare(
+      `
+        select id,
+               owner_workspace_id,
+               edition_id,
+               title,
+               host,
+               book_title,
+               member_count,
+               checkpoint,
+               vibe,
+               summary,
+               source_moment_id,
+               created_at,
+               updated_at
+        from public_social_circles
+        order by updated_at desc, created_at desc
+      `,
+    )
+    .all() as Array<{
+    id: string;
+    owner_workspace_id: string;
+    edition_id: string;
+    title: string;
+    host: string;
+    book_title: string;
+    member_count: number;
+    checkpoint: string;
+    vibe: string;
+    summary: string;
+    source_moment_id: string | null;
+    created_at: string;
+    updated_at: string;
+  }>;
+
+  return rows.map((row) => ({
+    id: row.id,
+    ownerWorkspaceId: row.owner_workspace_id,
+    editionId: row.edition_id,
+    title: row.title,
+    host: row.host,
+    bookTitle: row.book_title,
+    memberCount: row.member_count,
+    checkpoint: row.checkpoint,
+    vibe: row.vibe,
+    summary: row.summary,
+    sourceMomentId: row.source_moment_id,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   }));
 }
 

@@ -81,10 +81,12 @@ export function ListeningEditionsFeedCard({
   initialSocialState = null,
   communityPulse = null,
   communityEvents = null,
+  initialPublicCircles = null,
 }: {
   initialSocialState?: SyncedSocialState | null;
   communityPulse?: SocialCommunityPulseSummary | null;
   communityEvents?: SocialCommunityActivityEventSummary[] | null;
+  initialPublicCircles?: ReturnType<typeof getAllPublicBookCircles> | null;
 }) {
   const preferences = useDiscoveryPreferences();
   const { savedEditions, createdCircles, promotedMoments } = useSocialState(initialSocialState);
@@ -118,8 +120,9 @@ export function ListeningEditionsFeedCard({
           promotedMoments,
         },
         communityEvents ?? [],
+        initialPublicCircles ?? [],
       ),
-    [communityEvents, createdCircles, promotedMoments, savedEditions],
+    [communityEvents, createdCircles, initialPublicCircles, promotedMoments, savedEditions],
   );
 
   useEffect(() => {

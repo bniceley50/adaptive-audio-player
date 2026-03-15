@@ -1,10 +1,12 @@
 import { notFound } from "next/navigation";
 import { SocialMomentDetailCard } from "@/components/library/social-moment-detail-card";
 import { AppShell } from "@/components/shared/app-shell";
+import { mapPublicSocialCircleRecord } from "@/features/discovery/book-circles";
 import { getPublicMomentDetail } from "@/features/social/public-moments";
 import {
   listAllSocialActivityEvents,
   getSocialCommunityPulse,
+  listPublicSocialCircles,
   getWorkspaceLibrarySnapshot,
 } from "@/lib/backend/sqlite";
 import { readWorkspaceIdFromRequest } from "@/lib/backend/workspace-session";
@@ -21,11 +23,13 @@ export default async function SocialMomentPage({
     : null;
   const pulse = getSocialCommunityPulse();
   const events = listAllSocialActivityEvents();
+  const persistentCircles = listPublicSocialCircles().map(mapPublicSocialCircleRecord);
   const detail = getPublicMomentDetail(
     momentId,
     pulse,
     events,
     backendLibrarySnapshot?.socialState ?? null,
+    persistentCircles,
   );
 
   if (!detail) {

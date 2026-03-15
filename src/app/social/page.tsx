@@ -9,11 +9,15 @@ import { SocialActivityTimelineCard } from "@/components/library/social-activity
 import { SocialMemoryCard } from "@/components/library/social-memory-card";
 import { SocialShelfCard } from "@/components/library/social-shelf-card";
 import { AppShell } from "@/components/shared/app-shell";
-import { getAllPublicBookCircles } from "@/features/discovery/book-circles";
+import {
+  getAllPublicBookCircles,
+  mapPublicSocialCircleRecord,
+} from "@/features/discovery/book-circles";
 import { getAllPublicSocialMoments } from "@/features/social/public-moments";
 import {
   listAllSocialActivityEvents,
   getSocialCommunityPulse,
+  listPublicSocialCircles,
   getWorkspaceLibrarySnapshot,
   listRecentSocialActivityEvents,
 } from "@/lib/backend/sqlite";
@@ -45,9 +49,11 @@ export default async function SocialPage({
   const communityPulse = getSocialCommunityPulse();
   const recentCommunityEvents = listRecentSocialActivityEvents(6);
   const communityEvents = listAllSocialActivityEvents();
+  const persistentCircles = listPublicSocialCircles().map(mapPublicSocialCircleRecord);
   const allCircles = getAllPublicBookCircles(
     backendLibrarySnapshot?.socialState ?? null,
     communityEvents,
+    persistentCircles,
   );
   const focusedCircle = focusedCircleId
     ? allCircles.find((circle) => circle.id === focusedCircleId) ?? null
@@ -160,11 +166,13 @@ export default async function SocialPage({
         initialSocialState={backendLibrarySnapshot?.socialState ?? null}
         communityPulse={communityPulse}
         communityEvents={communityEvents}
+        initialPublicCircles={persistentCircles}
       />
       <BookCirclesFeedCard
         initialSocialState={backendLibrarySnapshot?.socialState ?? null}
         communityPulse={communityPulse}
         communityEvents={communityEvents}
+        initialPublicCircles={persistentCircles}
       />
     </AppShell>
   );

@@ -16,6 +16,7 @@ import {
   getSocialCommunityPulse,
   getWorkerHeartbeat,
   listGenerationOutputHistoryForBook,
+  listPublicSocialCircles,
   getGenerationJob,
   getUserById,
   getWorkspaceLibrarySnapshot,
@@ -201,13 +202,27 @@ describe("backend sqlite library sync", () => {
         savedEditions: [],
         circleMemberships: [
           {
-            circleId: "circle-future-imports",
+            circleId: "created-harbor-warning-circle",
             joinedAt: "2026-03-08T12:04:35.000Z",
             lastOpenedAt: null,
             shareCount: 0,
           },
         ],
-        createdCircles: [],
+        createdCircles: [
+          {
+            id: "created-harbor-warning-circle",
+            title: "Harbor Warning Circle",
+            editionId: "cinematic-harbor",
+            host: "You",
+            bookTitle: "Storm Harbor Revised",
+            memberCount: 1,
+            checkpoint: "Chapter 1 and the harbor warning",
+            vibe: "Moment-led close reading",
+            summary: "A user-created public circle built from a promoted harbor line.",
+            sourceMomentId: "promoted-harbor-warning",
+            createdAt: "2026-03-08T12:04:34.000Z",
+          },
+        ],
         promotedMoments: [
           {
             id: "promoted-harbor-warning",
@@ -219,7 +234,7 @@ describe("backend sqlite library sync", () => {
             quoteText: "The harbor kept its warnings polished and quiet.",
             promotedAt: "2026-03-08T12:04:40.000Z",
             editionId: "cinematic-harbor",
-            circleId: "circle-future-imports",
+            circleId: "created-harbor-warning-circle",
           },
         ],
       },
@@ -258,13 +273,27 @@ describe("backend sqlite library sync", () => {
         savedEditions: [],
         circleMemberships: [
           {
-            circleId: "circle-future-imports",
+            circleId: "created-harbor-warning-circle",
             joinedAt: "2026-03-08T12:04:35.000Z",
             lastOpenedAt: null,
             shareCount: 0,
           },
         ],
-        createdCircles: [],
+        createdCircles: [
+          {
+            id: "created-harbor-warning-circle",
+            title: "Harbor Warning Circle",
+            editionId: "cinematic-harbor",
+            host: "You",
+            bookTitle: "Storm Harbor Revised",
+            memberCount: 1,
+            checkpoint: "Chapter 1 and the harbor warning",
+            vibe: "Moment-led close reading",
+            summary: "A user-created public circle built from a promoted harbor line.",
+            sourceMomentId: "promoted-harbor-warning",
+            createdAt: "2026-03-08T12:04:34.000Z",
+          },
+        ],
         promotedMoments: [
           {
             id: "promoted-harbor-warning",
@@ -276,11 +305,20 @@ describe("backend sqlite library sync", () => {
             quoteText: "The harbor kept its warnings polished and quiet.",
             promotedAt: "2026-03-08T12:04:40.000Z",
             editionId: "cinematic-harbor",
-            circleId: "circle-future-imports",
+            circleId: "created-harbor-warning-circle",
           },
         ],
       },
     });
+
+    expect(listPublicSocialCircles()).toEqual([
+      expect.objectContaining({
+        id: "created-harbor-warning-circle",
+        ownerWorkspaceId: "workspace-1",
+        editionId: "cinematic-harbor",
+        title: "Harbor Warning Circle",
+      }),
+    ]);
 
     expect(getSocialCommunityPulse()).toMatchObject({
       totalSocialWorkspaces: 1,
@@ -302,7 +340,7 @@ describe("backend sqlite library sync", () => {
           shares: 2,
         },
         {
-          circleId: "circle-future-imports",
+          circleId: "created-harbor-warning-circle",
           joins: 1,
           reopens: 0,
           shares: 0,
@@ -330,8 +368,12 @@ describe("backend sqlite library sync", () => {
         }),
         expect.objectContaining({
           kind: "circle-joined",
-          subjectId: "circle-future-imports",
+          subjectId: "created-harbor-warning-circle",
           quantity: 1,
+          metadata: expect.objectContaining({
+            circleTitle: "Harbor Warning Circle",
+            editionId: "cinematic-harbor",
+          }),
         }),
         expect.objectContaining({
           kind: "circle-shared",
@@ -345,6 +387,26 @@ describe("backend sqlite library sync", () => {
         }),
       ]),
     );
+
+    syncWorkspaceLibrarySnapshot("workspace-1", {
+      libraryBooks: [],
+      draftTexts: [],
+      listeningProfiles: [],
+      defaultListeningProfile: null,
+      sampleRequest: null,
+      playbackStates: [],
+      playbackDefaults: null,
+      discoveryPreferences: null,
+      socialState: {
+        savedEditions: [],
+        circleMemberships: [],
+        createdCircles: [],
+        promotedMoments: [],
+      },
+      syncedAt: "2026-03-08T12:06:00.000Z",
+    });
+
+    expect(listPublicSocialCircles()).toEqual([]);
   });
 
   it("creates users and links workspaces to them", () => {

@@ -228,3 +228,19 @@ export interface SocialCommunityActivityEventSummary {
   occurredAt: string;
   metadata: SocialActivityEventMetadata | null;
 }
+
+export interface PublicSocialCircleRecord {
+  id: string;
+  ownerWorkspaceId: string;
+  editionId: string;
+  title: string;
+  host: string;
+  bookTitle: string;
+  memberCount: number;
+  checkpoint: string;
+  vibe: string;
+  summary: string;
+  sourceMomentId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

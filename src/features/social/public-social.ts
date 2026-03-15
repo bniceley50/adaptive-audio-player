@@ -1,5 +1,6 @@
 import {
   getAllPublicBookCircles,
+  type FeaturedBookCircle,
 } from "@/features/discovery/book-circles";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import { publicSocialMoments } from "@/features/social/public-moments";
@@ -167,6 +168,7 @@ export function getPublicEditionDetail(
   pulse: SocialCommunityPulseSummary,
   events: SocialCommunityActivityEventSummary[],
   socialState: SyncedSocialState | null = null,
+  persistentCircles: FeaturedBookCircle[] = [],
 ) {
   const edition =
     featuredListeningEditions.find((entry) => entry.id === editionId) ?? null;
@@ -175,7 +177,11 @@ export function getPublicEditionDetail(
     return null;
   }
 
-  const relatedCircles = getAllPublicBookCircles(socialState, events).filter(
+  const relatedCircles = getAllPublicBookCircles(
+    socialState,
+    events,
+    persistentCircles,
+  ).filter(
     (circle) => circle.editionId === editionId,
   );
   const summary =
@@ -256,8 +262,9 @@ export function getPublicCircleDetail(
   pulse: SocialCommunityPulseSummary,
   events: SocialCommunityActivityEventSummary[],
   socialState: SyncedSocialState | null = null,
+  persistentCircles: FeaturedBookCircle[] = [],
 ) {
-  const allCircles = getAllPublicBookCircles(socialState, events);
+  const allCircles = getAllPublicBookCircles(socialState, events, persistentCircles);
   const circle = allCircles.find((entry) => entry.id === circleId) ?? null;
 
   if (!circle) {

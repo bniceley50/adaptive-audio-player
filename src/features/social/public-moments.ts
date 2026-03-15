@@ -1,4 +1,5 @@
 import { getAllPublicBookCircles } from "@/features/discovery/book-circles";
+import type { FeaturedBookCircle } from "@/features/discovery/book-circles";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import {
   getCommunityHeatBadge,
@@ -81,14 +82,16 @@ export function resolveMatchingPublicCircle(
   editionId: string | null,
   socialState: SyncedSocialState | null = null,
   events: SocialCommunityActivityEventSummary[] = [],
+  persistentCircles: FeaturedBookCircle[] = [],
 ) {
   if (!editionId) {
     return null;
   }
 
   return (
-    getAllPublicBookCircles(socialState, events).find((circle) => circle.editionId === editionId) ??
-    null
+    getAllPublicBookCircles(socialState, events, persistentCircles).find(
+      (circle) => circle.editionId === editionId,
+    ) ?? null
   );
 }
 
@@ -202,6 +205,7 @@ export function getPublicMomentDetail(
   pulse: SocialCommunityPulseSummary,
   events: SocialCommunityActivityEventSummary[],
   socialState: SyncedSocialState | null = null,
+  persistentCircles: FeaturedBookCircle[] = [],
 ) {
   const allMoments = getAllPublicSocialMoments(socialState, events);
   const moment = allMoments.find((entry) => entry.id === momentId) ?? null;
@@ -216,7 +220,9 @@ export function getPublicMomentDetail(
       : null;
   const circle =
     moment.circleId
-      ? getAllPublicBookCircles(socialState, events).find((entry) => entry.id === moment.circleId) ?? null
+      ? getAllPublicBookCircles(socialState, events, persistentCircles).find(
+          (entry) => entry.id === moment.circleId,
+        ) ?? null
       : null;
   const activity = getMomentActivityScore(moment, pulse, events);
   const relatedMoments = allMoments
@@ -242,8 +248,15 @@ export function getPublicMomentCircleStarter(
   pulse: SocialCommunityPulseSummary,
   events: SocialCommunityActivityEventSummary[],
   socialState: SyncedSocialState | null = null,
+  persistentCircles: FeaturedBookCircle[] = [],
 ) {
-  const detail = getPublicMomentDetail(momentId, pulse, events, socialState);
+  const detail = getPublicMomentDetail(
+    momentId,
+    pulse,
+    events,
+    socialState,
+    persistentCircles,
+  );
 
   if (!detail) {
     return null;
@@ -273,6 +286,7 @@ export function getPublicMomentsFeed(
   pulse: SocialCommunityPulseSummary,
   events: SocialCommunityActivityEventSummary[],
   socialState: SyncedSocialState | null = null,
+  persistentCircles: FeaturedBookCircle[] = [],
 ) {
   return getAllPublicSocialMoments(socialState, events)
     .map((moment) => ({
@@ -283,7 +297,9 @@ export function getPublicMomentsFeed(
           : null,
       circle:
         moment.circleId
-          ? getAllPublicBookCircles(socialState, events).find((entry) => entry.id === moment.circleId) ?? null
+          ? getAllPublicBookCircles(socialState, events, persistentCircles).find(
+              (entry) => entry.id === moment.circleId,
+            ) ?? null
           : null,
       activity: getMomentActivityScore(moment, pulse, events),
     }))

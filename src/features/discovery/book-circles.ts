@@ -1,4 +1,4 @@
-import type { SocialCommunityActivityEventSummary } from "@/lib/backend/types";
+import type { PublicSocialCircleRecord, SocialCommunityActivityEventSummary } from "@/lib/backend/types";
 import type { SyncedSocialState } from "@/lib/types/social";
 
 export type FeaturedBookCircle = {
@@ -56,9 +56,27 @@ export const featuredBookCircles: FeaturedBookCircle[] = [
   },
 ];
 
+export function mapPublicSocialCircleRecord(
+  circle: PublicSocialCircleRecord,
+): FeaturedBookCircle {
+  return {
+    id: circle.id,
+    title: circle.title,
+    editionId: circle.editionId,
+    host: circle.host,
+    bookTitle: circle.bookTitle,
+    memberCount: circle.memberCount,
+    checkpoint: circle.checkpoint,
+    vibe: circle.vibe,
+    summary: circle.summary,
+    source: "created",
+  };
+}
+
 export function getAllPublicBookCircles(
   socialState: SyncedSocialState | null = null,
   events: SocialCommunityActivityEventSummary[] = [],
+  persistentCircles: FeaturedBookCircle[] = [],
 ): FeaturedBookCircle[] {
   const backendCreated = events
     .filter(
@@ -89,7 +107,12 @@ export function getAllPublicBookCircles(
   }));
 
   const byId = new Map<string, FeaturedBookCircle>();
-  for (const circle of [...backendCreated, ...created, ...featuredBookCircles]) {
+  for (const circle of [
+    ...persistentCircles,
+    ...backendCreated,
+    ...created,
+    ...featuredBookCircles,
+  ]) {
     byId.set(circle.id, circle);
   }
 

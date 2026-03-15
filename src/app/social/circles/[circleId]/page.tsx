@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import { SocialCircleDetailCard } from "@/components/library/social-circle-detail-card";
 import { AppShell } from "@/components/shared/app-shell";
+import { mapPublicSocialCircleRecord } from "@/features/discovery/book-circles";
 import {
   listAllSocialActivityEvents,
   getSocialCommunityPulse,
+  listPublicSocialCircles,
   getWorkspaceLibrarySnapshot,
 } from "@/lib/backend/sqlite";
 import { getPublicCircleDetail } from "@/features/social/public-social";
@@ -34,13 +36,18 @@ export default async function SocialCirclePage({
     : null;
   const pulse = getSocialCommunityPulse();
   const events = listAllSocialActivityEvents();
+  const persistentCircles = listPublicSocialCircles().map(mapPublicSocialCircleRecord);
   const detail = getPublicCircleDetail(
     circleId,
     pulse,
     events,
     backendLibrarySnapshot?.socialState ?? null,
+    persistentCircles,
   );
-  const allMoments = getAllPublicSocialMoments(backendLibrarySnapshot?.socialState ?? null, events);
+  const allMoments = getAllPublicSocialMoments(
+    backendLibrarySnapshot?.socialState ?? null,
+    events,
+  );
   const relatedMoments = allMoments
     .filter((moment) => moment.circleId === circleId)
     .slice(0, 2);

@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 import { SocialEditionDetailCard } from "@/components/library/social-edition-detail-card";
 import { AppShell } from "@/components/shared/app-shell";
+import { mapPublicSocialCircleRecord } from "@/features/discovery/book-circles";
 import {
   listAllSocialActivityEvents,
   getSocialCommunityPulse,
+  listPublicSocialCircles,
   getWorkspaceLibrarySnapshot,
 } from "@/lib/backend/sqlite";
 import { getPublicEditionDetail } from "@/features/social/public-social";
@@ -34,11 +36,13 @@ export default async function SocialEditionPage({
     : null;
   const pulse = getSocialCommunityPulse();
   const events = listAllSocialActivityEvents();
+  const persistentCircles = listPublicSocialCircles().map(mapPublicSocialCircleRecord);
   const detail = getPublicEditionDetail(
     editionId,
     pulse,
     events,
     backendLibrarySnapshot?.socialState ?? null,
+    persistentCircles,
   );
   const allMoments = getAllPublicSocialMoments(backendLibrarySnapshot?.socialState ?? null, events);
   const relatedMoments = allMoments
