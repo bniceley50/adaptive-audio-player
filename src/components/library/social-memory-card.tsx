@@ -23,11 +23,13 @@ function sortByRecent<T extends { savedAt?: string; joinedAt?: string; lastUsedA
 export function SocialMemoryCard() {
   const { savedEditions, circleMemberships } = useSocialState();
 
-  const latestSavedEdition = useMemo(() => sortByRecent(savedEditions)[0] ?? null, [savedEditions]);
-  const latestCircleMembership = useMemo(
-    () => sortByRecent(circleMemberships)[0] ?? null,
+  const recentSavedEditions = useMemo(() => sortByRecent(savedEditions).slice(0, 3), [savedEditions]);
+  const recentCircleMemberships = useMemo(
+    () => sortByRecent(circleMemberships).slice(0, 3),
     [circleMemberships],
   );
+  const latestSavedEdition = recentSavedEditions[0] ?? null;
+  const latestCircleMembership = recentCircleMemberships[0] ?? null;
 
   const editionMeta = latestSavedEdition
     ? featuredListeningEditions.find((edition) => edition.id === latestSavedEdition.editionId) ?? null
@@ -53,6 +55,14 @@ export function SocialMemoryCard() {
           The social layer is no longer just local browser memory. Saved editions and joined
           circles now come back with your workspace.
         </p>
+        <div className="mt-4 flex flex-wrap gap-3 text-xs font-medium text-stone-600">
+          <span className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5">
+            {savedEditions.length} saved edition{savedEditions.length === 1 ? "" : "s"}
+          </span>
+          <span className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5">
+            {circleMemberships.length} joined circle{circleMemberships.length === 1 ? "" : "s"}
+          </span>
+        </div>
       </div>
       <div className="grid gap-4 p-6 md:grid-cols-2">
         <article className="rounded-[1.4rem] border border-stone-200 bg-white/90 p-5 shadow-sm">
@@ -68,12 +78,41 @@ export function SocialMemoryCard() {
               : "Save a listening edition from the feed to keep it available across workspaces."}
           </p>
           {editionMeta ? (
-            <Link
-              className="mt-4 inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
-              href={`/import?edition=${editionMeta.id}`}
-            >
-              Use saved edition
-            </Link>
+            <>
+              <Link
+                className="mt-4 inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                href={`/import?edition=${editionMeta.id}`}
+              >
+                Use saved edition
+              </Link>
+              {recentSavedEditions.length > 1 ? (
+                <div className="mt-4 space-y-2 border-t border-stone-200 pt-4">
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                    Recent saves
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {recentSavedEditions.map((entry) => {
+                      const recentEdition = featuredListeningEditions.find(
+                        (edition) => edition.id === entry.editionId,
+                      );
+                      if (!recentEdition) {
+                        return null;
+                      }
+
+                      return (
+                        <Link
+                          key={entry.editionId}
+                          className="inline-flex rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-medium text-stone-700 transition hover:border-stone-300 hover:bg-stone-100"
+                          href={`/import?edition=${recentEdition.id}`}
+                        >
+                          {recentEdition.title}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+            </>
           ) : null}
         </article>
         <article className="rounded-[1.4rem] border border-stone-200 bg-white/90 p-5 shadow-sm">
@@ -89,12 +128,41 @@ export function SocialMemoryCard() {
               : "Join a circle to keep its checkpoint and activity available across devices."}
           </p>
           {circleMeta ? (
-            <Link
-              className="mt-4 inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
-              href={`/import?edition=${circleMeta.editionId}`}
-            >
-              Return to this circle
-            </Link>
+            <>
+              <Link
+                className="mt-4 inline-flex rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                href={`/import?edition=${circleMeta.editionId}`}
+              >
+                Return to this circle
+              </Link>
+              {recentCircleMemberships.length > 1 ? (
+                <div className="mt-4 space-y-2 border-t border-stone-200 pt-4">
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                    Recent circles
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {recentCircleMemberships.map((entry) => {
+                      const recentCircle = featuredBookCircles.find(
+                        (circle) => circle.id === entry.circleId,
+                      );
+                      if (!recentCircle) {
+                        return null;
+                      }
+
+                      return (
+                        <Link
+                          key={entry.circleId}
+                          className="inline-flex rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-medium text-stone-700 transition hover:border-stone-300 hover:bg-stone-100"
+                          href={`/import?edition=${recentCircle.editionId}`}
+                        >
+                          {recentCircle.title}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+            </>
           ) : null}
         </article>
       </div>
