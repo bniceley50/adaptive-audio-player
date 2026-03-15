@@ -418,9 +418,13 @@ export function ListeningEditionsFeedCard({
               </button>
               <Link
                 className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
-                href={edition.bookId ? `/books/${edition.bookId}` : `/import?edition=${edition.id}`}
+                href={
+                  edition.bookId
+                    ? `/books/${edition.bookId}`
+                    : `/social/editions/${edition.id}`
+                }
               >
-                {edition.bookId ? "Open book" : "Start import"}
+                {edition.bookId ? "Open book" : "View edition"}
               </Link>
             </div>
             {feedbackId === edition.id ? (

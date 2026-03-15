@@ -1,51 +1,9 @@
-import { featuredBookCircles } from "@/features/discovery/book-circles";
-import { featuredListeningEditions } from "@/features/discovery/listening-editions";
-import type {
-  SocialActivityEventKind,
-  SocialCommunityActivityEventSummary,
-} from "@/lib/backend/types";
-
-function formatEventLabel(kind: SocialActivityEventKind, quantity: number) {
-  if (kind === "edition-saved") {
-    return `${quantity} save${quantity === 1 ? "" : "s"}`;
-  }
-
-  if (kind === "edition-reused") {
-    return `${quantity} reuse${quantity === 1 ? "" : "s"}`;
-  }
-
-  if (kind === "circle-joined") {
-    return `${quantity} join${quantity === 1 ? "" : "s"}`;
-  }
-
-  if (kind === "circle-reopened") {
-    return `${quantity} reopen${quantity === 1 ? "" : "s"}`;
-  }
-
-  return `${quantity} share${quantity === 1 ? "" : "s"}`;
-}
-
-function describeEvent(event: SocialCommunityActivityEventSummary) {
-  if (event.kind === "edition-saved" || event.kind === "edition-reused") {
-    const edition =
-      featuredListeningEditions.find((entry) => entry.id === event.subjectId) ?? null;
-
-    return {
-      title: edition?.title ?? "Listening edition",
-      detail: edition
-        ? `${edition.narratorName} for ${edition.bookTitle}`
-        : "A saved listening style from the public feed.",
-    };
-  }
-
-  const circle = featuredBookCircles.find((entry) => entry.id === event.subjectId) ?? null;
-  return {
-    title: circle?.title ?? "Book circle",
-    detail: circle
-      ? `${circle.bookTitle} · ${circle.checkpoint}`
-      : "A shared public listening group from the social feed.",
-  };
-}
+import Link from "next/link";
+import {
+  describeSocialCommunityEvent,
+  formatSocialCommunityEventLabel,
+} from "@/features/social/public-social";
+import type { SocialCommunityActivityEventSummary } from "@/lib/backend/types";
 
 export function SocialCommunityActivityCard({
   events,
@@ -72,7 +30,7 @@ export function SocialCommunityActivityCard({
       </div>
       <div className="grid gap-4 p-6 md:grid-cols-2">
         {events.map((event) => {
-          const description = describeEvent(event);
+          const description = describeSocialCommunityEvent(event);
 
           return (
             <article
@@ -81,15 +39,15 @@ export function SocialCommunityActivityCard({
             >
               <div className="flex flex-wrap items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
                 <span className="rounded-full bg-sky-50 px-2.5 py-1 text-sky-700">
-                  {formatEventLabel(event.kind, event.quantity)}
+                  {formatSocialCommunityEventLabel(event.kind, event.quantity)}
                 </span>
                 <span className="rounded-full bg-stone-100 px-2.5 py-1">
                   {new Date(event.occurredAt).toLocaleString()}
                 </span>
               </div>
-              <p className="mt-3 text-sm font-semibold text-stone-950">
+              <Link className="mt-3 block text-sm font-semibold text-stone-950 hover:text-stone-700" href={description.href}>
                 {description.title}
-              </p>
+              </Link>
               <p className="mt-2 text-sm leading-6 text-stone-600">{description.detail}</p>
             </article>
           );
