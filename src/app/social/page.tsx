@@ -35,7 +35,9 @@ export default async function SocialPage() {
         syncedAt={backendLibrarySnapshot?.syncedAt ?? null}
       />
       <SocialActivitySummaryCard />
-      <SocialActivityTimelineCard />
+      <SocialActivityTimelineCard
+        initialSocialState={backendLibrarySnapshot?.socialState ?? null}
+      />
       <SocialMemoryCard />
       <SocialShelfCard />
       <ListeningEditionsFeedCard />
