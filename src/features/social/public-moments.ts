@@ -22,6 +22,7 @@ export type PublicSocialMoment = {
   quote: string;
   curatorNote: string;
   moodLabel: string;
+  ownerLabel?: string | null;
   source: "curated" | "promoted";
 };
 
@@ -38,6 +39,7 @@ export function mapPublicSocialMomentRecord(
     curatorNote:
       "Promoted from a saved quote in a real player session so it can live inside the public social layer.",
     moodLabel: "Shared moment",
+    ownerLabel: record.ownerDisplayName?.trim() || null,
     source: "promoted",
   };
 }
@@ -124,6 +126,7 @@ function buildPromotedPublicMoment(record: PromotedSocialMomentRecord): PublicSo
     curatorNote:
       "Promoted from a saved quote in your player so it can live inside the social layer.",
     moodLabel: "Your moment",
+    ownerLabel: null,
     source: "promoted",
   };
 }
@@ -153,6 +156,7 @@ function buildPromotedMomentFromEvent(
     curatorNote:
       "Promoted from a saved quote in a real player session so it can live inside the public social layer.",
     moodLabel: "Shared moment",
+    ownerLabel: null,
     source: "promoted",
   };
 }

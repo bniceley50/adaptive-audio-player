@@ -40,6 +40,8 @@ export function SocialMomentDetailCard({
   }[];
 }) {
   const [copied, setCopied] = useState(false);
+  const [reporting, setReporting] = useState(false);
+  const [reportFeedback, setReportFeedback] = useState<string | null>(null);
 
   async function copyMoment() {
     if (typeof navigator === "undefined" || !navigator.clipboard) {
@@ -49,6 +51,41 @@ export function SocialMomentDetailCard({
     await navigator.clipboard.writeText(`“${moment.quote}”\n\n${moment.bookTitle} · ${moment.chapterLabel}`);
     setCopied(true);
     window.setTimeout(() => setCopied(false), 1800);
+  }
+
+  async function reportMoment() {
+    setReporting(true);
+    setReportFeedback(null);
+
+    try {
+      const response = await fetch("/api/social/report", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          contentKind: "moment",
+          contentId: moment.id,
+          reason: "needs-review",
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string; reportCount?: number }
+        | null;
+
+      if (!response.ok) {
+        setReportFeedback(payload?.error ?? "Could not send this report.");
+      } else {
+        setReportFeedback(
+          `Reported for review${payload?.reportCount ? ` · ${payload.reportCount} report${payload.reportCount === 1 ? "" : "s"}` : ""}.`,
+        );
+      }
+    } catch {
+      setReportFeedback("Could not send this report.");
+    } finally {
+      setReporting(false);
+      window.setTimeout(() => setReportFeedback(null), 2400);
+    }
   }
 
   return (
@@ -72,6 +109,14 @@ export function SocialMomentDetailCard({
               “{moment.quote}”
             </p>
             <p className="mt-4 text-base leading-7 text-stone-600">{moment.curatorNote}</p>
+            {moment.ownerLabel ? (
+              <p className="mt-3 text-sm leading-6 text-stone-600">
+                Shared by {moment.ownerLabel}.
+              </p>
+            ) : null}
+            {reportFeedback ? (
+              <p className="mt-3 text-sm font-medium text-emerald-700">{reportFeedback}</p>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-3">
             {circle ? (
@@ -103,6 +148,16 @@ export function SocialMomentDetailCard({
               type="button"
             >
               {copied ? "Copied" : "Copy moment"}
+            </button>
+            <button
+              className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={reporting}
+              onClick={() => {
+                void reportMoment();
+              }}
+              type="button"
+            >
+              {reporting ? "Reporting..." : "Report moment"}
             </button>
             <Link
               className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"

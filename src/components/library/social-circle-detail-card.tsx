@@ -58,6 +58,7 @@ export function SocialCircleDetailCard({
 }) {
   const { circleMemberships } = useSocialState(initialSocialState);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [reporting, setReporting] = useState(false);
   const membership = useMemo(
     () => circleMemberships.find((entry) => entry.circleId === circle.id) ?? null,
     [circle.id, circleMemberships],
@@ -102,6 +103,41 @@ export function SocialCircleDetailCard({
       incrementCircleShareCount(circle.id);
       setFeedback("Copied this circle link to your clipboard.");
       window.setTimeout(() => setFeedback(null), 1800);
+    }
+  }
+
+  async function handleReportCircle() {
+    setReporting(true);
+    setFeedback(null);
+
+    try {
+      const response = await fetch("/api/social/report", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          contentKind: "circle",
+          contentId: circle.id,
+          reason: "needs-review",
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string; reportCount?: number }
+        | null;
+
+      if (!response.ok) {
+        setFeedback(payload?.error ?? "Could not send this report.");
+      } else {
+        setFeedback(
+          `Reported for review${payload?.reportCount ? ` · ${payload.reportCount} report${payload.reportCount === 1 ? "" : "s"}` : ""}.`,
+        );
+      }
+    } catch {
+      setFeedback("Could not send this report.");
+    } finally {
+      setReporting(false);
+      window.setTimeout(() => setFeedback(null), 2400);
     }
   }
 
@@ -188,6 +224,16 @@ export function SocialCircleDetailCard({
               type="button"
             >
               Share circle
+            </button>
+            <button
+              className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={reporting}
+              onClick={() => {
+                void handleReportCircle();
+              }}
+              type="button"
+            >
+              {reporting ? "Reporting..." : "Report circle"}
             </button>
             <Link
               className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"

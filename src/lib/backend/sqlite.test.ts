@@ -312,10 +312,18 @@ describe("backend sqlite library sync", () => {
       },
     });
 
+    const socialOwner = upsertUserByEmail({
+      email: "host@example.com",
+      displayName: "Harbor Host",
+    });
+    linkWorkspaceToUser("workspace-1", socialOwner.id);
+
     expect(listPublicSocialCircles()).toEqual([
       expect.objectContaining({
         id: "created-harbor-warning-circle",
         ownerWorkspaceId: "workspace-1",
+        ownerUserId: socialOwner.id,
+        ownerDisplayName: "Harbor Host",
         editionId: "cinematic-harbor",
         title: "Harbor Warning Circle",
       }),
@@ -324,6 +332,8 @@ describe("backend sqlite library sync", () => {
       expect.objectContaining({
         id: "promoted-harbor-warning",
         ownerWorkspaceId: "workspace-1",
+        ownerUserId: socialOwner.id,
+        ownerDisplayName: "Harbor Host",
         bookId: "book-1",
         bookTitle: "Storm Harbor Revised",
       }),

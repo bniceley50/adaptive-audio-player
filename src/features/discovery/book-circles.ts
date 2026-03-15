@@ -63,7 +63,7 @@ export function mapPublicSocialCircleRecord(
     id: circle.id,
     title: circle.title,
     editionId: circle.editionId,
-    host: circle.host,
+    host: circle.ownerDisplayName?.trim() || circle.host,
     bookTitle: circle.bookTitle,
     memberCount: circle.memberCount,
     checkpoint: circle.checkpoint,

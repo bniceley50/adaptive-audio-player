@@ -15,6 +15,7 @@ import type {
   LibrarySyncSnapshot,
   PublicSocialCircleRecord,
   PublicSocialMomentRecord,
+  PublicSocialReportContentKind,
   SocialActivityEventKind,
   SocialCommunityActivityEventSummary,
   SocialCommunityPulseSummary,
@@ -234,6 +235,17 @@ function ensureDbSchema(db: DatabaseSync) {
       promoted_at text not null,
       updated_at text not null,
       foreign key (owner_workspace_id) references workspaces(id) on delete cascade
+    );
+
+    create table if not exists public_social_reports (
+      id text primary key,
+      reporter_workspace_id text not null,
+      content_kind text not null,
+      content_id text not null,
+      reason text not null,
+      created_at text not null,
+      unique (reporter_workspace_id, content_kind, content_id),
+      foreign key (reporter_workspace_id) references workspaces(id) on delete cascade
     );
   `);
 
@@ -2258,26 +2270,32 @@ export function listPublicSocialCircles(): PublicSocialCircleRecord[] {
   const rows = db
     .prepare(
       `
-        select id,
-               owner_workspace_id,
-               edition_id,
-               title,
-               host,
-               book_title,
-               member_count,
-               checkpoint,
-               vibe,
-               summary,
-               source_moment_id,
-               created_at,
-               updated_at
+        select public_social_circles.id as id,
+               public_social_circles.owner_workspace_id,
+               users.id as owner_user_id,
+               users.display_name as owner_display_name,
+               public_social_circles.edition_id,
+               public_social_circles.title,
+               public_social_circles.host,
+               public_social_circles.book_title,
+               public_social_circles.member_count,
+               public_social_circles.checkpoint,
+               public_social_circles.vibe,
+               public_social_circles.summary,
+               public_social_circles.source_moment_id,
+               public_social_circles.created_at,
+               public_social_circles.updated_at
         from public_social_circles
-        order by updated_at desc, created_at desc
+        left join workspaces on workspaces.id = public_social_circles.owner_workspace_id
+        left join users on users.id = workspaces.user_id
+        order by public_social_circles.updated_at desc, public_social_circles.created_at desc
       `,
     )
     .all() as Array<{
     id: string;
     owner_workspace_id: string;
+    owner_user_id: string | null;
+    owner_display_name: string | null;
     edition_id: string;
     title: string;
     host: string;
@@ -2294,6 +2312,8 @@ export function listPublicSocialCircles(): PublicSocialCircleRecord[] {
   return rows.map((row) => ({
     id: row.id,
     ownerWorkspaceId: row.owner_workspace_id,
+    ownerUserId: row.owner_user_id,
+    ownerDisplayName: row.owner_display_name,
     editionId: row.edition_id,
     title: row.title,
     host: row.host,
@@ -2313,25 +2333,31 @@ export function listPublicSocialMoments(): PublicSocialMomentRecord[] {
   const rows = db
     .prepare(
       `
-        select id,
-               owner_workspace_id,
-               book_id,
-               edition_id,
-               circle_id,
-               book_title,
-               chapter_index,
-               chapter_label,
-               progress_seconds,
-               quote_text,
-               promoted_at,
-               updated_at
+        select public_social_moments.id as id,
+               public_social_moments.owner_workspace_id,
+               users.id as owner_user_id,
+               users.display_name as owner_display_name,
+               public_social_moments.book_id,
+               public_social_moments.edition_id,
+               public_social_moments.circle_id,
+               public_social_moments.book_title,
+               public_social_moments.chapter_index,
+               public_social_moments.chapter_label,
+               public_social_moments.progress_seconds,
+               public_social_moments.quote_text,
+               public_social_moments.promoted_at,
+               public_social_moments.updated_at
         from public_social_moments
-        order by updated_at desc, promoted_at desc
+        left join workspaces on workspaces.id = public_social_moments.owner_workspace_id
+        left join users on users.id = workspaces.user_id
+        order by public_social_moments.updated_at desc, public_social_moments.promoted_at desc
       `,
     )
     .all() as Array<{
     id: string;
     owner_workspace_id: string;
+    owner_user_id: string | null;
+    owner_display_name: string | null;
     book_id: string;
     edition_id: string | null;
     circle_id: string | null;
@@ -2347,6 +2373,8 @@ export function listPublicSocialMoments(): PublicSocialMomentRecord[] {
   return rows.map((row) => ({
     id: row.id,
     ownerWorkspaceId: row.owner_workspace_id,
+    ownerUserId: row.owner_user_id,
+    ownerDisplayName: row.owner_display_name,
     bookId: row.book_id,
     editionId: row.edition_id,
     circleId: row.circle_id,
@@ -2358,6 +2386,66 @@ export function listPublicSocialMoments(): PublicSocialMomentRecord[] {
     promotedAt: row.promoted_at,
     updatedAt: row.updated_at,
   }));
+}
+
+export function getPublicSocialReportCount(
+  contentKind: PublicSocialReportContentKind,
+  contentId: string,
+) {
+  const db = getDatabase();
+  const row = db
+    .prepare(
+      `
+        select count(*) as total
+        from public_social_reports
+        where content_kind = ?
+          and content_id = ?
+      `,
+    )
+    .get(contentKind, contentId) as { total: number } | undefined;
+
+  return Number(row?.total ?? 0);
+}
+
+export function reportPublicSocialContent(input: {
+  reporterWorkspaceId: string;
+  contentKind: PublicSocialReportContentKind;
+  contentId: string;
+  reason: string;
+}) {
+  const db = getDatabase();
+  const timestamp = new Date().toISOString();
+  const trimmedReason = input.reason.trim();
+
+  db.prepare(
+    `
+      insert into public_social_reports (
+        id,
+        reporter_workspace_id,
+        content_kind,
+        content_id,
+        reason,
+        created_at
+      )
+      values (?, ?, ?, ?, ?, ?)
+      on conflict(reporter_workspace_id, content_kind, content_id)
+      do update set
+        reason = excluded.reason,
+        created_at = excluded.created_at
+    `,
+  ).run(
+    `report-${randomUUID()}`,
+    input.reporterWorkspaceId,
+    input.contentKind,
+    input.contentId,
+    trimmedReason,
+    timestamp,
+  );
+
+  return {
+    reportCount: getPublicSocialReportCount(input.contentKind, input.contentId),
+    reportedAt: timestamp,
+  };
 }
 
 export function getSyncedBookDraftText(workspaceId: string, bookId: string): string | null {

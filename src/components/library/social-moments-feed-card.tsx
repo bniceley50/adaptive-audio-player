@@ -98,6 +98,7 @@ export function SocialMomentsFeedCard({
               </span>
             </div>
             <div className="mt-4 space-y-2 text-sm text-stone-600">
+              {moment.ownerLabel ? <p>Shared by {moment.ownerLabel}</p> : null}
               <p>{edition ? `${edition.title} · ${edition.narratorName}` : "No linked edition yet"}</p>
               <p>{circle ? `${circle.title}` : "No linked circle yet"}</p>
             </div>

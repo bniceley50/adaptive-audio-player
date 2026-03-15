@@ -232,6 +232,8 @@ export interface SocialCommunityActivityEventSummary {
 export interface PublicSocialCircleRecord {
   id: string;
   ownerWorkspaceId: string;
+  ownerUserId: string | null;
+  ownerDisplayName: string | null;
   editionId: string;
   title: string;
   host: string;
@@ -248,6 +250,8 @@ export interface PublicSocialCircleRecord {
 export interface PublicSocialMomentRecord {
   id: string;
   ownerWorkspaceId: string;
+  ownerUserId: string | null;
+  ownerDisplayName: string | null;
   bookId: string;
   editionId: string | null;
   circleId: string | null;
@@ -259,3 +263,5 @@ export interface PublicSocialMomentRecord {
   promotedAt: string;
   updatedAt: string;
 }
+
+export type PublicSocialReportContentKind = "circle" | "moment";
