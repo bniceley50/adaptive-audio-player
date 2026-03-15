@@ -15,6 +15,10 @@ import { getEditionDiscoveryReason } from "@/features/discovery/personalization"
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 import { extractImportText } from "@/lib/import/extract-text";
+import {
+  buildImportedAudioPlaceholderText,
+  getImportedAudioSegmentCount,
+} from "@/lib/import/imported-audio-chapters";
 import { saveImportedAudioFile } from "@/lib/import/local-audio-assets";
 import {
   createNextLocalLibraryBook,
@@ -67,38 +71,6 @@ function suggestTitleFromFilename(filename: string): string {
   }
 
   return collapsed.replace(/\b([a-z])/g, (match) => match.toUpperCase());
-}
-
-function formatAudioDuration(durationSeconds: number | null): string {
-  if (!durationSeconds || durationSeconds <= 0) {
-    return "Duration will appear after import.";
-  }
-
-  const totalSeconds = Math.round(durationSeconds);
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
-
-  return `${minutes}m ${seconds.toString().padStart(2, "0")}s`;
-}
-
-function buildImportedAudioPlaceholderText(input: {
-  title: string;
-  fileName: string;
-  format: "mp3" | "m4b";
-  durationSeconds: number | null;
-}) {
-  return [
-    "Chapter 1",
-    `${input.title} was imported from your private ${input.format.toUpperCase()} audiobook file.`,
-    `Source file: ${input.fileName}.`,
-    `Duration: ${formatAudioDuration(input.durationSeconds)}`,
-    "Open the player to start listening to the original audio immediately.",
-  ].join("\n");
 }
 
 export default function ImportPage() {
@@ -462,17 +434,19 @@ export default function ImportPage() {
     setTitle(nextTitle);
     setError(null);
 
-    const nextBook = createNextLocalLibraryBook(nextTitle, 1, {
-      sourceType: "audio",
-      importedAudioFormat: format,
-      importedAudioFileName: file.name,
-      genreLabel: "Imported audio",
-      coverLabel: "Private audio",
-      coverGlyph: "AU",
-    });
-
     try {
-      const metadata = await saveImportedAudioFile(nextBook.bookId, file);
+      const bookId = crypto.randomUUID();
+      const metadata = await saveImportedAudioFile(bookId, file);
+      const chapterCount = getImportedAudioSegmentCount(metadata.durationSeconds);
+      const nextBook = createNextLocalLibraryBook(nextTitle, chapterCount, {
+        bookId,
+        sourceType: "audio",
+        importedAudioFormat: format,
+        importedAudioFileName: file.name,
+        genreLabel: "Imported audio",
+        coverLabel: "Private audio",
+        coverGlyph: "AU",
+      });
       const nextBookWithAudio = {
         ...nextBook,
         importedAudioDurationSeconds: metadata.durationSeconds,

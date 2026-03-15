@@ -24,6 +24,7 @@ import {
   tastePresets,
 } from "@/features/player/page-support";
 import { restoreBookFromBackendSnapshot } from "@/lib/backend/client-restore";
+import { buildImportedAudioChapterSegments } from "@/lib/import/imported-audio-chapters";
 import { readImportedAudioAssetUrl } from "@/lib/import/local-audio-assets";
 import {
   describeListeningTasteSource,
@@ -118,6 +119,26 @@ export default function PlayerPage({ params }: PlayerPageProps) {
   const chapters = useMemo(() => parseChapters(draftText), [draftText]);
   const narratorName = narratorNames[narratorId] ?? narratorNames.marlowe;
   const isImportedAudioBook = hydratedBookMeta?.sourceType === "audio";
+  const importedAudioChapters = useMemo(
+    () =>
+      isImportedAudioBook
+        ? buildImportedAudioChapterSegments({
+            title: bookTitle,
+            fileName:
+              hydratedBookMeta?.importedAudioFileName ??
+              `${bookTitle}.${hydratedBookMeta?.importedAudioFormat ?? "mp3"}`,
+            format: hydratedBookMeta?.importedAudioFormat ?? "mp3",
+            durationSeconds: hydratedBookMeta?.importedAudioDurationSeconds ?? null,
+          })
+        : [],
+    [
+      bookTitle,
+      hydratedBookMeta?.importedAudioDurationSeconds,
+      hydratedBookMeta?.importedAudioFileName,
+      hydratedBookMeta?.importedAudioFormat,
+      isImportedAudioBook,
+    ],
+  );
   const displayNarratorName = isImportedAudioBook ? "Original audio" : narratorName;
   const displayMode = isImportedAudioBook
     ? hydratedBookMeta?.importedAudioFormat?.toUpperCase() ?? "Imported file"
@@ -206,7 +227,9 @@ export default function PlayerPage({ params }: PlayerPageProps) {
           : `/api/audio/generated/${bookId}?kind=${preferredAudioKind}`
         : null;
   const playerChapters: Chapter[] =
-    chapters.length > 0
+    isImportedAudioBook && importedAudioChapters.length > 0
+      ? importedAudioChapters
+      : chapters.length > 0
       ? chapters
       : [
           {
@@ -214,8 +237,11 @@ export default function PlayerPage({ params }: PlayerPageProps) {
             title: "No chapter loaded",
             text: "No imported draft found yet. Return to import and carry a chapter through setup first.",
             order: 0,
-        },
+          },
       ];
+  const importedAudioChapterStarts = isImportedAudioBook
+    ? importedAudioChapters.map((chapter) => chapter.startSeconds)
+    : null;
   const listeningState = buildPlayerListeningState({
     historicalArtifactId,
     renderState,
@@ -962,6 +988,8 @@ export default function PlayerPage({ params }: PlayerPageProps) {
         bookId={bookId}
         bookTitle={bookTitle}
         chapters={playerChapters}
+        chapterStartSeconds={importedAudioChapterStarts}
+        totalAudioDurationSeconds={hydratedBookMeta?.importedAudioDurationSeconds ?? null}
         initialJumpTarget={initialJumpTarget}
         initialPlaybackDefaults={hydratedPlaybackDefaults}
         initialPlaybackState={hydratedPlaybackState}

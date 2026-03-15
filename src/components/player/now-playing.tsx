@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useEffectEvent, useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import type { Chapter } from "@/lib/types/models";
 import {
   chapterDurationSeconds,
@@ -33,12 +33,14 @@ export function NowPlaying({
   bookId,
   bookTitle,
   chapters,
+  chapterStartSeconds,
   initialJumpTarget,
   initialPlaybackDefaults,
   initialPlaybackState,
   narratorName,
   mode,
   playbackIsReady,
+  totalAudioDurationSeconds,
 }: {
   audioKind:
     | "sample-generation"
@@ -49,12 +51,14 @@ export function NowPlaying({
   bookId: string;
   bookTitle: string;
   chapters: Chapter[];
+  chapterStartSeconds?: number[] | null;
   initialJumpTarget?: { chapterIndex: number; progressSeconds: number } | null;
   initialPlaybackDefaults?: PlaybackDefaults | null;
   initialPlaybackState?: PersistedPlaybackState | null;
   narratorName: string;
   mode: string;
   playbackIsReady: boolean;
+  totalAudioDurationSeconds?: number | null;
 }) {
   function sortQuotes(quotes: SavedQuote[]) {
     return [...quotes].sort((left, right) => {
@@ -69,6 +73,7 @@ export function NowPlaying({
     });
   }
 
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const persistedState = useMemo(() => {
     const localState = readPersistedPlaybackState(bookId);
     return resolvePreferredPlaybackState(localState, initialPlaybackState ?? null);
@@ -107,9 +112,28 @@ export function NowPlaying({
     "idle",
   );
   const [chapterQuery, setChapterQuery] = useState("");
+  const isImportedAudio = audioKind === "imported-audio";
+  const safeChapterStarts = useMemo(() => {
+    if (!chapterStartSeconds || chapterStartSeconds.length !== chapters.length) {
+      return chapters.map((_, index) => index * chapterDurationSeconds);
+    }
 
-  const totalSeconds = chapterDurationSeconds;
+    return chapterStartSeconds;
+  }, [chapterStartSeconds, chapters]);
+  const effectiveTotalAudioDuration = useMemo(() => {
+    if (isImportedAudio && totalAudioDurationSeconds && totalAudioDurationSeconds > 0) {
+      return totalAudioDurationSeconds;
+    }
+
+    return chapters.length * chapterDurationSeconds;
+  }, [chapters.length, isImportedAudio, totalAudioDurationSeconds]);
   const currentChapter = chapters[currentChapterIndex];
+  const currentChapterStart = safeChapterStarts[currentChapterIndex] ?? 0;
+  const nextChapterStart =
+    safeChapterStarts[currentChapterIndex + 1] ?? effectiveTotalAudioDuration;
+  const totalSeconds = isImportedAudio
+    ? Math.max(nextChapterStart - currentChapterStart, 1)
+    : chapterDurationSeconds;
   const filteredChapters = useMemo(() => {
     const normalizedQuery = chapterQuery.trim().toLowerCase();
     if (!normalizedQuery) {
@@ -128,10 +152,13 @@ export function NowPlaying({
   }, [chapterQuery, chapters]);
   const latestBookmark = bookmarks[0] ?? null;
   const latestQuote = savedQuotes[0] ?? null;
-  const progressPercent = getPlaybackPercent(progressSeconds);
+  const progressPercent = isImportedAudio
+    ? Math.min(Math.round((progressSeconds / totalSeconds) * 100), 100)
+    : getPlaybackPercent(progressSeconds);
   const remainingSeconds = Math.max(totalSeconds - progressSeconds, 0);
-  const remainingBookSeconds =
-    remainingSeconds + Math.max(chapters.length - currentChapterIndex - 1, 0) * totalSeconds;
+  const remainingBookSeconds = isImportedAudio
+    ? Math.max(effectiveTotalAudioDuration - (currentChapterStart + progressSeconds), 0)
+    : remainingSeconds + Math.max(chapters.length - currentChapterIndex - 1, 0) * totalSeconds;
   const speedLabel = `${speed.toFixed(2).replace(/\.00$/, "")}x`;
   const sleepTimerLabel = sleepTimerMinutes ? `${sleepTimerMinutes} min` : "Off";
   const isBookmarked = bookmarks.some(
@@ -170,6 +197,94 @@ export function NowPlaying({
   }, [chapters.length, initialJumpTarget]);
 
   useEffect(() => {
+    if (!isImportedAudio) {
+      return;
+    }
+
+    const audio = audioRef.current;
+    if (!audio || !Number.isFinite(audio.currentTime)) {
+      return;
+    }
+
+    const targetTime = Math.min(
+      currentChapterStart + progressSeconds,
+      effectiveTotalAudioDuration || currentChapterStart + progressSeconds,
+    );
+
+    if (Math.abs(audio.currentTime - targetTime) > 1.25) {
+      audio.currentTime = targetTime;
+    }
+  }, [
+    currentChapterStart,
+    effectiveTotalAudioDuration,
+    isImportedAudio,
+    progressSeconds,
+  ]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) {
+      return;
+    }
+
+    audio.playbackRate = speed;
+  }, [speed]);
+
+  useEffect(() => {
+    if (!isImportedAudio) {
+      return;
+    }
+
+    const audio = audioRef.current;
+    if (!audio) {
+      return;
+    }
+    const liveAudio = audio;
+
+    function syncTimeline() {
+      const absoluteProgress = liveAudio.currentTime;
+      const nextChapterIndex = Math.max(
+        0,
+        safeChapterStarts.findIndex((start, index) => {
+          const nextStart = safeChapterStarts[index + 1] ?? Number.POSITIVE_INFINITY;
+          return absoluteProgress >= start && absoluteProgress < nextStart;
+        }),
+      );
+      const resolvedChapterIndex =
+        nextChapterIndex === -1 ? Math.max(safeChapterStarts.length - 1, 0) : nextChapterIndex;
+      const chapterStart = safeChapterStarts[resolvedChapterIndex] ?? 0;
+
+      setCurrentChapterIndex((currentIndex) =>
+        currentIndex === resolvedChapterIndex ? currentIndex : resolvedChapterIndex,
+      );
+      setProgressSeconds(Math.max(Math.floor(absoluteProgress - chapterStart), 0));
+    }
+
+    function handlePlay() {
+      setIsPlaying(true);
+    }
+
+    function handlePause() {
+      setIsPlaying(false);
+      syncTimeline();
+    }
+
+    liveAudio.addEventListener("timeupdate", syncTimeline);
+    liveAudio.addEventListener("loadedmetadata", syncTimeline);
+    liveAudio.addEventListener("seeked", syncTimeline);
+    liveAudio.addEventListener("play", handlePlay);
+    liveAudio.addEventListener("pause", handlePause);
+
+    return () => {
+      liveAudio.removeEventListener("timeupdate", syncTimeline);
+      liveAudio.removeEventListener("loadedmetadata", syncTimeline);
+      liveAudio.removeEventListener("seeked", syncTimeline);
+      liveAudio.removeEventListener("play", handlePlay);
+      liveAudio.removeEventListener("pause", handlePause);
+    };
+  }, [isImportedAudio, safeChapterStarts]);
+
+  useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
@@ -206,14 +321,48 @@ export function NowPlaying({
       return;
     }
 
+    if (isImportedAudio) {
+      const audio = audioRef.current;
+      if (!audio) {
+        return;
+      }
+
+      if (audio.paused) {
+        void audio.play();
+      } else {
+        audio.pause();
+      }
+      return;
+    }
+
     setIsPlaying((value) => !value);
   }
 
   function skipBackward() {
+    if (isImportedAudio) {
+      const audio = audioRef.current;
+      if (!audio) {
+        return;
+      }
+
+      audio.currentTime = Math.max(audio.currentTime - 15, 0);
+      return;
+    }
+
     setProgressSeconds((value) => Math.max(value - 15, 0));
   }
 
   function skipForward() {
+    if (isImportedAudio) {
+      const audio = audioRef.current;
+      if (!audio) {
+        return;
+      }
+
+      audio.currentTime = Math.min(audio.currentTime + 30, effectiveTotalAudioDuration);
+      return;
+    }
+
     setProgressSeconds((value) => Math.min(value + 30, totalSeconds));
   }
 
@@ -237,6 +386,19 @@ export function NowPlaying({
   }
 
   function selectChapter(index: number) {
+    if (isImportedAudio) {
+      const audio = audioRef.current;
+      const start = safeChapterStarts[index] ?? 0;
+      if (audio) {
+        audio.currentTime = start;
+        audio.pause();
+      }
+      setCurrentChapterIndex(index);
+      setProgressSeconds(0);
+      setIsPlaying(false);
+      return;
+    }
+
     setCurrentChapterIndex(index);
     setProgressSeconds(0);
     setIsPlaying(false);
@@ -267,12 +429,28 @@ export function NowPlaying({
   }
 
   function jumpToBookmark(bookmark: PersistedBookmark) {
+    if (isImportedAudio) {
+      const audio = audioRef.current;
+      const start = safeChapterStarts[bookmark.chapterIndex] ?? 0;
+      if (audio) {
+        audio.currentTime = start + bookmark.progressSeconds;
+        audio.pause();
+      }
+    }
     setCurrentChapterIndex(bookmark.chapterIndex);
     setProgressSeconds(bookmark.progressSeconds);
     setIsPlaying(false);
   }
 
   function jumpToQuote(quote: SavedQuote) {
+    if (isImportedAudio) {
+      const audio = audioRef.current;
+      const start = safeChapterStarts[quote.chapterIndex] ?? 0;
+      if (audio) {
+        audio.currentTime = start + quote.progressSeconds;
+        audio.pause();
+      }
+    }
     setCurrentChapterIndex(quote.chapterIndex);
     setProgressSeconds(quote.progressSeconds);
     setIsPlaying(false);
@@ -550,8 +728,8 @@ export function NowPlaying({
         </div>
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           <div className="rounded-[1.5rem] border border-white/10 bg-white/8 p-5 shadow-sm">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-300">
-              Time left in chapter
+              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-300">
+              {isImportedAudio ? "Time left in section" : "Time left in chapter"}
             </p>
             <p className="mt-2 text-lg font-semibold text-white">{remainingLabel}</p>
           </div>
@@ -662,7 +840,7 @@ export function NowPlaying({
               ["B", "Toggle bookmark"],
               ["S", "Cycle sleep timer"],
               ["V", "Cycle speed"],
-              ["N / P", "Next or previous chapter"],
+              ["N / P", isImportedAudio ? "Next or previous section" : "Next or previous chapter"],
             ].map(([shortcut, label]) => (
               <span
                 key={shortcut}
@@ -821,7 +999,7 @@ export function NowPlaying({
           </div>
           <div className="rounded-[1.4rem] border border-stone-200 bg-stone-50/80 px-4 py-3 shadow-sm">
             <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
-              Chapter status
+              {isImportedAudio ? "Section status" : "Chapter status"}
             </p>
             <p className="mt-2 text-lg font-semibold text-stone-950">
               {currentChapterIndex + 1} / {chapters.length}
@@ -845,6 +1023,7 @@ export function NowPlaying({
                 : "This is the backend-rendered narration for the current sample setup."}
             </p>
             <audio
+              ref={audioRef}
               className="mt-4 w-full"
               controls
               preload="metadata"
@@ -856,19 +1035,21 @@ export function NowPlaying({
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
-                Quick chapter jump
+                {isImportedAudio ? "Quick section jump" : "Quick chapter jump"}
               </p>
               <p className="mt-2 text-sm text-stone-600">
-                Search by title or chapter number to move through longer books faster.
+                {isImportedAudio
+                  ? "Jump between listening sections built from the audiobook runtime."
+                  : "Search by title or chapter number to move through longer books faster."}
               </p>
             </div>
             <div className="min-w-[16rem] flex-1 max-w-sm">
               <label className="block text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
-                Find chapter
+                {isImportedAudio ? "Find section" : "Find chapter"}
               </label>
               <input
                 className="mt-2 w-full rounded-full border border-stone-300 bg-white px-4 py-2.5 text-sm text-stone-900 shadow-sm outline-none transition focus:border-stone-500"
-                placeholder="Search chapter title"
+                placeholder={isImportedAudio ? "Search section title" : "Search chapter title"}
                 type="text"
                 value={chapterQuery}
                 onChange={(event) => setChapterQuery(event.target.value)}
@@ -910,7 +1091,9 @@ export function NowPlaying({
               Save this moment
             </p>
             <p className="mt-1 text-sm text-stone-600">
-              Keep memorable lines from the current chapter for quick recall later.
+              {isImportedAudio
+                ? "Save memorable moments from this listening section for quick recall later."
+                : "Keep memorable lines from the current chapter for quick recall later."}
             </p>
           </div>
           <button

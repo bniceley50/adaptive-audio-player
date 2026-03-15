@@ -244,15 +244,13 @@ export function replaceRemovedLocalLibraryBooks(
 export function createNextLocalLibraryBook(
   title: string,
   chapterCount: number,
-  options: Partial<
-    Omit<LocalLibraryBook, "bookId" | "title" | "chapterCount" | "updatedAt">
-  > = {},
+  options: Partial<Omit<LocalLibraryBook, "title" | "chapterCount" | "updatedAt">> = {},
 ): LocalLibraryBook {
   const existingBooks = readLocalLibraryBooks();
   const nextIndex = existingBooks.length + 1;
 
   return {
-    bookId: `demo-book-${nextIndex}`,
+    bookId: options.bookId ?? `demo-book-${nextIndex}`,
     title: title || `Imported draft ${nextIndex}`,
     chapterCount,
     updatedAt: new Date().toISOString(),
