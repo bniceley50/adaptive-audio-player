@@ -2,6 +2,7 @@ import type { SocialCommunityPulseSummary } from "@/lib/backend/types";
 import { describe, expect, it } from "vitest";
 import {
   describeSocialCommunityEvent,
+  describeSocialCommunityTimelineEvent,
   getPublicCircleDetail,
   getPublicEditionDetail,
 } from "@/features/social/public-social";
@@ -69,6 +70,13 @@ describe("public social helpers", () => {
     expect(describeSocialCommunityEvent(events[0])).toMatchObject({
       title: "Cinematic Harbor Edition",
       href: "/social/editions/cinematic-harbor",
+    });
+  });
+
+  it("builds narrative timeline copy for backend activity", () => {
+    expect(describeSocialCommunityTimelineEvent(events[0])).toMatchObject({
+      eyebrow: "Saved to shelf",
+      title: "1 listener saved this edition",
     });
   });
 });

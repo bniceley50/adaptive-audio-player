@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { SocialCommunityDetailTimeline } from "@/components/library/social-community-detail-timeline";
 import {
   incrementCircleShareCount,
   joinCircleMembership,
@@ -9,7 +10,6 @@ import {
   touchCircleMembership,
 } from "@/features/social/local-social";
 import { useSocialState } from "@/features/social/use-social-state";
-import { formatSocialCommunityEventLabel } from "@/features/social/public-social";
 import type { FeaturedBookCircle } from "@/features/discovery/book-circles";
 import type { FeaturedListeningEdition } from "@/features/discovery/listening-editions";
 import type {
@@ -220,34 +220,10 @@ export function SocialCircleDetailCard({
             ) : null}
           </div>
         </article>
-        <article className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-            Recent backend activity
-          </p>
-          <div className="mt-4 space-y-3">
-            {recentEvents.length > 0 ? (
-              recentEvents.map((event) => (
-                <div
-                  key={event.id}
-                  className="rounded-[1.2rem] border border-stone-200 bg-stone-50/80 p-4"
-                >
-                  <div className="flex flex-wrap items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
-                    <span className="rounded-full bg-sky-50 px-2.5 py-1 text-sky-700">
-                      {formatSocialCommunityEventLabel(event.kind, event.quantity)}
-                    </span>
-                    <span className="rounded-full bg-white px-2.5 py-1">
-                      {new Date(event.occurredAt).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="rounded-[1.2rem] border border-stone-200 bg-stone-50/80 p-4 text-sm leading-6 text-stone-600">
-                No backend activity yet for this circle.
-              </div>
-            )}
-          </div>
-        </article>
+        <SocialCommunityDetailTimeline
+          events={recentEvents}
+          emptyCopy="No backend activity yet for this circle."
+        />
       </section>
       <section className="grid gap-6 xl:grid-cols-2">
         <article className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm">

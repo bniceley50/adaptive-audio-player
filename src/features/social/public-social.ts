@@ -34,6 +34,29 @@ export function formatSocialCommunityEventLabel(
   return `${quantity} share${quantity === 1 ? "" : "s"}`;
 }
 
+export function formatSocialCommunityRelativeTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "Recently";
+  }
+
+  const diffMs = Date.now() - date.getTime();
+  const diffHours = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60)));
+  if (diffHours < 1) {
+    return "Just now";
+  }
+  if (diffHours < 24) {
+    return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) {
+    return `${diffDays} day${diffDays === 1 ? "" : "s"} ago`;
+  }
+
+  return date.toLocaleDateString();
+}
+
 export function describeSocialCommunityEvent(event: SocialCommunityActivityEventSummary) {
   if (event.kind === "edition-saved" || event.kind === "edition-reused") {
     const edition =
@@ -55,6 +78,51 @@ export function describeSocialCommunityEvent(event: SocialCommunityActivityEvent
       ? `${circle.bookTitle} · ${circle.checkpoint}`
       : "A shared public listening group from the social feed.",
     href: circle ? `/social/circles/${circle.id}` : "/social",
+  };
+}
+
+export function describeSocialCommunityTimelineEvent(
+  event: SocialCommunityActivityEventSummary,
+) {
+  const subject = describeSocialCommunityEvent(event);
+  const quantityLabel = `${event.quantity} listener${event.quantity === 1 ? "" : "s"}`;
+
+  if (event.kind === "edition-saved") {
+    return {
+      eyebrow: "Saved to shelf",
+      title: `${quantityLabel} saved this edition`,
+      detail: `${subject.title} is getting added to synced shelves for ${subject.detail.toLowerCase()}.`,
+    };
+  }
+
+  if (event.kind === "edition-reused") {
+    return {
+      eyebrow: "Reused in flow",
+      title: `${quantityLabel} reused this edition`,
+      detail: `${subject.title} is being brought back into active listening flows for ${subject.detail.toLowerCase()}.`,
+    };
+  }
+
+  if (event.kind === "circle-joined") {
+    return {
+      eyebrow: "New joins",
+      title: `${quantityLabel} joined this circle`,
+      detail: `${subject.title} is pulling people into ${subject.detail.toLowerCase()}.`,
+    };
+  }
+
+  if (event.kind === "circle-reopened") {
+    return {
+      eyebrow: "Back in rotation",
+      title: `${quantityLabel} reopened this circle`,
+      detail: `${subject.title} is getting reopened as listeners come back to ${subject.detail.toLowerCase()}.`,
+    };
+  }
+
+  return {
+    eyebrow: "Shared out",
+    title: `${quantityLabel} shared this circle`,
+    detail: `${subject.title} is being passed around from ${subject.detail.toLowerCase()}.`,
   };
 }
 
