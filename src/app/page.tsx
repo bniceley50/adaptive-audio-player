@@ -20,6 +20,7 @@ import { RecentQuotesCard } from "@/components/library/recent-quotes-card";
 import { RecentPersonalizationCard } from "@/components/library/recent-personalization-card";
 import { RecentTastesCard } from "@/components/library/recent-tastes-card";
 import { SocialMemoryCard } from "@/components/library/social-memory-card";
+import { SocialShelfCard } from "@/components/library/social-shelf-card";
 import { WorkspaceAccountCard } from "@/components/library/workspace-account-card";
 import { AppShell } from "@/components/shared/app-shell";
 import { StudioDisclosure } from "@/components/shared/studio-disclosure";
@@ -271,6 +272,7 @@ export default async function HomePage() {
         <ForYouCard spotlight={authorSpotlight} />
         <RecentPersonalizationCard />
         <SocialMemoryCard />
+        <SocialShelfCard />
         <ManageDiscoveryPreferencesCard />
         <ListeningStatsCard initialStats={listeningStats} />
         <FavoritesHubCard />
