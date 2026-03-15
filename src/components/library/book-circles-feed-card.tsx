@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
 import {
@@ -41,6 +42,7 @@ export function BookCirclesFeedCard({
   initialSocialState?: SyncedSocialState | null;
   communityPulse?: SocialCommunityPulseSummary | null;
 }) {
+  const searchParams = useSearchParams();
   const preferences = useDiscoveryPreferences();
   const { circleMemberships } = useSocialState(initialSocialState);
   const { joinedCircleTimestamps, personalizationPaused } = preferences;
@@ -56,6 +58,7 @@ export function BookCirclesFeedCard({
   );
   const { joinedCircles, pinnedDiscoverySignal } = effectivePreferences;
   const [sharedCircleId, setSharedCircleId] = useState<string | null>(null);
+  const highlightedCircleId = searchParams.get("circle");
 
   const circles = useMemo(
     () =>
@@ -66,6 +69,11 @@ export function BookCirclesFeedCard({
             featuredListeningEditions.find((edition) => edition.id === circle.editionId) ?? null,
         }))
         .sort((left, right) => {
+          const leftHighlighted = highlightedCircleId === left.id ? 1 : 0;
+          const rightHighlighted = highlightedCircleId === right.id ? 1 : 0;
+          if (leftHighlighted !== rightHighlighted) {
+            return rightHighlighted - leftHighlighted;
+          }
           const leftPinned =
             pinnedDiscoverySignal?.kind === "circle" && pinnedDiscoverySignal.id === left.id ? 1 : 0;
           const rightPinned =
@@ -107,7 +115,7 @@ export function BookCirclesFeedCard({
             (rightCommunity?.shares ?? 0);
           return rightCommunityScore - leftCommunityScore;
         }),
-    [circleMemberships, communityPulse, joinedCircles, pinnedDiscoverySignal],
+    [circleMemberships, communityPulse, highlightedCircleId, joinedCircles, pinnedDiscoverySignal],
   );
 
   async function shareCircle(circleId: string, title: string, bookTitle: string) {
@@ -156,6 +164,12 @@ export function BookCirclesFeedCard({
               Start from a public circle with a recommended edition, a clear weekly
               checkpoint, and a title people are already moving through together.
             </p>
+            {highlightedCircleId ? (
+              <p className="mt-2 text-sm leading-6 text-amber-700">
+                Focused from a trending circle pick so you can land on the exact group that
+                brought you here.
+              </p>
+            ) : null}
             {personalizationPaused ? (
               <p className="mt-2 text-sm leading-6 text-sky-700">
                 Personalization is paused, so public circles are shown in neutral order.
@@ -176,15 +190,32 @@ export function BookCirclesFeedCard({
           const membership = circleMemberships.find((entry) => entry.circleId === circle.id);
           const communitySummary =
             communityPulse?.circleCounts.find((entry) => entry.circleId === circle.id) ?? null;
+          const highlighted = highlightedCircleId === circle.id;
           const pinned =
             pinnedDiscoverySignal?.kind === "circle" && pinnedDiscoverySignal.id === circle.id;
           const freshnessBadge = getRelativeDiscoveryBadge(joinedCircleTimestamps[circle.id]);
 
           return (
             <article
-            key={circle.id}
-            className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm"
-          >
+              id={`circle-${circle.id}`}
+              key={circle.id}
+              className={`rounded-[1.5rem] p-5 shadow-sm ${
+                highlighted
+                  ? "border-2 border-amber-300 bg-[linear-gradient(180deg,#fff7ed_0%,#ffffff_100%)] shadow-[0_24px_60px_-40px_rgba(180,83,9,0.35)]"
+                  : "border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)]"
+              }`}
+            >
+              {highlighted ? (
+                <div className="mb-4 rounded-[1.1rem] border border-amber-200 bg-amber-50/80 px-4 py-3">
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-amber-700">
+                    Focused from trending now
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-amber-900">
+                    This circle was selected from the home trending strip so you can jump
+                    straight into the most relevant public listening group.
+                  </p>
+                </div>
+              ) : null}
               {communitySummary ? (
                 <div className="mb-4 rounded-[1.1rem] border border-sky-200 bg-sky-50/80 px-4 py-3">
                   <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
@@ -242,6 +273,11 @@ export function BookCirclesFeedCard({
                 {communitySummary ? (
                   <span className="rounded-full bg-sky-50 px-2.5 py-1 text-sky-700">
                     {communitySummary.joins} joins
+                  </span>
+                ) : null}
+                {highlighted ? (
+                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
+                    Highlighted
                   </span>
                 ) : null}
                 {pinned ? (

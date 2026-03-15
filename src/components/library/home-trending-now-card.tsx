@@ -91,9 +91,9 @@ export function HomeTrendingNowCard({
                 <p className="mt-2 text-sm leading-6 text-stone-600">{circle.checkpoint}</p>
                 <Link
                   className="mt-4 inline-flex rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
-                  href="/social"
+                  href={`/social?circle=${circle.id}#circle-${circle.id}`}
                 >
-                  Open circles
+                  Open this circle
                 </Link>
               </div>
             ))}
