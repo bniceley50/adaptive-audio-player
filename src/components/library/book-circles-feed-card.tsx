@@ -87,9 +87,27 @@ export function BookCirclesFeedCard({
           }
           const leftJoined = joinedCircles.includes(left.id) ? 1 : 0;
           const rightJoined = joinedCircles.includes(right.id) ? 1 : 0;
-          return rightJoined - leftJoined;
+          if (leftJoined !== rightJoined) {
+            return rightJoined - leftJoined;
+          }
+
+          const leftCommunity = communityPulse?.circleCounts.find(
+            (entry) => entry.circleId === left.id,
+          );
+          const rightCommunity = communityPulse?.circleCounts.find(
+            (entry) => entry.circleId === right.id,
+          );
+          const leftCommunityScore =
+            (leftCommunity?.joins ?? 0) * 10 +
+            (leftCommunity?.reopens ?? 0) * 3 +
+            (leftCommunity?.shares ?? 0);
+          const rightCommunityScore =
+            (rightCommunity?.joins ?? 0) * 10 +
+            (rightCommunity?.reopens ?? 0) * 3 +
+            (rightCommunity?.shares ?? 0);
+          return rightCommunityScore - leftCommunityScore;
         }),
-    [circleMemberships, joinedCircles, pinnedDiscoverySignal],
+    [circleMemberships, communityPulse, joinedCircles, pinnedDiscoverySignal],
   );
 
   async function shareCircle(circleId: string, title: string, bookTitle: string) {

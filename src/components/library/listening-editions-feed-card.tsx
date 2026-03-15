@@ -148,10 +148,23 @@ export function ListeningEditionsFeedCard({
           return rightJoined - leftJoined;
         }
 
+        const leftCommunity = communityPulse?.editionCounts.find(
+          (entry) => entry.editionId === left.id,
+        );
+        const rightCommunity = communityPulse?.editionCounts.find(
+          (entry) => entry.editionId === right.id,
+        );
+        const leftCommunityScore = (leftCommunity?.saves ?? 0) * 10 + (leftCommunity?.reuses ?? 0);
+        const rightCommunityScore =
+          (rightCommunity?.saves ?? 0) * 10 + (rightCommunity?.reuses ?? 0);
+        if (leftCommunityScore !== rightCommunityScore) {
+          return rightCommunityScore - leftCommunityScore;
+        }
+
         return 0;
       })
       .slice(0, 4);
-  }, [joinedCircles, libraryEditions, savedEditions]);
+  }, [communityPulse, joinedCircles, libraryEditions, savedEditions]);
 
   return (
     <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-white shadow-[0_22px_60px_-42px_rgba(28,25,23,0.4)]">
