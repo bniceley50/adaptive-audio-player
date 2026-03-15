@@ -167,3 +167,25 @@ export interface SyncedBookDisplayMeta {
   coverGlyph: string | null;
   genreLabel: string | null;
 }
+
+export interface SocialCommunityEditionSummary {
+  editionId: string;
+  saves: number;
+  reuses: number;
+}
+
+export interface SocialCommunityCircleSummary {
+  circleId: string;
+  joins: number;
+  reopens: number;
+  shares: number;
+}
+
+export interface SocialCommunityPulseSummary {
+  totalSocialWorkspaces: number;
+  totalSavedEditions: number;
+  totalJoinedCircles: number;
+  editionCounts: SocialCommunityEditionSummary[];
+  circleCounts: SocialCommunityCircleSummary[];
+  lastSyncedAt: string | null;
+}

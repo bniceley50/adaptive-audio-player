@@ -2,11 +2,12 @@ import { BookCirclesFeedCard } from "@/components/library/book-circles-feed-card
 import { ListeningEditionsFeedCard } from "@/components/library/listening-editions-feed-card";
 import { SocialActivitySummaryCard } from "@/components/library/social-activity-summary-card";
 import { SocialBackendSnapshotCard } from "@/components/library/social-backend-snapshot-card";
+import { SocialCommunityPulseCard } from "@/components/library/social-community-pulse-card";
 import { SocialActivityTimelineCard } from "@/components/library/social-activity-timeline-card";
 import { SocialMemoryCard } from "@/components/library/social-memory-card";
 import { SocialShelfCard } from "@/components/library/social-shelf-card";
 import { AppShell } from "@/components/shared/app-shell";
-import { getWorkspaceLibrarySnapshot } from "@/lib/backend/sqlite";
+import { getSocialCommunityPulse, getWorkspaceLibrarySnapshot } from "@/lib/backend/sqlite";
 import { readWorkspaceIdFromRequest } from "@/lib/backend/workspace-session";
 
 export default async function SocialPage() {
@@ -14,6 +15,7 @@ export default async function SocialPage() {
   const backendLibrarySnapshot = workspaceId
     ? getWorkspaceLibrarySnapshot(workspaceId)
     : null;
+  const communityPulse = getSocialCommunityPulse();
 
   return (
     <AppShell eyebrow="Social" title="Saved editions and public circles">
@@ -34,6 +36,7 @@ export default async function SocialPage() {
         socialState={backendLibrarySnapshot?.socialState ?? null}
         syncedAt={backendLibrarySnapshot?.syncedAt ?? null}
       />
+      <SocialCommunityPulseCard pulse={communityPulse} />
       <SocialActivitySummaryCard />
       <SocialActivityTimelineCard
         initialSocialState={backendLibrarySnapshot?.socialState ?? null}

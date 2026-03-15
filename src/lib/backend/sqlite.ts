@@ -12,6 +12,7 @@ import type {
   GenerationOutputSummary,
   GenerationJobKind,
   LibrarySyncSnapshot,
+  SocialCommunityPulseSummary,
   SyncedBookDisplayMeta,
   SyncJobSummary,
   UserAccountSessionSummary,
@@ -1651,6 +1652,115 @@ export function getWorkspaceLibrarySnapshot(workspaceId: string) {
       : null,
     generationOutputs: listGenerationOutputsForWorkspace(workspaceId),
     syncedAt: workspaceRow.last_synced_at ?? new Date(0).toISOString(),
+  };
+}
+
+export function getSocialCommunityPulse(): SocialCommunityPulseSummary {
+  const db = getDatabase();
+  const rows = db
+    .prepare(
+      `
+        select workspace_defaults.social_state_json, workspaces.last_synced_at
+        from workspace_defaults
+        inner join workspaces on workspaces.id = workspace_defaults.workspace_id
+        where workspace_defaults.social_state_json is not null
+      `,
+    )
+    .all() as Array<{
+    social_state_json: string | null;
+    last_synced_at: string | null;
+  }>;
+
+  const editionCounts = new Map<string, { editionId: string; saves: number; reuses: number }>();
+  const circleCounts = new Map<
+    string,
+    { circleId: string; joins: number; reopens: number; shares: number }
+  >();
+  let totalSocialWorkspaces = 0;
+  let totalSavedEditions = 0;
+  let totalJoinedCircles = 0;
+  let lastSyncedAt: string | null = null;
+
+  for (const row of rows) {
+    if (!row.social_state_json) {
+      continue;
+    }
+
+    let parsed: LibrarySyncSnapshot["socialState"] = null;
+    try {
+      parsed = JSON.parse(row.social_state_json) as LibrarySyncSnapshot["socialState"];
+    } catch {
+      parsed = null;
+    }
+
+    if (
+      !parsed ||
+      ((parsed.savedEditions?.length ?? 0) === 0 &&
+        (parsed.circleMemberships?.length ?? 0) === 0)
+    ) {
+      continue;
+    }
+
+    totalSocialWorkspaces += 1;
+    totalSavedEditions += parsed.savedEditions.length;
+    totalJoinedCircles += parsed.circleMemberships.length;
+
+    if (
+      row.last_synced_at &&
+      (!lastSyncedAt || new Date(row.last_synced_at).getTime() > new Date(lastSyncedAt).getTime())
+    ) {
+      lastSyncedAt = row.last_synced_at;
+    }
+
+    for (const entry of parsed.savedEditions) {
+      const current = editionCounts.get(entry.editionId) ?? {
+        editionId: entry.editionId,
+        saves: 0,
+        reuses: 0,
+      };
+      current.saves += 1;
+      if (entry.lastUsedAt) {
+        current.reuses += 1;
+      }
+      editionCounts.set(entry.editionId, current);
+    }
+
+    for (const entry of parsed.circleMemberships) {
+      const current = circleCounts.get(entry.circleId) ?? {
+        circleId: entry.circleId,
+        joins: 0,
+        reopens: 0,
+        shares: 0,
+      };
+      current.joins += 1;
+      if (entry.lastOpenedAt) {
+        current.reopens += 1;
+      }
+      current.shares += entry.shareCount;
+      circleCounts.set(entry.circleId, current);
+    }
+  }
+
+  return {
+    totalSocialWorkspaces,
+    totalSavedEditions,
+    totalJoinedCircles,
+    editionCounts: [...editionCounts.values()].sort((left, right) => {
+      if (right.saves !== left.saves) {
+        return right.saves - left.saves;
+      }
+      return right.reuses - left.reuses;
+    }),
+    circleCounts: [...circleCounts.values()].sort((left, right) => {
+      if (right.joins !== left.joins) {
+        return right.joins - left.joins;
+      }
+      if (right.reopens !== left.reopens) {
+        return right.reopens - left.reopens;
+      }
+      return right.shares - left.shares;
+    }),
+    lastSyncedAt,
   };
 }
 
