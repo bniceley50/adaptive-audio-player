@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { SocialCommunityDetailTimeline } from "@/components/library/social-community-detail-timeline";
+import { publicSocialMoments } from "@/features/social/public-moments";
 import {
   incrementCircleShareCount,
   joinCircleMembership,
@@ -48,6 +49,10 @@ export function SocialCircleDetailCard({
   const membership = useMemo(
     () => circleMemberships.find((entry) => entry.circleId === circle.id) ?? null,
     [circle.id, circleMemberships],
+  );
+  const relatedMoments = useMemo(
+    () => publicSocialMoments.filter((moment) => moment.circleId === circle.id).slice(0, 2),
+    [circle.id],
   );
 
   function handleToggleMembership() {
@@ -286,6 +291,30 @@ export function SocialCircleDetailCard({
                   href={`/social/circles/${entry.circle.id}`}
                 >
                   View circle
+                </Link>
+              </div>
+            ))}
+          </div>
+        </article>
+        <article className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
+            Circle moments
+          </p>
+          <div className="mt-4 space-y-3">
+            {relatedMoments.map((moment) => (
+              <div
+                key={moment.id}
+                className="rounded-[1.2rem] border border-stone-200 bg-stone-50/80 p-4"
+              >
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                  {moment.chapterLabel}
+                </p>
+                <p className="mt-3 text-sm italic leading-6 text-stone-700">“{moment.quote}”</p>
+                <Link
+                  className="mt-3 inline-flex rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                  href={`/social/moments/${moment.id}`}
+                >
+                  View moment
                 </Link>
               </div>
             ))}

@@ -4,6 +4,7 @@ import { SocialActivitySummaryCard } from "@/components/library/social-activity-
 import { SocialBackendSnapshotCard } from "@/components/library/social-backend-snapshot-card";
 import { SocialCommunityActivityCard } from "@/components/library/social-community-activity-card";
 import { SocialCommunityPulseCard } from "@/components/library/social-community-pulse-card";
+import { SocialMomentsFeedCard } from "@/components/library/social-moments-feed-card";
 import { SocialActivityTimelineCard } from "@/components/library/social-activity-timeline-card";
 import { SocialMemoryCard } from "@/components/library/social-memory-card";
 import { SocialShelfCard } from "@/components/library/social-shelf-card";
@@ -92,6 +93,7 @@ export default async function SocialPage({
       />
       <SocialCommunityPulseCard pulse={communityPulse} />
       <SocialCommunityActivityCard events={communityEvents} />
+      <SocialMomentsFeedCard pulse={communityPulse} events={communityEvents} />
       <SocialActivitySummaryCard />
       <SocialActivityTimelineCard
         initialSocialState={backendLibrarySnapshot?.socialState ?? null}
