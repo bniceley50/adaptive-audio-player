@@ -42,15 +42,27 @@ describe("public social helpers", () => {
       edition: { id: "cinematic-harbor" },
       summary: { saves: 3, reuses: 2 },
       relatedCircles: [{ id: "storm-harbor-night-watch" }],
+      relatedCircleSummary: {
+        totalJoins: 2,
+        totalShares: 1,
+        strongestCircle: {
+          circle: { id: "storm-harbor-night-watch" },
+          joins: 2,
+          shares: 1,
+        },
+      },
     });
+    expect(getPublicEditionDetail("cinematic-harbor", pulse, events)?.otherActiveEditions).toHaveLength(2);
   });
 
   it("builds circle detail data", () => {
     expect(getPublicCircleDetail("storm-harbor-night-watch", pulse, events)).toMatchObject({
       circle: { id: "storm-harbor-night-watch" },
       edition: { id: "cinematic-harbor" },
+      editionSummary: { saves: 3, reuses: 2 },
       summary: { joins: 2, shares: 1 },
     });
+    expect(getPublicCircleDetail("storm-harbor-night-watch", pulse, events)?.otherActiveCircles).toHaveLength(2);
   });
 
   it("describes community events with durable links", () => {

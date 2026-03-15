@@ -35,6 +35,8 @@ export default async function SocialEditionPage({
         summary={detail.summary}
         heatBadge={detail.heatBadge}
         recentEvents={detail.recentEvents}
+        relatedCircleSummary={detail.relatedCircleSummary}
+        otherActiveEditions={detail.otherActiveEditions}
         initialSocialState={backendLibrarySnapshot?.socialState ?? null}
       />
     </AppShell>

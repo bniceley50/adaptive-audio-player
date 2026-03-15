@@ -14,6 +14,7 @@ import type { FeaturedBookCircle } from "@/features/discovery/book-circles";
 import type { FeaturedListeningEdition } from "@/features/discovery/listening-editions";
 import type {
   SocialCommunityActivityEventSummary,
+  SocialCommunityEditionSummary,
   SocialCommunityCircleSummary,
 } from "@/lib/backend/types";
 import type { SyncedSocialState } from "@/lib/types/social";
@@ -21,16 +22,25 @@ import type { SyncedSocialState } from "@/lib/types/social";
 export function SocialCircleDetailCard({
   circle,
   edition,
+  editionSummary,
   summary,
   heatBadge,
   recentEvents,
+  otherActiveCircles,
   initialSocialState = null,
 }: {
   circle: FeaturedBookCircle;
   edition: FeaturedListeningEdition | null;
+  editionSummary: SocialCommunityEditionSummary | null;
   summary: SocialCommunityCircleSummary | null;
   heatBadge: string | null;
   recentEvents: SocialCommunityActivityEventSummary[];
+  otherActiveCircles: {
+    circle: FeaturedBookCircle;
+    summary: SocialCommunityCircleSummary | null;
+    heatBadge: string | null;
+    score: number;
+  }[];
   initialSocialState?: SyncedSocialState | null;
 }) {
   const { circleMemberships } = useSocialState(initialSocialState);
@@ -236,6 +246,73 @@ export function SocialCircleDetailCard({
                 No backend activity yet for this circle.
               </div>
             )}
+          </div>
+        </article>
+      </section>
+      <section className="grid gap-6 xl:grid-cols-2">
+        <article className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
+            Edition momentum
+          </p>
+          <div className="mt-4 rounded-[1.2rem] border border-stone-200 bg-stone-50/80 p-4">
+            {edition ? (
+              <>
+                <p className="text-sm font-semibold text-stone-950">{edition.title}</p>
+                <p className="mt-2 text-sm leading-6 text-stone-600">
+                  {editionSummary
+                    ? `${editionSummary.saves} saves and ${editionSummary.reuses} reuses across synced workspaces.`
+                    : "No edition activity has been recorded yet for this circle's listening profile."}
+                </p>
+                <Link
+                  className="mt-3 inline-flex rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                  href={`/social/editions/${edition.id}`}
+                >
+                  Open edition page
+                </Link>
+              </>
+            ) : (
+              <p className="text-sm leading-6 text-stone-600">
+                This circle does not have a linked edition yet.
+              </p>
+            )}
+          </div>
+        </article>
+        <article className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm">
+          <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
+            Also active now
+          </p>
+          <div className="mt-4 space-y-3">
+            {otherActiveCircles.map((entry) => (
+              <div
+                key={entry.circle.id}
+                className="rounded-[1.2rem] border border-stone-200 bg-stone-50/80 p-4"
+              >
+                <div className="flex flex-wrap items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                  {entry.heatBadge ? (
+                    <span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700">
+                      {entry.heatBadge}
+                    </span>
+                  ) : null}
+                  {entry.summary ? (
+                    <span className="rounded-full bg-sky-50 px-2.5 py-1 text-sky-700">
+                      {entry.summary.joins} joins
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-3 text-sm font-semibold text-stone-950">
+                  {entry.circle.title}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-stone-600">
+                  {entry.circle.bookTitle} · {entry.circle.checkpoint}
+                </p>
+                <Link
+                  className="mt-3 inline-flex rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                  href={`/social/circles/${entry.circle.id}`}
+                >
+                  View circle
+                </Link>
+              </div>
+            ))}
           </div>
         </article>
       </section>

@@ -77,6 +77,62 @@ export function getPublicEditionDetail(
     pulse.editionCounts.find((entry) => entry.editionId === editionId) ?? null;
   const heat = getEditionCommunityHeat(events).get(editionId) ?? null;
   const recentEvents = events.filter((event) => event.subjectId === editionId);
+  const editionHeat = getEditionCommunityHeat(events);
+  const relatedCircleSummary = relatedCircles.reduce(
+    (accumulator, circle) => {
+      const circleSummary =
+        pulse.circleCounts.find((entry) => entry.circleId === circle.id) ?? null;
+      const joins = circleSummary?.joins ?? 0;
+      const shares = circleSummary?.shares ?? 0;
+      const score = joins * 10 + shares;
+
+      return {
+        totalJoins: accumulator.totalJoins + joins,
+        totalShares: accumulator.totalShares + shares,
+        strongestCircle:
+          !accumulator.strongestCircle || score > accumulator.strongestCircle.score
+            ? {
+                circle,
+                joins,
+                shares,
+                score,
+              }
+            : accumulator.strongestCircle,
+      };
+    },
+    {
+      totalJoins: 0,
+      totalShares: 0,
+      strongestCircle: null as
+        | {
+            circle: (typeof relatedCircles)[number];
+            joins: number;
+            shares: number;
+            score: number;
+          }
+        | null,
+    },
+  );
+  const otherActiveEditions = featuredListeningEditions
+    .filter((entry) => entry.id !== editionId)
+    .map((entry) => {
+      const entrySummary =
+        pulse.editionCounts.find((item) => item.editionId === entry.id) ?? null;
+      const entryHeat = editionHeat.get(entry.id) ?? null;
+      const score =
+        (entrySummary?.saves ?? 0) * 10 +
+        (entrySummary?.reuses ?? 0) +
+        (entryHeat?.score ?? 0);
+
+      return {
+        edition: entry,
+        summary: entrySummary,
+        heatBadge: getCommunityHeatBadge(entryHeat),
+        score,
+      };
+    })
+    .sort((left, right) => right.score - left.score)
+    .slice(0, 2);
 
   return {
     edition,
@@ -85,6 +141,8 @@ export function getPublicEditionDetail(
     heat,
     heatBadge: getCommunityHeatBadge(heat),
     recentEvents,
+    relatedCircleSummary,
+    otherActiveEditions,
   };
 }
 
@@ -105,13 +163,40 @@ export function getPublicCircleDetail(
     pulse.circleCounts.find((entry) => entry.circleId === circleId) ?? null;
   const heat = getCircleCommunityHeat(events).get(circleId) ?? null;
   const recentEvents = events.filter((event) => event.subjectId === circleId);
+  const circleHeat = getCircleCommunityHeat(events);
+  const editionSummary = edition
+    ? pulse.editionCounts.find((entry) => entry.editionId === edition.id) ?? null
+    : null;
+  const otherActiveCircles = featuredBookCircles
+    .filter((entry) => entry.id !== circleId)
+    .map((entry) => {
+      const entrySummary =
+        pulse.circleCounts.find((item) => item.circleId === entry.id) ?? null;
+      const entryHeat = circleHeat.get(entry.id) ?? null;
+      const score =
+        (entrySummary?.joins ?? 0) * 10 +
+        (entrySummary?.shares ?? 0) +
+        (entrySummary?.reopens ?? 0) * 3 +
+        (entryHeat?.score ?? 0);
+
+      return {
+        circle: entry,
+        summary: entrySummary,
+        heatBadge: getCommunityHeatBadge(entryHeat),
+        score,
+      };
+    })
+    .sort((left, right) => right.score - left.score)
+    .slice(0, 2);
 
   return {
     circle,
     edition,
+    editionSummary,
     summary,
     heat,
     heatBadge: getCommunityHeatBadge(heat),
     recentEvents,
+    otherActiveCircles,
   };
 }

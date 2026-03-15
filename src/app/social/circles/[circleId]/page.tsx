@@ -32,9 +32,11 @@ export default async function SocialCirclePage({
       <SocialCircleDetailCard
         circle={detail.circle}
         edition={detail.edition}
+        editionSummary={detail.editionSummary}
         summary={detail.summary}
         heatBadge={detail.heatBadge}
         recentEvents={detail.recentEvents}
+        otherActiveCircles={detail.otherActiveCircles}
         initialSocialState={backendLibrarySnapshot?.socialState ?? null}
       />
     </AppShell>
