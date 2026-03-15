@@ -1,6 +1,7 @@
 import { BookCirclesFeedCard } from "@/components/library/book-circles-feed-card";
 import { ListeningEditionsFeedCard } from "@/components/library/listening-editions-feed-card";
 import { SocialActivitySummaryCard } from "@/components/library/social-activity-summary-card";
+import { SocialActivityTimelineCard } from "@/components/library/social-activity-timeline-card";
 import { SocialMemoryCard } from "@/components/library/social-memory-card";
 import { SocialShelfCard } from "@/components/library/social-shelf-card";
 import { AppShell } from "@/components/shared/app-shell";
@@ -22,6 +23,7 @@ export default function SocialPage() {
         </p>
       </section>
       <SocialActivitySummaryCard />
+      <SocialActivityTimelineCard />
       <SocialMemoryCard />
       <SocialShelfCard />
       <ListeningEditionsFeedCard />
