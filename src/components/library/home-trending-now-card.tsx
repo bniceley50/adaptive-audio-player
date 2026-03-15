@@ -2,18 +2,23 @@ import Link from "next/link";
 import {
   getTrendingCircles,
   getTrendingEditions,
+  getTrendingMoments,
 } from "@/features/discovery/community-trending";
 import type { SocialCommunityPulseSummary } from "@/lib/backend/types";
+import type { SyncedSocialState } from "@/lib/types/social";
 
 export function HomeTrendingNowCard({
   pulse,
+  socialState = null,
 }: {
   pulse: SocialCommunityPulseSummary;
+  socialState?: SyncedSocialState | null;
 }) {
   const topEditions = getTrendingEditions(pulse, 2);
   const topCircles = getTrendingCircles(pulse, 2);
+  const topMoments = getTrendingMoments(pulse, socialState, 2);
 
-  if (topEditions.length === 0 && topCircles.length === 0) {
+  if (topEditions.length === 0 && topCircles.length === 0 && topMoments.length === 0) {
     return null;
   }
 
@@ -28,10 +33,10 @@ export function HomeTrendingNowCard({
         </h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
           A quick consumer-friendly view of what is currently getting saved and joined
-          across synced workspaces.
+          across synced workspaces, including the moments listeners are actively promoting.
         </p>
       </div>
-      <div className="grid gap-4 p-6 xl:grid-cols-2">
+      <div className="grid gap-4 p-6 xl:grid-cols-3">
         <article className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm">
           <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
             Top editions
@@ -94,6 +99,39 @@ export function HomeTrendingNowCard({
                   href={`/social?circle=${circle.id}&entry=trending-circle#circle-${circle.id}`}
                 >
                   Open this circle
+                </Link>
+              </div>
+            ))}
+          </div>
+        </article>
+
+        <article className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm">
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+            Top moments
+          </p>
+          <div className="mt-4 space-y-3">
+            {topMoments.map(({ stats, moment }) => (
+              <div
+                key={moment.id}
+                className="rounded-[1.2rem] border border-stone-200 bg-white px-4 py-4"
+              >
+                <div className="flex flex-wrap items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
+                    {stats.promotions} promotions
+                  </span>
+                  <span className="rounded-full bg-stone-100 px-2.5 py-1">
+                    {moment.chapterLabel}
+                  </span>
+                </div>
+                <p className="mt-3 line-clamp-3 text-sm font-medium italic leading-6 text-stone-950">
+                  “{moment.quote}”
+                </p>
+                <p className="mt-2 text-sm leading-6 text-stone-600">{moment.bookTitle}</p>
+                <Link
+                  className="mt-4 inline-flex rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                  href={`/social?moment=${moment.id}&entry=trending-moment#moment-${moment.id}`}
+                >
+                  Open this moment
                 </Link>
               </div>
             ))}

@@ -10,12 +10,26 @@ export function SocialMomentsFeedCard({
   pulse,
   events,
   socialState = null,
+  focusedMomentId = null,
 }: {
   pulse: SocialCommunityPulseSummary;
   events: SocialCommunityActivityEventSummary[];
   socialState?: SyncedSocialState | null;
+  focusedMomentId?: string | null;
 }) {
-  const moments = getPublicMomentsFeed(pulse, events, socialState).slice(0, 3);
+  const moments = getPublicMomentsFeed(pulse, events, socialState)
+    .sort((left, right) => {
+      if (left.moment.id === focusedMomentId) {
+        return -1;
+      }
+
+      if (right.moment.id === focusedMomentId) {
+        return 1;
+      }
+
+      return 0;
+    })
+    .slice(0, 3);
 
   if (moments.length === 0) {
     return null;
@@ -39,6 +53,7 @@ export function SocialMomentsFeedCard({
         {moments.map(({ moment, edition, circle, activity }) => (
           <article
             key={moment.id}
+            id={`moment-${moment.id}`}
             className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm"
           >
             <div className="flex flex-wrap items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
@@ -46,6 +61,11 @@ export function SocialMomentsFeedCard({
               {moment.source === "promoted" ? (
                 <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
                   From your player
+                </span>
+              ) : null}
+              {moment.id === focusedMomentId ? (
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">
+                  Focused now
                 </span>
               ) : null}
               {activity.heatBadge ? (

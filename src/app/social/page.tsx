@@ -10,6 +10,7 @@ import { SocialMemoryCard } from "@/components/library/social-memory-card";
 import { SocialShelfCard } from "@/components/library/social-shelf-card";
 import { AppShell } from "@/components/shared/app-shell";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
+import { getAllPublicSocialMoments } from "@/features/social/public-moments";
 import {
   getSocialCommunityPulse,
   getWorkspaceLibrarySnapshot,
@@ -22,6 +23,7 @@ export default async function SocialPage({
 }: {
   searchParams?: Promise<{
     circle?: string | string[];
+    moment?: string | string[];
     entry?: string | string[];
   }>;
 }) {
@@ -29,6 +31,9 @@ export default async function SocialPage({
   const focusedCircleId = Array.isArray(resolvedSearchParams.circle)
     ? resolvedSearchParams.circle[0]
     : resolvedSearchParams.circle;
+  const focusedMomentId = Array.isArray(resolvedSearchParams.moment)
+    ? resolvedSearchParams.moment[0]
+    : resolvedSearchParams.moment;
   const entry = Array.isArray(resolvedSearchParams.entry)
     ? resolvedSearchParams.entry[0]
     : resolvedSearchParams.entry;
@@ -40,6 +45,11 @@ export default async function SocialPage({
   const communityEvents = listRecentSocialActivityEvents(6);
   const focusedCircle = focusedCircleId
     ? featuredBookCircles.find((circle) => circle.id === focusedCircleId) ?? null
+    : null;
+  const focusedMoment = focusedMomentId
+    ? getAllPublicSocialMoments(backendLibrarySnapshot?.socialState ?? null, communityEvents).find(
+        (moment) => moment.id === focusedMomentId,
+      ) ?? null
     : null;
 
   return (
@@ -87,6 +97,41 @@ export default async function SocialPage({
           </div>
         </section>
       ) : null}
+      {focusedMoment ? (
+        <section className="rounded-[2rem] border border-emerald-200 bg-[linear-gradient(135deg,#ecfdf5_0%,#ffffff_100%)] p-6 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div className="max-w-3xl">
+              <p className="text-xs font-medium uppercase tracking-[0.22em] text-emerald-700">
+                {entry === "trending-moment" ? "Focused from trending now" : "Focused moment"}
+              </p>
+              <h2 className="mt-2 text-2xl font-semibold text-stone-950">
+                {focusedMoment.bookTitle}
+              </h2>
+              <p className="mt-3 text-base italic leading-7 text-stone-700">
+                “{focusedMoment.quote}”
+              </p>
+              <p className="mt-3 text-sm leading-6 text-stone-600">
+                {entry === "trending-moment"
+                  ? "You landed here from the live home trend strip, so this promoted moment is highlighted first instead of getting buried inside the full social feed."
+                  : "This moment is highlighted first so you can jump straight into the specific shared quote you selected."}
+              </p>
+            </div>
+            <div className="rounded-[1.2rem] border border-emerald-200 bg-white/90 px-4 py-4 shadow-sm">
+              <p className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-stone-500">
+                Listening context
+              </p>
+              <p className="mt-2 text-sm font-semibold text-stone-950">
+                {focusedMoment.chapterLabel}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-stone-600">
+                {focusedMoment.source === "promoted"
+                  ? "Promoted from a real player session"
+                  : "Curated public moment"}
+              </p>
+            </div>
+          </div>
+        </section>
+      ) : null}
       <SocialBackendSnapshotCard
         socialState={backendLibrarySnapshot?.socialState ?? null}
         syncedAt={backendLibrarySnapshot?.syncedAt ?? null}
@@ -97,6 +142,7 @@ export default async function SocialPage({
         pulse={communityPulse}
         events={communityEvents}
         socialState={backendLibrarySnapshot?.socialState ?? null}
+        focusedMomentId={focusedMomentId ?? null}
       />
       <SocialActivitySummaryCard />
       <SocialActivityTimelineCard

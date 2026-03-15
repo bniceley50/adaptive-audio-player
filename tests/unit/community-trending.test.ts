@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getTrendingCircles,
   getTrendingEditions,
+  getTrendingMoments,
 } from "@/features/discovery/community-trending";
 
 describe("community trending helpers", () => {
@@ -63,6 +64,36 @@ describe("community trending helpers", () => {
         stats: {
           joins: 6,
           shares: 1,
+        },
+      },
+    ]);
+  });
+
+  it("maps backend moment counts to public moments", () => {
+    expect(
+      getTrendingMoments({
+        totalSocialWorkspaces: 3,
+        totalSavedEditions: 9,
+        totalJoinedCircles: 4,
+        totalPromotedMoments: 2,
+        lastSyncedAt: "2026-03-15T10:00:00.000Z",
+        editionCounts: [],
+        circleCounts: [],
+        momentCounts: [
+          {
+            momentId: "storm-harbor-first-reveal",
+            promotions: 2,
+          },
+        ],
+      }),
+    ).toMatchObject([
+      {
+        moment: {
+          id: "storm-harbor-first-reveal",
+          bookTitle: "Storm Harbor",
+        },
+        stats: {
+          promotions: 2,
         },
       },
     ]);

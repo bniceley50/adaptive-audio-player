@@ -277,8 +277,11 @@ export default async function HomePage() {
           pulse={socialCommunityPulse}
         />
         <ForYouCard spotlight={authorSpotlight} pulse={socialCommunityPulse} />
-        <HomeSocialProofCard pulse={socialCommunityPulse} />
-        <HomeTrendingNowCard pulse={socialCommunityPulse} />
+      <HomeSocialProofCard pulse={socialCommunityPulse} />
+      <HomeTrendingNowCard
+        pulse={socialCommunityPulse}
+        socialState={backendLibrarySnapshot?.socialState ?? null}
+      />
         <RecentPersonalizationCard />
         <SocialMemoryCard />
         <SocialShelfCard />
