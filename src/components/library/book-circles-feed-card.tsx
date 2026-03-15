@@ -21,6 +21,17 @@ import { featuredListeningEditions } from "@/features/discovery/listening-editio
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 import { useSocialState } from "@/features/social/use-social-state";
 
+function getCircleActivityTime(
+  entry:
+    | {
+        joinedAt?: string;
+        lastOpenedAt?: string | null;
+      }
+    | undefined,
+) {
+  return new Date(entry?.lastOpenedAt ?? entry?.joinedAt ?? 0).getTime();
+}
+
 export function BookCirclesFeedCard() {
   const preferences = useDiscoveryPreferences();
   const { circleMemberships } = useSocialState();
@@ -54,11 +65,23 @@ export function BookCirclesFeedCard() {
           if (leftPinned !== rightPinned) {
             return rightPinned - leftPinned;
           }
+          const leftMembership = circleMemberships.find((entry) => entry.circleId === left.id);
+          const rightMembership = circleMemberships.find((entry) => entry.circleId === right.id);
+          const leftMembershipScore = leftMembership ? 1 : 0;
+          const rightMembershipScore = rightMembership ? 1 : 0;
+          if (leftMembershipScore !== rightMembershipScore) {
+            return rightMembershipScore - leftMembershipScore;
+          }
+          const activityDelta =
+            getCircleActivityTime(rightMembership) - getCircleActivityTime(leftMembership);
+          if (activityDelta !== 0) {
+            return activityDelta;
+          }
           const leftJoined = joinedCircles.includes(left.id) ? 1 : 0;
           const rightJoined = joinedCircles.includes(right.id) ? 1 : 0;
           return rightJoined - leftJoined;
         }),
-    [joinedCircles, pinnedDiscoverySignal],
+    [circleMemberships, joinedCircles, pinnedDiscoverySignal],
   );
 
   async function shareCircle(circleId: string, title: string, bookTitle: string) {
@@ -142,6 +165,17 @@ export function BookCirclesFeedCard() {
                       {reason.label}
                     </p>
                     <p className="mt-2 text-sm leading-6 text-emerald-900">{reason.detail}</p>
+                  </div>
+                ) : membership ? (
+                  <div className="mb-4 rounded-[1.1rem] border border-amber-200 bg-amber-50/80 px-4 py-3">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-amber-700">
+                      From your synced circles
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-amber-900">
+                      {membership.lastOpenedAt
+                        ? "You already reopened this circle, so it stays near the top of discovery."
+                        : "You joined this circle before, so it stays ready across devices and workspaces."}
+                    </p>
                   </div>
                 ) : null;
               })()}

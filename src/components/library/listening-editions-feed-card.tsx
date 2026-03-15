@@ -32,6 +32,17 @@ type FeedEdition = FeaturedListeningEdition & {
   bookId: string | null;
 };
 
+function getEditionActivityTime(
+  entry:
+    | {
+        savedAt?: string;
+        lastUsedAt?: string | null;
+      }
+    | undefined,
+) {
+  return new Date(entry?.lastUsedAt ?? entry?.savedAt ?? 0).getTime();
+}
+
 function readLibraryEditions(): FeedEdition[] {
   return readLocalListeningProfiles()
     .slice(0, 2)
@@ -109,12 +120,30 @@ export function ListeningEditionsFeedCard() {
 
     return [...libraryEditions, ...curated]
       .sort((left, right) => {
+        const leftSaved = savedEditions.find((entry) => entry.editionId === left.id);
+        const rightSaved = savedEditions.find((entry) => entry.editionId === right.id);
+        const leftSavedScore = leftSaved ? 1 : 0;
+        const rightSavedScore = rightSaved ? 1 : 0;
+        if (leftSavedScore !== rightSavedScore) {
+          return rightSavedScore - leftSavedScore;
+        }
+
+        const activityDelta =
+          getEditionActivityTime(rightSaved) - getEditionActivityTime(leftSaved);
+        if (activityDelta !== 0) {
+          return activityDelta;
+        }
+
         const leftJoined = joinedEditionIds.includes(left.id) ? 1 : 0;
         const rightJoined = joinedEditionIds.includes(right.id) ? 1 : 0;
-        return rightJoined - leftJoined;
+        if (leftJoined !== rightJoined) {
+          return rightJoined - leftJoined;
+        }
+
+        return 0;
       })
       .slice(0, 4);
-  }, [joinedCircles, libraryEditions]);
+  }, [joinedCircles, libraryEditions, savedEditions]);
 
   return (
     <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-white shadow-[0_22px_60px_-42px_rgba(28,25,23,0.4)]">
@@ -176,6 +205,11 @@ export function ListeningEditionsFeedCard() {
                       ? "You saved this edition and already used it in your flow."
                       : "You saved this edition so it stays easy to reuse across devices and workspaces."}
                   </p>
+                  {savedEdition.lastUsedAt ? (
+                    <p className="mt-2 text-xs font-medium uppercase tracking-[0.16em] text-amber-700">
+                      Ranked from your synced social memory
+                    </p>
+                  ) : null}
                 </div>
               ) : null;
             })()}
