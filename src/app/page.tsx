@@ -12,6 +12,7 @@ import { DiscoveryQuickStartCard } from "@/components/library/discovery-quick-st
 import { FavoritesHubCard } from "@/components/library/favorites-hub-card";
 import { ForYouCard } from "@/components/library/for-you-card";
 import { HomeNextStepCard } from "@/components/library/home-next-step-card";
+import { HomeSocialProofCard } from "@/components/library/home-social-proof-card";
 import { LibraryHero } from "@/components/library/library-hero";
 import { ListeningEditionsFeedCard } from "@/components/library/listening-editions-feed-card";
 import { ListeningStatsCard } from "@/components/library/listening-stats-card";
@@ -27,6 +28,7 @@ import { StudioDisclosure } from "@/components/shared/studio-disclosure";
 import { getAuthorSpotlight } from "@/features/discovery/author-spotlights";
 import {
   getUserById,
+  getSocialCommunityPulse,
   getWorkerHeartbeat,
   getWorkspaceLibrarySnapshot,
   listAccountSessionsForUser,
@@ -50,6 +52,7 @@ export default async function HomePage() {
   const backendSummary = workspaceId
     ? getWorkspaceSyncSummary(workspaceId)
     : null;
+  const socialCommunityPulse = getSocialCommunityPulse();
   const workerHeartbeat = getWorkerHeartbeat();
   const currentUser = accountId ? getUserById(accountId) : null;
   const backendLibrarySnapshot = workspaceId
@@ -270,6 +273,7 @@ export default async function HomePage() {
 
         <DiscoveryQuickStartCard spotlight={authorSpotlight} />
         <ForYouCard spotlight={authorSpotlight} />
+        <HomeSocialProofCard pulse={socialCommunityPulse} />
         <RecentPersonalizationCard />
         <SocialMemoryCard />
         <SocialShelfCard />
