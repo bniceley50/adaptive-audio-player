@@ -230,6 +230,38 @@ export function getPublicMomentDetail(
   };
 }
 
+export function getPublicMomentCircleStarter(
+  momentId: string,
+  pulse: SocialCommunityPulseSummary,
+  events: SocialCommunityActivityEventSummary[],
+  socialState: SyncedSocialState | null = null,
+) {
+  const detail = getPublicMomentDetail(momentId, pulse, events, socialState);
+
+  if (!detail) {
+    return null;
+  }
+
+  const suggestedTitle = detail.circle
+    ? `${detail.circle.title} follow-on`
+    : `${detail.moment.bookTitle} ${detail.moment.chapterLabel} circle`;
+  const suggestedCheckpoint = `${detail.moment.chapterLabel} and the promoted line`;
+  const suggestedVibe = detail.circle
+    ? detail.circle.vibe
+    : `${detail.moment.moodLabel.toLowerCase()} discussion around one memorable listening moment`;
+  const suggestedSummary = detail.edition
+    ? `A fresh public circle seeded from “${detail.moment.quote}” using ${detail.edition.title} as the starting listening edition.`
+    : `A fresh public circle seeded from “${detail.moment.quote}” so listeners can start from one strong shared moment.`;
+
+  return {
+    ...detail,
+    suggestedTitle,
+    suggestedCheckpoint,
+    suggestedVibe,
+    suggestedSummary,
+  };
+}
+
 export function getPublicMomentsFeed(
   pulse: SocialCommunityPulseSummary,
   events: SocialCommunityActivityEventSummary[],

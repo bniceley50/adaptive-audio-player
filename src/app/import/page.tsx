@@ -14,6 +14,7 @@ import {
 } from "@/features/discovery/local-discovery";
 import { getEditionDiscoveryReason } from "@/features/discovery/personalization";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
+import { getAllPublicSocialMoments } from "@/features/social/public-moments";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 import { useSocialState } from "@/features/social/use-social-state";
 import { extractImportText } from "@/lib/import/extract-text";
@@ -130,7 +131,7 @@ export default function ImportPage() {
   const [pinnedDiscoverySignal, setPinnedDiscoverySignal] = useState(() =>
     typeof window !== "undefined" ? readPinnedDiscoverySignal() : null,
   );
-  const { savedEditions, circleMemberships } = useSocialState();
+  const { savedEditions, circleMemberships, promotedMoments } = useSocialState();
   const discoveryPreferences = useDiscoveryPreferences();
   const effectiveFollowedAuthors = useMemo(
     () =>
@@ -181,6 +182,13 @@ export default function ImportPage() {
 
     return null;
   });
+  const [starterMomentId] = useState<string | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    return new URLSearchParams(window.location.search).get("starterMoment");
+  });
 
   const chapters = useMemo(() => parseChapters(sourceText), [sourceText]);
   const trimmedSourceText = sourceText.trim();
@@ -189,6 +197,22 @@ export default function ImportPage() {
       featuredListeningEditions.find((edition) => edition.id === selectedEditionId) ?? null
     );
   }, [selectedEditionId]);
+  const starterMoment = useMemo(() => {
+    if (!starterMomentId) {
+      return null;
+    }
+
+    return (
+      getAllPublicSocialMoments(
+        {
+          savedEditions: [],
+          circleMemberships: [],
+          promotedMoments,
+        },
+        [],
+      ).find((moment) => moment.id === starterMomentId) ?? null
+    );
+  }, [promotedMoments, starterMomentId]);
   const selectedEditionReason = useMemo(() => {
     if (!selectedEdition) {
       return null;
@@ -784,6 +808,11 @@ export default function ImportPage() {
                         Trending now
                       </span>
                     ) : null}
+                    {selectedEditionEntry === "moment-circle-starter" ? (
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">
+                        Fresh circle starter
+                      </span>
+                    ) : null}
                   </div>
                   <h3 className="mt-3 text-lg font-semibold text-stone-950">
                     Start this import with {selectedEdition.title}
@@ -801,6 +830,19 @@ export default function ImportPage() {
                         This edition was chosen from the live home trend strip, so import is
                         keeping the most active listening style front and center while you
                         bring in the book.
+                      </p>
+                    </div>
+                  ) : null}
+                  {selectedEditionEntry === "moment-circle-starter" && starterMoment ? (
+                    <div className="mt-4 rounded-[1.1rem] border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-left">
+                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                        Focused from a public moment
+                      </p>
+                      <p className="mt-2 text-sm italic leading-6 text-emerald-950">
+                        “{starterMoment.quote}”
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-emerald-900">
+                        This import is being framed as a fresh circle starter, so the selected edition stays in front as the quickest way to turn that moment into a new shared listening thread.
                       </p>
                     </div>
                   ) : null}

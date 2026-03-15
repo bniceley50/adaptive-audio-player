@@ -89,6 +89,12 @@ export function SocialMomentDetailCard({
                 Start with this edition path
               </Link>
             ) : null}
+            <Link
+              className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+              href={`/social/circles/start?moment=${moment.id}`}
+            >
+              Start a fresh circle
+            </Link>
             <button
               className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
               onClick={() => {
