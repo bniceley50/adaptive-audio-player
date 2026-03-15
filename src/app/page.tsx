@@ -246,12 +246,14 @@ export default async function HomePage() {
       <HomeNextStepCard
         hasSyncedBook={Boolean(latestSyncedBook)}
         latestBookTitle={latestSyncedBook?.title ?? null}
-      latestBookHref={latestSyncedBook ? `/player/${latestSyncedBook.bookId}` : null}
-      isSignedIn={Boolean(currentUser)}
-      listeningStreakDays={listeningStats.listeningStreakDays}
-      recommendedEdition={authorSpotlight?.recommendedEdition ?? null}
-      spotlightName={authorSpotlight?.name ?? null}
-    />
+        latestBookHref={latestSyncedBook ? `/player/${latestSyncedBook.bookId}` : null}
+        isSignedIn={Boolean(currentUser)}
+        listeningStreakDays={listeningStats.listeningStreakDays}
+        recommendedEdition={authorSpotlight?.recommendedEdition ?? null}
+        spotlightName={authorSpotlight?.name ?? null}
+        pulse={socialCommunityPulse}
+        socialState={backendLibrarySnapshot?.socialState ?? null}
+      />
       <section className="space-y-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
@@ -276,7 +278,11 @@ export default async function HomePage() {
           spotlight={authorSpotlight}
           pulse={socialCommunityPulse}
         />
-        <ForYouCard spotlight={authorSpotlight} pulse={socialCommunityPulse} />
+        <ForYouCard
+          spotlight={authorSpotlight}
+          pulse={socialCommunityPulse}
+          socialState={backendLibrarySnapshot?.socialState ?? null}
+        />
       <HomeSocialProofCard pulse={socialCommunityPulse} />
       <HomeTrendingNowCard
         pulse={socialCommunityPulse}

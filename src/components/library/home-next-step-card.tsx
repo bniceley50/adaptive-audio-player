@@ -4,11 +4,14 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { featuredAuthorSpotlights } from "@/features/discovery/author-spotlights";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
+import { getTrendingMoments } from "@/features/discovery/community-trending";
 import {
   getHomeDiscoveryReason,
   getPinnedDiscoveryReason,
 } from "@/features/discovery/personalization";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
+import type { SocialCommunityPulseSummary } from "@/lib/backend/types";
+import type { SyncedSocialState } from "@/lib/types/social";
 
 interface HomeNextStepCardProps {
   hasSyncedBook: boolean;
@@ -18,6 +21,8 @@ interface HomeNextStepCardProps {
   listeningStreakDays: number;
   recommendedEdition: string | null;
   spotlightName: string | null;
+  pulse?: SocialCommunityPulseSummary | null;
+  socialState?: SyncedSocialState | null;
 }
 
 export function HomeNextStepCard({
@@ -28,6 +33,8 @@ export function HomeNextStepCard({
   listeningStreakDays,
   recommendedEdition,
   spotlightName,
+  pulse = null,
+  socialState = null,
 }: HomeNextStepCardProps) {
   const {
     followedAuthors,
@@ -164,6 +171,16 @@ export function HomeNextStepCard({
       };
     }
 
+    const trendingMoment = getTrendingMoments(pulse, socialState, 1)[0] ?? null;
+    if (trendingMoment) {
+      return {
+        title: "Start from the moment people are sharing",
+        body: `“${trendingMoment.moment.quote}” is getting promoted right now, so this is the fastest path into live social momentum instead of a cold start.`,
+        href: `/social?moment=${trendingMoment.moment.id}&entry=trending-moment#moment-${trendingMoment.moment.id}`,
+        label: "Open the trending moment",
+      };
+    }
+
     return {
       title: "Import your first book",
       body:
@@ -179,7 +196,9 @@ export function HomeNextStepCard({
     joinedCircle,
     latestBookHref,
     latestBookTitle,
+    pulse,
     recommendedEdition,
+    socialState,
   ]);
 
   const secondaryActions = [

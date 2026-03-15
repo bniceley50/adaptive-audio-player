@@ -7,7 +7,10 @@ import {
   type AuthorSpotlight,
 } from "@/features/discovery/author-spotlights";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
-import { getTrendingEditions } from "@/features/discovery/community-trending";
+import {
+  getTrendingEditions,
+  getTrendingMoments,
+} from "@/features/discovery/community-trending";
 import {
   getHomeDiscoveryReason,
   getPinnedDiscoveryReason,
@@ -15,13 +18,15 @@ import {
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 import type { SocialCommunityPulseSummary } from "@/lib/backend/types";
+import type { SyncedSocialState } from "@/lib/types/social";
 
 interface ForYouCardProps {
   spotlight: AuthorSpotlight | null;
   pulse?: SocialCommunityPulseSummary | null;
+  socialState?: SyncedSocialState | null;
 }
 
-export function ForYouCard({ spotlight, pulse }: ForYouCardProps) {
+export function ForYouCard({ spotlight, pulse, socialState = null }: ForYouCardProps) {
   const preferences = useDiscoveryPreferences();
   const {
     followedAuthors,
@@ -142,6 +147,17 @@ export function ForYouCard({ spotlight, pulse }: ForYouCardProps) {
       };
     }
 
+    const trendingMoment = getTrendingMoments(pulse, socialState, 1)[0] ?? null;
+    if (trendingMoment) {
+      return {
+        eyebrow: "People are promoting this moment right now",
+        title: `${trendingMoment.moment.bookTitle} is heating up`,
+        detail: `“${trendingMoment.moment.quote}” is getting promoted into the public social layer, making it the fastest way to feel current shared momentum instead of starting cold.`,
+        href: `/social?moment=${trendingMoment.moment.id}&entry=trending-moment#moment-${trendingMoment.moment.id}`,
+        action: "Open the trending moment",
+      };
+    }
+
     const trendingEdition = getTrendingEditions(pulse, 1)[0] ?? null;
     const edition = trendingEdition?.edition ?? featuredListeningEditions[0];
     return {
@@ -159,6 +175,7 @@ export function ForYouCard({ spotlight, pulse }: ForYouCardProps) {
     effectivePinnedSignal,
     effectiveTrackedFeatures,
     pulse,
+    socialState,
     spotlight,
   ]);
   const pinnedReason = useMemo(
