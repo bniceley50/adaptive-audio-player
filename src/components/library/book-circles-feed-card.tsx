@@ -8,14 +8,22 @@ import {
   getRelativeDiscoveryBadge,
 } from "@/features/discovery/personalization";
 import {
-  togglePinnedDiscoverySignal,
+  incrementCircleShareCount,
+  joinCircleMembership,
+  leaveCircleMembership,
+  touchCircleMembership,
+} from "@/features/social/local-social";
+import {
   toggleJoinedCircle,
+  togglePinnedDiscoverySignal,
 } from "@/features/discovery/local-discovery";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
+import { useSocialState } from "@/features/social/use-social-state";
 
 export function BookCirclesFeedCard() {
   const preferences = useDiscoveryPreferences();
+  const { circleMemberships } = useSocialState();
   const { joinedCircleTimestamps, personalizationPaused } = preferences;
   const effectivePreferences = useMemo(
     () => ({
@@ -67,6 +75,7 @@ export function BookCirclesFeedCard() {
           text: shareText,
           url: shareUrl,
         });
+        incrementCircleShareCount(circleId);
         setSharedCircleId(circleId);
         window.setTimeout(() => setSharedCircleId(null), 1800);
         return;
@@ -77,6 +86,7 @@ export function BookCirclesFeedCard() {
 
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+      incrementCircleShareCount(circleId);
       setSharedCircleId(circleId);
       window.setTimeout(() => setSharedCircleId(null), 1800);
     }
@@ -114,6 +124,7 @@ export function BookCirclesFeedCard() {
       <div className="grid gap-4 p-6 xl:grid-cols-3">
         {circles.map((circle) => {
           const joined = joinedCircles.includes(circle.id);
+          const membership = circleMemberships.find((entry) => entry.circleId === circle.id);
           const pinned =
             pinnedDiscoverySignal?.kind === "circle" && pinnedDiscoverySignal.id === circle.id;
           const freshnessBadge = getRelativeDiscoveryBadge(joinedCircleTimestamps[circle.id]);
@@ -142,6 +153,11 @@ export function BookCirclesFeedCard() {
                 {joined ? (
                   <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">
                     Joined
+                  </span>
+                ) : null}
+                {membership?.shareCount ? (
+                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
+                    {membership.shareCount} share{membership.shareCount === 1 ? "" : "s"}
                   </span>
                 ) : null}
                 {pinned ? (
@@ -181,6 +197,11 @@ export function BookCirclesFeedCard() {
                   type="button"
                   onClick={() => {
                     toggleJoinedCircle(circle.id);
+                    if (joined) {
+                      leaveCircleMembership(circle.id);
+                    } else {
+                      joinCircleMembership(circle.id);
+                    }
                   }}
                 >
                   {joined ? "Joined" : "Join circle"}
@@ -188,6 +209,9 @@ export function BookCirclesFeedCard() {
                 <Link
                   className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
                   href={`/import?edition=${circle.editionId}`}
+                  onClick={() => {
+                    touchCircleMembership(circle.id);
+                  }}
                 >
                   Start with this edition
                 </Link>
@@ -195,6 +219,7 @@ export function BookCirclesFeedCard() {
                   className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
                   type="button"
                   onClick={() => {
+                    joinCircleMembership(circle.id);
                     void shareCircle(circle.id, circle.title, circle.bookTitle);
                   }}
                 >

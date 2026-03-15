@@ -77,6 +77,23 @@ const validSnapshot = {
     },
     personalizationPaused: false,
   },
+  socialState: {
+    savedEditions: [
+      {
+        editionId: "cinematic-harbor",
+        savedAt: "2026-03-09T10:00:30.000Z",
+        lastUsedAt: "2026-03-09T10:01:30.000Z",
+      },
+    ],
+    circleMemberships: [
+      {
+        circleId: "circle-storm-harbor",
+        joinedAt: "2026-03-09T09:59:30.000Z",
+        lastOpenedAt: "2026-03-09T10:01:45.000Z",
+        shareCount: 1,
+      },
+    ],
+  },
   syncedAt: "2026-03-09T10:02:00.000Z",
 } satisfies LibrarySyncSnapshot;
 
@@ -130,6 +147,13 @@ describe("sync library route", () => {
             kind: "author",
             id: "Annie Hart",
           },
+        }),
+        socialState: expect.objectContaining({
+          savedEditions: [
+            expect.objectContaining({
+              editionId: "cinematic-harbor",
+            }),
+          ],
         }),
       }),
     });
@@ -229,6 +253,14 @@ describe("sync library route", () => {
       discoveryPreferences: expect.objectContaining({
         joinedCircles: ["circle-storm-harbor"],
         trackedPlannedFeatures: ["private-audio-files"],
+      }),
+      socialState: expect.objectContaining({
+        circleMemberships: [
+          expect.objectContaining({
+            circleId: "circle-storm-harbor",
+            shareCount: 1,
+          }),
+        ],
       }),
     });
   });

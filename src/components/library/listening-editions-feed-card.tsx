@@ -9,6 +9,12 @@ import {
 } from "@/features/discovery/personalization";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 import {
+  socialStateChangedEvent,
+  toggleSavedListeningEdition,
+  touchSavedListeningEdition,
+} from "@/features/social/local-social";
+import { useSocialState } from "@/features/social/use-social-state";
+import {
   defaultTasteChangedEvent,
   listeningProfileChangedEvent,
   readLocalLibraryBook,
@@ -53,6 +59,7 @@ function readLibraryEditions(): FeedEdition[] {
 
 export function ListeningEditionsFeedCard() {
   const preferences = useDiscoveryPreferences();
+  const { savedEditions } = useSocialState();
   const { followedAuthorTimestamps, joinedCircleTimestamps, personalizationPaused } = preferences;
   const effectivePreferences = useMemo(
     () => ({
@@ -79,11 +86,13 @@ export function ListeningEditionsFeedCard() {
     window.addEventListener(listeningProfileChangedEvent, refresh);
     window.addEventListener(defaultTasteChangedEvent, refresh);
     window.addEventListener(workspaceContextChangedEvent, refresh);
+    window.addEventListener(socialStateChangedEvent, refresh);
 
     return () => {
       window.removeEventListener(listeningProfileChangedEvent, refresh);
       window.removeEventListener(defaultTasteChangedEvent, refresh);
       window.removeEventListener(workspaceContextChangedEvent, refresh);
+      window.removeEventListener(socialStateChangedEvent, refresh);
     };
   }, []);
 
@@ -155,6 +164,21 @@ export function ListeningEditionsFeedCard() {
                 </div>
               ) : null;
             })()}
+            {(() => {
+              const savedEdition = savedEditions.find((entry) => entry.editionId === edition.id);
+              return savedEdition ? (
+                <div className="mb-4 rounded-[1.1rem] border border-amber-200 bg-amber-50/80 px-4 py-3">
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-amber-700">
+                    Saved to your social shelf
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-amber-900">
+                    {savedEdition.lastUsedAt
+                      ? "You saved this edition and already used it in your flow."
+                      : "You saved this edition so it stays easy to reuse across devices and workspaces."}
+                  </p>
+                </div>
+              ) : null;
+            })()}
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="max-w-xl">
                 {(() => {
@@ -201,6 +225,11 @@ export function ListeningEditionsFeedCard() {
                       From circles you joined
                     </span>
                   ) : null}
+                  {savedEditions.some((entry) => entry.editionId === edition.id) ? (
+                    <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
+                      Saved
+                    </span>
+                  ) : null}
                   <span className="rounded-full bg-stone-100 px-2.5 py-1 capitalize">
                     {edition.mode}
                   </span>
@@ -240,11 +269,23 @@ export function ListeningEditionsFeedCard() {
                     narratorName: edition.narratorName,
                     mode: edition.mode,
                   });
+                  touchSavedListeningEdition(edition.id);
                   setFeedbackId(edition.id);
                   window.setTimeout(() => setFeedbackId(null), 1800);
                 }}
               >
                 {feedbackId === edition.id ? "Edition ready" : "Use as default"}
+              </button>
+              <button
+                className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                type="button"
+                onClick={() => {
+                  toggleSavedListeningEdition(edition.id);
+                }}
+              >
+                {savedEditions.some((entry) => entry.editionId === edition.id)
+                  ? "Unsave edition"
+                  : "Save edition"}
               </button>
               <Link
                 className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"

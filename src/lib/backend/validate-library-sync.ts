@@ -1,5 +1,6 @@
 import type { LibrarySyncSnapshot } from "./types.ts";
 import type { PinnedDiscoverySignal } from "@/lib/types/discovery";
+import type { SyncedSocialState } from "@/lib/types/social";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -621,6 +622,71 @@ export function parseLibrarySyncSnapshot(
           })()
         : null;
 
+  const socialState =
+    input.socialState === undefined || input.socialState === null
+      ? null
+      : isRecord(input.socialState)
+        ? (() => {
+            const savedEditions = Array.isArray(input.socialState.savedEditions)
+              ? input.socialState.savedEditions
+                  .map((entry) => {
+                    if (!isRecord(entry)) {
+                      return null;
+                    }
+
+                    const editionId = readString(entry.editionId);
+                    const savedAt = readString(entry.savedAt);
+                    const lastUsedAt = readString(entry.lastUsedAt) ?? null;
+
+                    if (!editionId || !savedAt) {
+                      return null;
+                    }
+
+                    return {
+                      editionId,
+                      savedAt,
+                      lastUsedAt,
+                    };
+                  })
+                  .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+              : null;
+            const circleMemberships = Array.isArray(input.socialState.circleMemberships)
+              ? input.socialState.circleMemberships
+                  .map((entry) => {
+                    if (!isRecord(entry)) {
+                      return null;
+                    }
+
+                    const circleId = readString(entry.circleId);
+                    const joinedAt = readString(entry.joinedAt);
+                    const lastOpenedAt = readString(entry.lastOpenedAt) ?? null;
+                    const shareCount = readNumber(entry.shareCount);
+
+                    if (!circleId || !joinedAt || shareCount === null) {
+                      return null;
+                    }
+
+                    return {
+                      circleId,
+                      joinedAt,
+                      lastOpenedAt,
+                      shareCount,
+                    };
+                  })
+                  .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+              : null;
+
+            if (!savedEditions || !circleMemberships) {
+              return null;
+            }
+
+            return {
+              savedEditions,
+              circleMemberships,
+            } satisfies SyncedSocialState;
+          })()
+        : null;
+
   if (
     !libraryBooks ||
     removedBooks === null ||
@@ -628,7 +694,8 @@ export function parseLibrarySyncSnapshot(
     !listeningProfiles ||
     playbackStates === null ||
     playbackDefaults === undefined ||
-    discoveryPreferences === undefined
+    discoveryPreferences === undefined ||
+    socialState === undefined
   ) {
     return null;
   }
@@ -643,6 +710,7 @@ export function parseLibrarySyncSnapshot(
     playbackStates,
     playbackDefaults,
     discoveryPreferences,
+    socialState,
     generationOutputs: [],
     syncedAt,
   };

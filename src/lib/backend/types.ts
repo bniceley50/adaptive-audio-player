@@ -9,6 +9,7 @@ import type {
   PlaybackDefaults,
 } from "@/lib/playback/local-playback";
 import type { SyncedDiscoveryPreferences } from "@/lib/types/discovery";
+import type { SyncedSocialState } from "@/lib/types/social";
 
 export interface SyncedDraftText {
   bookId: string;
@@ -30,6 +31,7 @@ export interface LibrarySyncSnapshot {
   playbackStates: SyncedPlaybackStateRecord[];
   playbackDefaults: PlaybackDefaults | null;
   discoveryPreferences?: SyncedDiscoveryPreferences | null;
+  socialState?: SyncedSocialState | null;
   generationOutputs?: GenerationOutputSummary[];
   syncedAt: string;
 }

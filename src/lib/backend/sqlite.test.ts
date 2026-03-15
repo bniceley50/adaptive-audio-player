@@ -133,6 +133,23 @@ describe("backend sqlite library sync", () => {
         },
         personalizationPaused: false,
       },
+      socialState: {
+        savedEditions: [
+          {
+            editionId: "cinematic-harbor",
+            savedAt: "2026-03-08T12:00:30.000Z",
+            lastUsedAt: "2026-03-08T12:01:30.000Z",
+          },
+        ],
+        circleMemberships: [
+          {
+            circleId: "circle-storm-harbor",
+            joinedAt: "2026-03-08T11:59:30.000Z",
+            lastOpenedAt: "2026-03-08T12:02:30.000Z",
+            shareCount: 2,
+          },
+        ],
+      },
       syncedAt: "2026-03-08T12:03:00.000Z",
     });
 
@@ -176,6 +193,17 @@ describe("backend sqlite library sync", () => {
         },
         personalizationPaused: true,
       },
+      socialState: {
+        savedEditions: [],
+        circleMemberships: [
+          {
+            circleId: "circle-future-imports",
+            joinedAt: "2026-03-08T12:04:35.000Z",
+            lastOpenedAt: null,
+            shareCount: 0,
+          },
+        ],
+      },
       syncedAt: "2026-03-08T12:05:00.000Z",
     });
 
@@ -206,6 +234,17 @@ describe("backend sqlite library sync", () => {
           id: "richer-document-imports",
         },
         personalizationPaused: true,
+      },
+      socialState: {
+        savedEditions: [],
+        circleMemberships: [
+          {
+            circleId: "circle-future-imports",
+            joinedAt: "2026-03-08T12:04:35.000Z",
+            lastOpenedAt: null,
+            shareCount: 0,
+          },
+        ],
       },
     });
   });
@@ -260,6 +299,7 @@ describe("backend sqlite library sync", () => {
       playbackStates: [],
       playbackDefaults: null,
       discoveryPreferences: null,
+      socialState: null,
       syncedAt: "2026-03-08T12:10:00.000Z",
     });
 

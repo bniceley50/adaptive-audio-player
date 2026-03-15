@@ -6,6 +6,10 @@ import {
   discoveryChangedEvent,
   writeDiscoveryPreferencesSnapshot,
 } from "@/features/discovery/local-discovery";
+import {
+  socialStateChangedEvent,
+  writeSocialStateSnapshot,
+} from "@/features/social/local-social";
 import { buildClientLibrarySyncSnapshot } from "@/lib/backend/client-sync";
 import {
   type LocalLibraryBook,
@@ -108,6 +112,10 @@ export function WorkspaceSync() {
       if (snapshot.discoveryPreferences) {
         writeDiscoveryPreferencesSnapshot(snapshot.discoveryPreferences);
       }
+
+      if (snapshot.socialState) {
+        writeSocialStateSnapshot(snapshot.socialState);
+      }
     }
 
     function hasBackendSnapshotState(snapshot: LibrarySyncSnapshot | null) {
@@ -125,7 +133,8 @@ export function WorkspaceSync() {
         !!snapshot.defaultListeningProfile ||
         !!snapshot.playbackDefaults ||
         !!snapshot.sampleRequest ||
-        !!snapshot.discoveryPreferences
+        !!snapshot.discoveryPreferences ||
+        !!snapshot.socialState
       );
     }
 
@@ -179,6 +188,7 @@ export function WorkspaceSync() {
       playbackChangedEvent,
       playbackDefaultsChangedEvent,
       discoveryChangedEvent,
+      socialStateChangedEvent,
       "storage",
     ] as const;
 
