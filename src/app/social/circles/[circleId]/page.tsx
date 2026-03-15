@@ -6,10 +6,14 @@ import {
   listAllSocialActivityEvents,
   getSocialCommunityPulse,
   listPublicSocialCircles,
+  listPublicSocialMoments,
   getWorkspaceLibrarySnapshot,
 } from "@/lib/backend/sqlite";
 import { getPublicCircleDetail } from "@/features/social/public-social";
-import { getAllPublicSocialMoments } from "@/features/social/public-moments";
+import {
+  getAllPublicSocialMoments,
+  mapPublicSocialMomentRecord,
+} from "@/features/social/public-moments";
 import { readWorkspaceIdFromRequest } from "@/lib/backend/workspace-session";
 
 export default async function SocialCirclePage({
@@ -37,6 +41,7 @@ export default async function SocialCirclePage({
   const pulse = getSocialCommunityPulse();
   const events = listAllSocialActivityEvents();
   const persistentCircles = listPublicSocialCircles().map(mapPublicSocialCircleRecord);
+  const persistentMoments = listPublicSocialMoments().map(mapPublicSocialMomentRecord);
   const detail = getPublicCircleDetail(
     circleId,
     pulse,
@@ -47,6 +52,7 @@ export default async function SocialCirclePage({
   const allMoments = getAllPublicSocialMoments(
     backendLibrarySnapshot?.socialState ?? null,
     events,
+    persistentMoments,
   );
   const relatedMoments = allMoments
     .filter((moment) => moment.circleId === circleId)

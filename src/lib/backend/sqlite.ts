@@ -14,6 +14,7 @@ import type {
   GenerationJobKind,
   LibrarySyncSnapshot,
   PublicSocialCircleRecord,
+  PublicSocialMomentRecord,
   SocialActivityEventKind,
   SocialCommunityActivityEventSummary,
   SocialCommunityPulseSummary,
@@ -215,6 +216,22 @@ function ensureDbSchema(db: DatabaseSync) {
       summary text not null,
       source_moment_id text,
       created_at text not null,
+      updated_at text not null,
+      foreign key (owner_workspace_id) references workspaces(id) on delete cascade
+    );
+
+    create table if not exists public_social_moments (
+      id text primary key,
+      owner_workspace_id text not null,
+      book_id text not null,
+      edition_id text,
+      circle_id text,
+      book_title text not null,
+      chapter_index integer not null,
+      chapter_label text not null,
+      progress_seconds real not null,
+      quote_text text not null,
+      promoted_at text not null,
       updated_at text not null,
       foreign key (owner_workspace_id) references workspaces(id) on delete cascade
     );
@@ -1436,6 +1453,73 @@ function syncPublicSocialCircles(
   }
 }
 
+function syncPublicSocialMoments(
+  db: DatabaseSync,
+  workspaceId: string,
+  snapshot: LibrarySyncSnapshot,
+) {
+  const nextMoments = snapshot.socialState?.promotedMoments ?? [];
+
+  if (nextMoments.length === 0) {
+    db.prepare("delete from public_social_moments where owner_workspace_id = ?").run(workspaceId);
+    return;
+  }
+
+  const placeholders = nextMoments.map(() => "?").join(", ");
+  db.prepare(
+    `delete from public_social_moments
+     where owner_workspace_id = ?
+       and id not in (${placeholders})`,
+  ).run(workspaceId, ...nextMoments.map((moment) => moment.id));
+
+  for (const moment of nextMoments) {
+    db.prepare(
+      `
+        insert into public_social_moments (
+          id,
+          owner_workspace_id,
+          book_id,
+          edition_id,
+          circle_id,
+          book_title,
+          chapter_index,
+          chapter_label,
+          progress_seconds,
+          quote_text,
+          promoted_at,
+          updated_at
+        )
+        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        on conflict(id) do update set
+          owner_workspace_id = excluded.owner_workspace_id,
+          book_id = excluded.book_id,
+          edition_id = excluded.edition_id,
+          circle_id = excluded.circle_id,
+          book_title = excluded.book_title,
+          chapter_index = excluded.chapter_index,
+          chapter_label = excluded.chapter_label,
+          progress_seconds = excluded.progress_seconds,
+          quote_text = excluded.quote_text,
+          promoted_at = excluded.promoted_at,
+          updated_at = excluded.updated_at
+      `,
+    ).run(
+      moment.id,
+      workspaceId,
+      moment.bookId,
+      moment.editionId ?? null,
+      moment.circleId ?? null,
+      moment.bookTitle,
+      moment.chapterIndex,
+      moment.chapterLabel,
+      moment.progressSeconds,
+      moment.quoteText,
+      moment.promotedAt,
+      snapshot.syncedAt,
+    );
+  }
+}
+
 export function syncWorkspaceLibrarySnapshot(
   workspaceId: string,
   snapshot: LibrarySyncSnapshot,
@@ -1617,6 +1701,7 @@ export function syncWorkspaceLibrarySnapshot(
     );
 
     syncPublicSocialCircles(db, workspaceId, snapshot);
+    syncPublicSocialMoments(db, workspaceId, snapshot);
 
     recordSocialActivityDiff(
       db,
@@ -2219,6 +2304,58 @@ export function listPublicSocialCircles(): PublicSocialCircleRecord[] {
     summary: row.summary,
     sourceMomentId: row.source_moment_id,
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }));
+}
+
+export function listPublicSocialMoments(): PublicSocialMomentRecord[] {
+  const db = getDatabase();
+  const rows = db
+    .prepare(
+      `
+        select id,
+               owner_workspace_id,
+               book_id,
+               edition_id,
+               circle_id,
+               book_title,
+               chapter_index,
+               chapter_label,
+               progress_seconds,
+               quote_text,
+               promoted_at,
+               updated_at
+        from public_social_moments
+        order by updated_at desc, promoted_at desc
+      `,
+    )
+    .all() as Array<{
+    id: string;
+    owner_workspace_id: string;
+    book_id: string;
+    edition_id: string | null;
+    circle_id: string | null;
+    book_title: string;
+    chapter_index: number;
+    chapter_label: string;
+    progress_seconds: number;
+    quote_text: string;
+    promoted_at: string;
+    updated_at: string;
+  }>;
+
+  return rows.map((row) => ({
+    id: row.id,
+    ownerWorkspaceId: row.owner_workspace_id,
+    bookId: row.book_id,
+    editionId: row.edition_id,
+    circleId: row.circle_id,
+    bookTitle: row.book_title,
+    chapterIndex: row.chapter_index,
+    chapterLabel: row.chapter_label,
+    progressSeconds: row.progress_seconds,
+    quoteText: row.quote_text,
+    promotedAt: row.promoted_at,
     updatedAt: row.updated_at,
   }));
 }

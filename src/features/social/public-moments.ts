@@ -7,6 +7,7 @@ import {
   getMomentCommunityHeat,
 } from "@/features/social/community-heat";
 import type {
+  PublicSocialMomentRecord,
   SocialCommunityActivityEventSummary,
   SocialCommunityPulseSummary,
 } from "@/lib/backend/types";
@@ -23,6 +24,23 @@ export type PublicSocialMoment = {
   moodLabel: string;
   source: "curated" | "promoted";
 };
+
+export function mapPublicSocialMomentRecord(
+  record: PublicSocialMomentRecord,
+): PublicSocialMoment {
+  return {
+    id: record.id,
+    editionId: record.editionId,
+    circleId: record.circleId,
+    bookTitle: record.bookTitle,
+    chapterLabel: record.chapterLabel,
+    quote: record.quoteText,
+    curatorNote:
+      "Promoted from a saved quote in a real player session so it can live inside the public social layer.",
+    moodLabel: "Shared moment",
+    source: "promoted",
+  };
+}
 
 export const publicSocialMoments: PublicSocialMoment[] = [
   {
@@ -142,10 +160,15 @@ function buildPromotedMomentFromEvent(
 export function getAllPublicSocialMoments(
   socialState: SyncedSocialState | null = null,
   events: SocialCommunityActivityEventSummary[] = [],
+  persistentMoments: PublicSocialMoment[] = [],
 ) {
   const byId = new Map<string, PublicSocialMoment>();
 
   for (const moment of publicSocialMoments) {
+    byId.set(moment.id, moment);
+  }
+
+  for (const moment of persistentMoments) {
     byId.set(moment.id, moment);
   }
 
@@ -206,8 +229,9 @@ export function getPublicMomentDetail(
   events: SocialCommunityActivityEventSummary[],
   socialState: SyncedSocialState | null = null,
   persistentCircles: FeaturedBookCircle[] = [],
+  persistentMoments: PublicSocialMoment[] = [],
 ) {
-  const allMoments = getAllPublicSocialMoments(socialState, events);
+  const allMoments = getAllPublicSocialMoments(socialState, events, persistentMoments);
   const moment = allMoments.find((entry) => entry.id === momentId) ?? null;
 
   if (!moment) {
@@ -249,6 +273,7 @@ export function getPublicMomentCircleStarter(
   events: SocialCommunityActivityEventSummary[],
   socialState: SyncedSocialState | null = null,
   persistentCircles: FeaturedBookCircle[] = [],
+  persistentMoments: PublicSocialMoment[] = [],
 ) {
   const detail = getPublicMomentDetail(
     momentId,
@@ -256,6 +281,7 @@ export function getPublicMomentCircleStarter(
     events,
     socialState,
     persistentCircles,
+    persistentMoments,
   );
 
   if (!detail) {
@@ -287,8 +313,9 @@ export function getPublicMomentsFeed(
   events: SocialCommunityActivityEventSummary[],
   socialState: SyncedSocialState | null = null,
   persistentCircles: FeaturedBookCircle[] = [],
+  persistentMoments: PublicSocialMoment[] = [],
 ) {
-  return getAllPublicSocialMoments(socialState, events)
+  return getAllPublicSocialMoments(socialState, events, persistentMoments)
     .map((moment) => ({
       moment,
       edition:

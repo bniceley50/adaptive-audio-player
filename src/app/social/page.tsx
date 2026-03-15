@@ -13,11 +13,15 @@ import {
   getAllPublicBookCircles,
   mapPublicSocialCircleRecord,
 } from "@/features/discovery/book-circles";
-import { getAllPublicSocialMoments } from "@/features/social/public-moments";
+import {
+  getAllPublicSocialMoments,
+  mapPublicSocialMomentRecord,
+} from "@/features/social/public-moments";
 import {
   listAllSocialActivityEvents,
   getSocialCommunityPulse,
   listPublicSocialCircles,
+  listPublicSocialMoments,
   getWorkspaceLibrarySnapshot,
   listRecentSocialActivityEvents,
 } from "@/lib/backend/sqlite";
@@ -50,6 +54,7 @@ export default async function SocialPage({
   const recentCommunityEvents = listRecentSocialActivityEvents(6);
   const communityEvents = listAllSocialActivityEvents();
   const persistentCircles = listPublicSocialCircles().map(mapPublicSocialCircleRecord);
+  const persistentMoments = listPublicSocialMoments().map(mapPublicSocialMomentRecord);
   const allCircles = getAllPublicBookCircles(
     backendLibrarySnapshot?.socialState ?? null,
     communityEvents,
@@ -59,7 +64,11 @@ export default async function SocialPage({
     ? allCircles.find((circle) => circle.id === focusedCircleId) ?? null
     : null;
   const focusedMoment = focusedMomentId
-    ? getAllPublicSocialMoments(backendLibrarySnapshot?.socialState ?? null, communityEvents).find(
+    ? getAllPublicSocialMoments(
+        backendLibrarySnapshot?.socialState ?? null,
+        communityEvents,
+        persistentMoments,
+      ).find(
         (moment) => moment.id === focusedMomentId,
       ) ?? null
     : null;
@@ -155,6 +164,7 @@ export default async function SocialPage({
         events={communityEvents}
         socialState={backendLibrarySnapshot?.socialState ?? null}
         focusedMomentId={focusedMomentId ?? null}
+        persistentMoments={persistentMoments}
       />
       <SocialActivitySummaryCard />
       <SocialActivityTimelineCard

@@ -6,10 +6,14 @@ import {
   listAllSocialActivityEvents,
   getSocialCommunityPulse,
   listPublicSocialCircles,
+  listPublicSocialMoments,
   getWorkspaceLibrarySnapshot,
 } from "@/lib/backend/sqlite";
 import { getPublicEditionDetail } from "@/features/social/public-social";
-import { getAllPublicSocialMoments } from "@/features/social/public-moments";
+import {
+  getAllPublicSocialMoments,
+  mapPublicSocialMomentRecord,
+} from "@/features/social/public-moments";
 import { readWorkspaceIdFromRequest } from "@/lib/backend/workspace-session";
 
 export default async function SocialEditionPage({
@@ -37,6 +41,7 @@ export default async function SocialEditionPage({
   const pulse = getSocialCommunityPulse();
   const events = listAllSocialActivityEvents();
   const persistentCircles = listPublicSocialCircles().map(mapPublicSocialCircleRecord);
+  const persistentMoments = listPublicSocialMoments().map(mapPublicSocialMomentRecord);
   const detail = getPublicEditionDetail(
     editionId,
     pulse,
@@ -44,7 +49,11 @@ export default async function SocialEditionPage({
     backendLibrarySnapshot?.socialState ?? null,
     persistentCircles,
   );
-  const allMoments = getAllPublicSocialMoments(backendLibrarySnapshot?.socialState ?? null, events);
+  const allMoments = getAllPublicSocialMoments(
+    backendLibrarySnapshot?.socialState ?? null,
+    events,
+    persistentMoments,
+  );
   const relatedMoments = allMoments
     .filter((moment) => moment.editionId === editionId)
     .slice(0, 2);

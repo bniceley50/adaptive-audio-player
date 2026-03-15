@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { getPublicMomentsFeed } from "@/features/social/public-moments";
+import {
+  getPublicMomentsFeed,
+  type PublicSocialMoment,
+} from "@/features/social/public-moments";
 import type {
   SocialCommunityActivityEventSummary,
   SocialCommunityPulseSummary,
@@ -11,13 +14,15 @@ export function SocialMomentsFeedCard({
   events,
   socialState = null,
   focusedMomentId = null,
+  persistentMoments = [],
 }: {
   pulse: SocialCommunityPulseSummary;
   events: SocialCommunityActivityEventSummary[];
   socialState?: SyncedSocialState | null;
   focusedMomentId?: string | null;
+  persistentMoments?: PublicSocialMoment[];
 }) {
-  const moments = getPublicMomentsFeed(pulse, events, socialState)
+  const moments = getPublicMomentsFeed(pulse, events, socialState, [], persistentMoments)
     .sort((left, right) => {
       if (left.moment.id === focusedMomentId) {
         return -1;

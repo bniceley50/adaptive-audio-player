@@ -17,6 +17,7 @@ import {
   getWorkerHeartbeat,
   listGenerationOutputHistoryForBook,
   listPublicSocialCircles,
+  listPublicSocialMoments,
   getGenerationJob,
   getUserById,
   getWorkspaceLibrarySnapshot,
@@ -319,6 +320,14 @@ describe("backend sqlite library sync", () => {
         title: "Harbor Warning Circle",
       }),
     ]);
+    expect(listPublicSocialMoments()).toEqual([
+      expect.objectContaining({
+        id: "promoted-harbor-warning",
+        ownerWorkspaceId: "workspace-1",
+        bookId: "book-1",
+        bookTitle: "Storm Harbor Revised",
+      }),
+    ]);
 
     expect(getSocialCommunityPulse()).toMatchObject({
       totalSocialWorkspaces: 1,
@@ -407,6 +416,7 @@ describe("backend sqlite library sync", () => {
     });
 
     expect(listPublicSocialCircles()).toEqual([]);
+    expect(listPublicSocialMoments()).toEqual([]);
   });
 
   it("creates users and links workspaces to them", () => {

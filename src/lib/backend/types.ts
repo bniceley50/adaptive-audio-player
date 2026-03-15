@@ -244,3 +244,18 @@ export interface PublicSocialCircleRecord {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface PublicSocialMomentRecord {
+  id: string;
+  ownerWorkspaceId: string;
+  bookId: string;
+  editionId: string | null;
+  circleId: string | null;
+  bookTitle: string;
+  chapterIndex: number;
+  chapterLabel: string;
+  progressSeconds: number;
+  quoteText: string;
+  promotedAt: string;
+  updatedAt: string;
+}
