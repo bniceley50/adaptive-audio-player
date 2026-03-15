@@ -39,14 +39,34 @@ const events = [
     occurredAt: new Date().toISOString(),
     metadata: null,
   },
+  {
+    id: "3",
+    workspaceId: "workspace-3",
+    kind: "circle-joined" as const,
+    subjectId: "created-storm-line-circle",
+    quantity: 1,
+    occurredAt: new Date().toISOString(),
+    metadata: {
+      bookTitle: "Storm Harbor",
+      editionId: "cinematic-harbor",
+      circleId: "created-storm-line-circle",
+      circleTitle: "Storm Line Circle",
+      circleHost: "You",
+      circleCheckpoint: "Chapter 3 and the harbor warning",
+      circleVibe: "Moment-led close reading",
+      circleSummary: "A listener-created circle seeded from one strong public line.",
+      circleSourceMomentId: "storm-harbor-first-reveal",
+    },
+  },
 ];
 
 describe("public social helpers", () => {
   it("builds edition detail data", () => {
-    expect(getPublicEditionDetail("cinematic-harbor", pulse, events)).toMatchObject({
+    const detail = getPublicEditionDetail("cinematic-harbor", pulse, events);
+
+    expect(detail).toMatchObject({
       edition: { id: "cinematic-harbor" },
       summary: { saves: 3, reuses: 2 },
-      relatedCircles: [{ id: "storm-harbor-night-watch" }],
       relatedCircleSummary: {
         totalJoins: 2,
         totalShares: 1,
@@ -57,7 +77,10 @@ describe("public social helpers", () => {
         },
       },
     });
-    expect(getPublicEditionDetail("cinematic-harbor", pulse, events)?.otherActiveEditions).toHaveLength(2);
+    expect(detail?.relatedCircles).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: "storm-harbor-night-watch" })]),
+    );
+    expect(detail?.otherActiveEditions).toHaveLength(2);
   });
 
   it("builds circle detail data", () => {
@@ -75,12 +98,30 @@ describe("public social helpers", () => {
       title: "Cinematic Harbor Edition",
       href: "/social/editions/cinematic-harbor",
     });
+    expect(describeSocialCommunityEvent(events[2])).toMatchObject({
+      title: "Storm Line Circle",
+      href: "/social/circles/created-storm-line-circle",
+    });
   });
 
   it("builds narrative timeline copy for backend activity", () => {
     expect(describeSocialCommunityTimelineEvent(events[0])).toMatchObject({
       eyebrow: "Saved to shelf",
       title: "1 listener saved this edition",
+    });
+  });
+
+  it("builds circle detail for backend-created public circles", () => {
+    expect(
+      getPublicCircleDetail("created-storm-line-circle", pulse, events),
+    ).toMatchObject({
+      circle: {
+        id: "created-storm-line-circle",
+        title: "Storm Line Circle",
+        checkpoint: "Chapter 3 and the harbor warning",
+      },
+      edition: { id: "cinematic-harbor" },
+      editionSummary: { saves: 3, reuses: 2 },
     });
   });
 });

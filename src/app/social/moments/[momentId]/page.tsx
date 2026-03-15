@@ -3,9 +3,9 @@ import { SocialMomentDetailCard } from "@/components/library/social-moment-detai
 import { AppShell } from "@/components/shared/app-shell";
 import { getPublicMomentDetail } from "@/features/social/public-moments";
 import {
+  listAllSocialActivityEvents,
   getSocialCommunityPulse,
   getWorkspaceLibrarySnapshot,
-  listRecentSocialActivityEvents,
 } from "@/lib/backend/sqlite";
 import { readWorkspaceIdFromRequest } from "@/lib/backend/workspace-session";
 
@@ -20,7 +20,7 @@ export default async function SocialMomentPage({
     ? getWorkspaceLibrarySnapshot(workspaceId)
     : null;
   const pulse = getSocialCommunityPulse();
-  const events = listRecentSocialActivityEvents(12);
+  const events = listAllSocialActivityEvents();
   const detail = getPublicMomentDetail(
     momentId,
     pulse,

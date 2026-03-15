@@ -3,6 +3,7 @@ import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
+import { getAllPublicBookCircles } from "../../features/discovery/book-circles.ts";
 import { getDatabasePath } from "./env.ts";
 import type {
   BackendAccountSession,
@@ -356,6 +357,12 @@ function readSocialActivityMetadata(value: string | null | undefined) {
       quoteText?: string;
       editionId?: string | null;
       circleId?: string | null;
+      circleTitle?: string;
+      circleHost?: string;
+      circleCheckpoint?: string;
+      circleVibe?: string;
+      circleSummary?: string;
+      circleSourceMomentId?: string | null;
     };
   } catch {
     return null;
@@ -376,6 +383,12 @@ function recordSocialActivityEvent(
       quoteText?: string;
       editionId?: string | null;
       circleId?: string | null;
+      circleTitle?: string;
+      circleHost?: string;
+      circleCheckpoint?: string;
+      circleVibe?: string;
+      circleSummary?: string;
+      circleSourceMomentId?: string | null;
     } | null;
   },
 ) {
@@ -416,6 +429,7 @@ function recordSocialActivityDiff(
   const previousCircleMemberships = new Map(
     (previousState?.circleMemberships ?? []).map((entry) => [entry.circleId, entry]),
   );
+  const allPublicCircles = getAllPublicBookCircles(nextState);
   const previousPromotedMoments = new Map(
     (previousState?.promotedMoments ?? []).map((entry) => [entry.id, entry]),
   );
@@ -448,6 +462,23 @@ function recordSocialActivityDiff(
 
   for (const entry of nextState?.circleMemberships ?? []) {
     const previousEntry = previousCircleMemberships.get(entry.circleId);
+    const circle = allPublicCircles.find((candidate) => candidate.id === entry.circleId) ?? null;
+    const circleSourceMomentId = (
+      circle as { sourceMomentId?: string | null } | null
+    )?.sourceMomentId;
+    const circleMetadata = circle
+      ? {
+          bookTitle: circle.bookTitle,
+          editionId: circle.editionId,
+          circleId: circle.id,
+          circleTitle: circle.title,
+          circleHost: circle.host,
+          circleCheckpoint: circle.checkpoint,
+          circleVibe: circle.vibe,
+          circleSummary: circle.summary,
+          circleSourceMomentId: circleSourceMomentId ?? null,
+        }
+      : null;
 
     if (!previousEntry) {
       recordSocialActivityEvent(db, {
@@ -455,6 +486,7 @@ function recordSocialActivityDiff(
         kind: "circle-joined",
         subjectId: entry.circleId,
         occurredAt: entry.joinedAt ?? occurredAt,
+        metadata: circleMetadata,
       });
     }
 
@@ -468,6 +500,7 @@ function recordSocialActivityDiff(
         kind: "circle-reopened",
         subjectId: entry.circleId,
         occurredAt: entry.lastOpenedAt,
+        metadata: circleMetadata,
       });
     }
 
@@ -480,6 +513,7 @@ function recordSocialActivityDiff(
         subjectId: entry.circleId,
         quantity: nextShareCount - previousShareCount,
         occurredAt: entry.lastOpenedAt ?? occurredAt,
+        metadata: circleMetadata,
       });
     }
   }
@@ -1992,6 +2026,38 @@ export function listRecentSocialActivityEvents(
       `,
     )
     .all(limit) as Array<{
+    id: string;
+    workspace_id: string;
+    kind: SocialActivityEventKind;
+    subject_id: string;
+    quantity: number;
+    occurred_at: string;
+    metadata_json: string | null;
+  }>;
+
+  return rows.map((row) => ({
+    id: row.id,
+    workspaceId: row.workspace_id,
+    kind: row.kind,
+    subjectId: row.subject_id,
+    quantity: row.quantity,
+    occurredAt: row.occurred_at,
+    metadata: readSocialActivityMetadata(row.metadata_json),
+  }));
+}
+
+export function listAllSocialActivityEvents(): SocialCommunityActivityEventSummary[] {
+  const db = getDatabase();
+  const rows = db
+    .prepare(
+      `
+        select id, workspace_id, kind, subject_id, quantity, occurred_at
+          , metadata_json
+        from social_activity_events
+        order by occurred_at desc
+      `,
+    )
+    .all() as Array<{
     id: string;
     workspace_id: string;
     kind: SocialActivityEventKind;

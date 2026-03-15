@@ -2,9 +2,9 @@ import { notFound } from "next/navigation";
 import { SocialEditionDetailCard } from "@/components/library/social-edition-detail-card";
 import { AppShell } from "@/components/shared/app-shell";
 import {
+  listAllSocialActivityEvents,
   getSocialCommunityPulse,
   getWorkspaceLibrarySnapshot,
-  listRecentSocialActivityEvents,
 } from "@/lib/backend/sqlite";
 import { getPublicEditionDetail } from "@/features/social/public-social";
 import { getAllPublicSocialMoments } from "@/features/social/public-moments";
@@ -33,7 +33,7 @@ export default async function SocialEditionPage({
     ? getWorkspaceLibrarySnapshot(workspaceId)
     : null;
   const pulse = getSocialCommunityPulse();
-  const events = listRecentSocialActivityEvents(12);
+  const events = listAllSocialActivityEvents();
   const detail = getPublicEditionDetail(
     editionId,
     pulse,

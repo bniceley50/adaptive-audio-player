@@ -1,3 +1,4 @@
+import type { SocialCommunityActivityEventSummary } from "@/lib/backend/types";
 import type { SyncedSocialState } from "@/lib/types/social";
 
 export type FeaturedBookCircle = {
@@ -57,14 +58,38 @@ export const featuredBookCircles: FeaturedBookCircle[] = [
 
 export function getAllPublicBookCircles(
   socialState: SyncedSocialState | null = null,
+  events: SocialCommunityActivityEventSummary[] = [],
 ): FeaturedBookCircle[] {
+  const backendCreated = events
+    .filter(
+      (event) =>
+        (event.kind === "circle-joined" ||
+          event.kind === "circle-reopened" ||
+          event.kind === "circle-shared") &&
+        event.metadata?.circleTitle &&
+        event.metadata?.editionId,
+    )
+    .map((event) => ({
+      id: event.subjectId,
+      title: event.metadata?.circleTitle ?? "Community circle",
+      editionId: event.metadata?.editionId ?? "",
+      host: event.metadata?.circleHost ?? "Community",
+      bookTitle: event.metadata?.bookTitle ?? "Untitled book",
+      memberCount: Math.max(1, event.quantity),
+      checkpoint: event.metadata?.circleCheckpoint ?? "Community checkpoint",
+      vibe: event.metadata?.circleVibe ?? "Listener-created discussion path",
+      summary:
+        event.metadata?.circleSummary ??
+        "A public circle seeded from real backend social activity.",
+      source: "created" as const,
+    }));
   const created = (socialState?.createdCircles ?? []).map((circle) => ({
     ...circle,
     source: "created" as const,
   }));
 
   const byId = new Map<string, FeaturedBookCircle>();
-  for (const circle of [...created, ...featuredBookCircles]) {
+  for (const circle of [...backendCreated, ...created, ...featuredBookCircles]) {
     byId.set(circle.id, circle);
   }
 

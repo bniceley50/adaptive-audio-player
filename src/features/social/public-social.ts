@@ -1,5 +1,4 @@
 import {
-  featuredBookCircles,
   getAllPublicBookCircles,
 } from "@/features/discovery/book-circles";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
@@ -92,7 +91,15 @@ export function describeSocialCommunityEvent(event: SocialCommunityActivityEvent
     };
   }
 
-  const circle = featuredBookCircles.find((entry) => entry.id === event.subjectId) ?? null;
+  const circle =
+    event.metadata?.circleTitle && event.metadata?.editionId
+      ? {
+          id: event.subjectId,
+          title: event.metadata.circleTitle,
+          bookTitle: event.metadata.bookTitle ?? "Untitled book",
+          checkpoint: event.metadata.circleCheckpoint ?? "Community checkpoint",
+        }
+      : null;
   return {
     title: circle?.title ?? "Book circle",
     detail: circle
@@ -168,7 +175,7 @@ export function getPublicEditionDetail(
     return null;
   }
 
-  const relatedCircles = getAllPublicBookCircles(socialState).filter(
+  const relatedCircles = getAllPublicBookCircles(socialState, events).filter(
     (circle) => circle.editionId === editionId,
   );
   const summary =
@@ -250,7 +257,7 @@ export function getPublicCircleDetail(
   events: SocialCommunityActivityEventSummary[],
   socialState: SyncedSocialState | null = null,
 ) {
-  const allCircles = getAllPublicBookCircles(socialState);
+  const allCircles = getAllPublicBookCircles(socialState, events);
   const circle = allCircles.find((entry) => entry.id === circleId) ?? null;
 
   if (!circle) {

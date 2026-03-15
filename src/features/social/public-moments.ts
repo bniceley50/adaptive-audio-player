@@ -80,12 +80,16 @@ export function resolveMatchingPublicEdition(input: {
 export function resolveMatchingPublicCircle(
   editionId: string | null,
   socialState: SyncedSocialState | null = null,
+  events: SocialCommunityActivityEventSummary[] = [],
 ) {
   if (!editionId) {
     return null;
   }
 
-  return getAllPublicBookCircles(socialState).find((circle) => circle.editionId === editionId) ?? null;
+  return (
+    getAllPublicBookCircles(socialState, events).find((circle) => circle.editionId === editionId) ??
+    null
+  );
 }
 
 function buildPromotedPublicMoment(record: PromotedSocialMomentRecord): PublicSocialMoment {
@@ -212,7 +216,7 @@ export function getPublicMomentDetail(
       : null;
   const circle =
     moment.circleId
-      ? getAllPublicBookCircles(socialState).find((entry) => entry.id === moment.circleId) ?? null
+      ? getAllPublicBookCircles(socialState, events).find((entry) => entry.id === moment.circleId) ?? null
       : null;
   const activity = getMomentActivityScore(moment, pulse, events);
   const relatedMoments = allMoments
@@ -279,7 +283,7 @@ export function getPublicMomentsFeed(
           : null,
       circle:
         moment.circleId
-          ? getAllPublicBookCircles(socialState).find((entry) => entry.id === moment.circleId) ?? null
+          ? getAllPublicBookCircles(socialState, events).find((entry) => entry.id === moment.circleId) ?? null
           : null,
       activity: getMomentActivityScore(moment, pulse, events),
     }))

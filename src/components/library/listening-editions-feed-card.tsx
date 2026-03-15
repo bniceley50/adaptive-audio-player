@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { featuredBookCircles } from "@/features/discovery/book-circles";
+import { getAllPublicBookCircles } from "@/features/discovery/book-circles";
 import {
   getEditionDiscoveryReason,
   getRelativeDiscoveryBadge,
@@ -87,7 +87,7 @@ export function ListeningEditionsFeedCard({
   communityEvents?: SocialCommunityActivityEventSummary[] | null;
 }) {
   const preferences = useDiscoveryPreferences();
-  const { savedEditions } = useSocialState(initialSocialState);
+  const { savedEditions, createdCircles, promotedMoments } = useSocialState(initialSocialState);
   const { followedAuthorTimestamps, joinedCircleTimestamps, personalizationPaused } = preferences;
   const effectivePreferences = useMemo(
     () => ({
@@ -107,6 +107,19 @@ export function ListeningEditionsFeedCard({
   const editionHeat = useMemo(
     () => getEditionCommunityHeat(communityEvents),
     [communityEvents],
+  );
+  const allCircles = useMemo(
+    () =>
+      getAllPublicBookCircles(
+        {
+          savedEditions,
+          circleMemberships: [],
+          createdCircles,
+          promotedMoments,
+        },
+        communityEvents ?? [],
+      ),
+    [communityEvents, createdCircles, promotedMoments, savedEditions],
   );
 
   useEffect(() => {
@@ -135,7 +148,7 @@ export function ListeningEditionsFeedCard({
       bookId: null,
     }));
 
-    const joinedEditionIds = featuredBookCircles
+    const joinedEditionIds = allCircles
       .filter((circle) => joinedCircles.includes(circle.id))
       .map((circle) => circle.editionId);
 
@@ -185,7 +198,7 @@ export function ListeningEditionsFeedCard({
         return 0;
       })
       .slice(0, 4);
-  }, [communityPulse, editionHeat, joinedCircles, libraryEditions, savedEditions]);
+  }, [allCircles, communityPulse, editionHeat, joinedCircles, libraryEditions, savedEditions]);
 
   return (
     <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-white shadow-[0_22px_60px_-42px_rgba(28,25,23,0.4)]">
@@ -293,7 +306,7 @@ export function ListeningEditionsFeedCard({
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="max-w-xl">
                 {(() => {
-                  const joinedCircle = featuredBookCircles.find(
+                  const joinedCircle = allCircles.find(
                     (circle) =>
                       joinedCircles.includes(circle.id) && circle.editionId === edition.id,
                   );
@@ -329,7 +342,7 @@ export function ListeningEditionsFeedCard({
                   <span className="rounded-full bg-stone-100 px-2.5 py-1">
                     {edition.source === "community" ? "Public feed" : "From your library"}
                   </span>
-                  {featuredBookCircles.some(
+                  {allCircles.some(
                     (circle) => joinedCircles.includes(circle.id) && circle.editionId === edition.id,
                   ) ? (
                     <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">

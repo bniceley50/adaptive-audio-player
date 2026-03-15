@@ -12,6 +12,7 @@ import { AppShell } from "@/components/shared/app-shell";
 import { getAllPublicBookCircles } from "@/features/discovery/book-circles";
 import { getAllPublicSocialMoments } from "@/features/social/public-moments";
 import {
+  listAllSocialActivityEvents,
   getSocialCommunityPulse,
   getWorkspaceLibrarySnapshot,
   listRecentSocialActivityEvents,
@@ -42,8 +43,12 @@ export default async function SocialPage({
     ? getWorkspaceLibrarySnapshot(workspaceId)
     : null;
   const communityPulse = getSocialCommunityPulse();
-  const communityEvents = listRecentSocialActivityEvents(6);
-  const allCircles = getAllPublicBookCircles(backendLibrarySnapshot?.socialState ?? null);
+  const recentCommunityEvents = listRecentSocialActivityEvents(6);
+  const communityEvents = listAllSocialActivityEvents();
+  const allCircles = getAllPublicBookCircles(
+    backendLibrarySnapshot?.socialState ?? null,
+    communityEvents,
+  );
   const focusedCircle = focusedCircleId
     ? allCircles.find((circle) => circle.id === focusedCircleId) ?? null
     : null;
@@ -137,8 +142,8 @@ export default async function SocialPage({
         socialState={backendLibrarySnapshot?.socialState ?? null}
         syncedAt={backendLibrarySnapshot?.syncedAt ?? null}
       />
-      <SocialCommunityPulseCard pulse={communityPulse} />
-      <SocialCommunityActivityCard events={communityEvents} />
+      <SocialCommunityPulseCard pulse={communityPulse} events={communityEvents} />
+      <SocialCommunityActivityCard events={recentCommunityEvents} />
       <SocialMomentsFeedCard
         pulse={communityPulse}
         events={communityEvents}

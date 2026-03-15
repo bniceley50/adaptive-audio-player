@@ -79,8 +79,8 @@ export function BookCirclesFeedCard({
         circleMemberships: [],
         createdCircles,
         promotedMoments: [],
-      }),
-    [createdCircles],
+      }, communityEvents ?? []),
+    [communityEvents, createdCircles],
   );
 
   const circles = useMemo(

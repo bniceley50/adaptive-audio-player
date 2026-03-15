@@ -1,6 +1,9 @@
-import { featuredBookCircles } from "@/features/discovery/book-circles";
+import { getAllPublicBookCircles } from "@/features/discovery/book-circles";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
-import type { SocialCommunityPulseSummary } from "@/lib/backend/types";
+import type {
+  SocialCommunityActivityEventSummary,
+  SocialCommunityPulseSummary,
+} from "@/lib/backend/types";
 
 function formatSnapshotTime(value: string | null) {
   if (!value) {
@@ -17,15 +20,18 @@ function formatSnapshotTime(value: string | null) {
 
 export function SocialCommunityPulseCard({
   pulse,
+  events = [],
 }: {
   pulse: SocialCommunityPulseSummary;
+  events?: SocialCommunityActivityEventSummary[];
 }) {
+  const allCircles = getAllPublicBookCircles(null, events);
   const topEdition = pulse.editionCounts[0]
     ? featuredListeningEditions.find((edition) => edition.id === pulse.editionCounts[0].editionId) ??
       null
     : null;
   const topCircle = pulse.circleCounts[0]
-    ? featuredBookCircles.find((circle) => circle.id === pulse.circleCounts[0].circleId) ?? null
+    ? allCircles.find((circle) => circle.id === pulse.circleCounts[0].circleId) ?? null
     : null;
 
   return (

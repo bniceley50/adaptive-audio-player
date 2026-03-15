@@ -1,4 +1,4 @@
-import { featuredBookCircles } from "@/features/discovery/book-circles";
+import { getAllPublicBookCircles } from "@/features/discovery/book-circles";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import type { SyncedSocialState } from "@/lib/types/social";
 
@@ -48,8 +48,9 @@ export function SocialBackendSnapshotCard({
     ? featuredListeningEditions.find((edition) => edition.id === latestSavedEdition.editionId) ??
       null
     : null;
+  const allCircles = getAllPublicBookCircles(socialState ?? null);
   const latestCircleMeta = latestCircle
-    ? featuredBookCircles.find((circle) => circle.id === latestCircle.circleId) ?? null
+    ? allCircles.find((circle) => circle.id === latestCircle.circleId) ?? null
     : null;
 
   return (

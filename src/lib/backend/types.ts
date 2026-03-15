@@ -192,6 +192,12 @@ export interface SocialActivityEventMetadata {
   quoteText?: string;
   editionId?: string | null;
   circleId?: string | null;
+  circleTitle?: string;
+  circleHost?: string;
+  circleCheckpoint?: string;
+  circleVibe?: string;
+  circleSummary?: string;
+  circleSourceMomentId?: string | null;
 }
 
 export interface SocialCommunityPulseSummary {
