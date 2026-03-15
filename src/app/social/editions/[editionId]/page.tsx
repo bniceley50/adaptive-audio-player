@@ -12,10 +12,22 @@ import { readWorkspaceIdFromRequest } from "@/lib/backend/workspace-session";
 
 export default async function SocialEditionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ editionId: string }>;
+  searchParams?: Promise<{
+    moment?: string | string[];
+    entry?: string | string[];
+  }>;
 }) {
   const { editionId } = await params;
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const sourceMomentId = Array.isArray(resolvedSearchParams.moment)
+    ? resolvedSearchParams.moment[0]
+    : resolvedSearchParams.moment;
+  const entry = Array.isArray(resolvedSearchParams.entry)
+    ? resolvedSearchParams.entry[0]
+    : resolvedSearchParams.entry;
   const workspaceId = await readWorkspaceIdFromRequest();
   const backendLibrarySnapshot = workspaceId
     ? getWorkspaceLibrarySnapshot(workspaceId)
@@ -23,9 +35,13 @@ export default async function SocialEditionPage({
   const pulse = getSocialCommunityPulse();
   const events = listRecentSocialActivityEvents(12);
   const detail = getPublicEditionDetail(editionId, pulse, events);
-  const relatedMoments = getAllPublicSocialMoments(backendLibrarySnapshot?.socialState ?? null)
+  const allMoments = getAllPublicSocialMoments(backendLibrarySnapshot?.socialState ?? null, events);
+  const relatedMoments = allMoments
     .filter((moment) => moment.editionId === editionId)
     .slice(0, 2);
+  const sourceMoment = sourceMomentId
+    ? allMoments.find((moment) => moment.id === sourceMomentId) ?? null
+    : null;
 
   if (!detail) {
     notFound();
@@ -42,6 +58,8 @@ export default async function SocialEditionPage({
         relatedCircleSummary={detail.relatedCircleSummary}
         otherActiveEditions={detail.otherActiveEditions}
         relatedMoments={relatedMoments}
+        sourceMoment={sourceMoment}
+        entry={entry ?? null}
         initialSocialState={backendLibrarySnapshot?.socialState ?? null}
       />
     </AppShell>

@@ -7,6 +7,7 @@ import { touchSavedListeningEdition, toggleSavedListeningEdition } from "@/featu
 import { useSocialState } from "@/features/social/use-social-state";
 import type { FeaturedBookCircle } from "@/features/discovery/book-circles";
 import type { FeaturedListeningEdition } from "@/features/discovery/listening-editions";
+import type { PublicSocialMoment } from "@/features/social/public-moments";
 import type {
   SocialCommunityActivityEventSummary,
   SocialCommunityEditionSummary,
@@ -22,6 +23,8 @@ export function SocialEditionDetailCard({
   relatedCircleSummary,
   otherActiveEditions,
   relatedMoments,
+  sourceMoment = null,
+  entry = null,
   initialSocialState = null,
 }: {
   edition: FeaturedListeningEdition;
@@ -52,6 +55,8 @@ export function SocialEditionDetailCard({
     moodLabel: string;
     source: "curated" | "promoted";
   }[];
+  sourceMoment?: PublicSocialMoment | null;
+  entry?: string | null;
   initialSocialState?: SyncedSocialState | null;
 }) {
   const { savedEditions } = useSocialState(initialSocialState);
@@ -95,6 +100,22 @@ export function SocialEditionDetailCard({
             <h2 className="mt-4 text-3xl font-semibold tracking-tight text-stone-950">
               {edition.narratorName} for {edition.bookTitle}
             </h2>
+            {sourceMoment ? (
+              <div
+                id="moment-led"
+                className="mt-4 rounded-[1.2rem] border border-emerald-200 bg-emerald-50/80 px-4 py-4"
+              >
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                  {entry === "moment-path" ? "Focused from this moment" : "Focused moment"}
+                </p>
+                <p className="mt-2 text-sm italic leading-6 text-emerald-950">
+                  “{sourceMoment.quote}”
+                </p>
+                <p className="mt-2 text-sm leading-6 text-emerald-900">
+                  This edition is being foregrounded because that moment already proved it is the fastest listening path into the shared discussion.
+                </p>
+              </div>
+            ) : null}
             <p className="mt-3 text-base leading-7 text-stone-600">{edition.note}</p>
             <p className="mt-3 text-sm leading-6 text-stone-600">
               Best for {edition.bestFor}. Created by {edition.creator}.

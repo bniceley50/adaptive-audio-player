@@ -74,12 +74,19 @@ export function SocialMomentDetailCard({
             <p className="mt-4 text-base leading-7 text-stone-600">{moment.curatorNote}</p>
           </div>
           <div className="flex flex-wrap gap-3">
-            {edition ? (
+            {circle ? (
               <Link
                 className="rounded-full bg-stone-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-800"
-                href={`/import?edition=${edition.id}`}
+                href={`/social/circles/${circle.id}?moment=${moment.id}&entry=moment-path#moment-led`}
               >
-                Start with this edition
+                Start with this circle path
+              </Link>
+            ) : edition ? (
+              <Link
+                className="rounded-full bg-stone-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-800"
+                href={`/social/editions/${edition.id}?moment=${moment.id}&entry=moment-path#moment-led`}
+              >
+                Start with this edition path
               </Link>
             ) : null}
             <button
@@ -127,7 +134,7 @@ export function SocialMomentDetailCard({
       <section className="grid gap-6 xl:grid-cols-2">
         <article className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-            Listening path
+            Moment-led path
           </p>
           <div className="mt-4 space-y-4">
             {edition ? (
@@ -138,9 +145,9 @@ export function SocialMomentDetailCard({
                 </p>
                 <Link
                   className="mt-3 inline-flex rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
-                  href={`/social/editions/${edition.id}`}
+                  href={`/social/editions/${edition.id}?moment=${moment.id}&entry=moment-path#moment-led`}
                 >
-                  Open edition
+                  Open edition from this moment
                 </Link>
               </div>
             ) : null}
@@ -148,11 +155,14 @@ export function SocialMomentDetailCard({
               <div className="rounded-[1.2rem] border border-stone-200 bg-stone-50/80 p-4">
                 <p className="text-sm font-semibold text-stone-950">{circle.title}</p>
                 <p className="mt-2 text-sm leading-6 text-stone-600">{circle.checkpoint}</p>
+                <p className="mt-2 text-sm leading-6 text-stone-600">
+                  This is the most direct shared path if you want this moment to turn into a live checkpoint instead of a one-off quote.
+                </p>
                 <Link
                   className="mt-3 inline-flex rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
-                  href={`/social/circles/${circle.id}`}
+                  href={`/social/circles/${circle.id}?moment=${moment.id}&entry=moment-path#moment-led`}
                 >
-                  Open circle
+                  Open circle from this moment
                 </Link>
               </div>
             ) : null}
