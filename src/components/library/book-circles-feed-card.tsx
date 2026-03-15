@@ -9,6 +9,10 @@ import {
   getRelativeDiscoveryBadge,
 } from "@/features/discovery/personalization";
 import {
+  getCircleCommunityHeat,
+  getCommunityHeatBadge,
+} from "@/features/social/community-heat";
+import {
   incrementCircleShareCount,
   joinCircleMembership,
   leaveCircleMembership,
@@ -21,7 +25,10 @@ import {
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 import { useSocialState } from "@/features/social/use-social-state";
-import type { SocialCommunityPulseSummary } from "@/lib/backend/types";
+import type {
+  SocialCommunityActivityEventSummary,
+  SocialCommunityPulseSummary,
+} from "@/lib/backend/types";
 import type { SyncedSocialState } from "@/lib/types/social";
 
 function getCircleActivityTime(
@@ -38,9 +45,11 @@ function getCircleActivityTime(
 export function BookCirclesFeedCard({
   initialSocialState = null,
   communityPulse = null,
+  communityEvents = null,
 }: {
   initialSocialState?: SyncedSocialState | null;
   communityPulse?: SocialCommunityPulseSummary | null;
+  communityEvents?: SocialCommunityActivityEventSummary[] | null;
 }) {
   const searchParams = useSearchParams();
   const preferences = useDiscoveryPreferences();
@@ -59,6 +68,10 @@ export function BookCirclesFeedCard({
   const { joinedCircles, pinnedDiscoverySignal } = effectivePreferences;
   const [sharedCircleId, setSharedCircleId] = useState<string | null>(null);
   const highlightedCircleId = searchParams.get("circle");
+  const circleHeat = useMemo(
+    () => getCircleCommunityHeat(communityEvents),
+    [communityEvents],
+  );
 
   const circles = useMemo(
     () =>
@@ -99,6 +112,14 @@ export function BookCirclesFeedCard({
             return rightJoined - leftJoined;
           }
 
+          const leftHeat = circleHeat.get(left.id);
+          const rightHeat = circleHeat.get(right.id);
+          const leftHeatScore = leftHeat?.score ?? 0;
+          const rightHeatScore = rightHeat?.score ?? 0;
+          if (leftHeatScore !== rightHeatScore) {
+            return rightHeatScore - leftHeatScore;
+          }
+
           const leftCommunity = communityPulse?.circleCounts.find(
             (entry) => entry.circleId === left.id,
           );
@@ -115,7 +136,14 @@ export function BookCirclesFeedCard({
             (rightCommunity?.shares ?? 0);
           return rightCommunityScore - leftCommunityScore;
         }),
-    [circleMemberships, communityPulse, highlightedCircleId, joinedCircles, pinnedDiscoverySignal],
+    [
+      circleHeat,
+      circleMemberships,
+      communityPulse,
+      highlightedCircleId,
+      joinedCircles,
+      pinnedDiscoverySignal,
+    ],
   );
 
   async function shareCircle(circleId: string, title: string, bookTitle: string) {
@@ -205,6 +233,20 @@ export function BookCirclesFeedCard({
                   : "border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)]"
               }`}
             >
+              {(() => {
+                const heat = circleHeat.get(circle.id);
+                const badge = getCommunityHeatBadge(heat);
+                return badge ? (
+                  <div className="mb-4 rounded-[1.1rem] border border-violet-200 bg-violet-50/80 px-4 py-3">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                      {badge}
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-violet-900">
+                      Backend event history shows fresh community momentum around this circle.
+                    </p>
+                  </div>
+                ) : null;
+              })()}
               {highlighted ? (
                 <div className="mb-4 rounded-[1.1rem] border border-amber-200 bg-amber-50/80 px-4 py-3">
                   <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-amber-700">
@@ -275,6 +317,14 @@ export function BookCirclesFeedCard({
                     {communitySummary.joins} joins
                   </span>
                 ) : null}
+                {(() => {
+                  const badge = getCommunityHeatBadge(circleHeat.get(circle.id));
+                  return badge ? (
+                    <span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700">
+                      {badge}
+                    </span>
+                  ) : null;
+                })()}
                 {highlighted ? (
                   <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
                     Highlighted

@@ -7,6 +7,10 @@ import {
   getEditionDiscoveryReason,
   getRelativeDiscoveryBadge,
 } from "@/features/discovery/personalization";
+import {
+  getCommunityHeatBadge,
+  getEditionCommunityHeat,
+} from "@/features/social/community-heat";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 import {
   socialStateChangedEvent,
@@ -14,7 +18,10 @@ import {
   touchSavedListeningEdition,
 } from "@/features/social/local-social";
 import { useSocialState } from "@/features/social/use-social-state";
-import type { SocialCommunityPulseSummary } from "@/lib/backend/types";
+import type {
+  SocialCommunityActivityEventSummary,
+  SocialCommunityPulseSummary,
+} from "@/lib/backend/types";
 import type { SyncedSocialState } from "@/lib/types/social";
 import {
   defaultTasteChangedEvent,
@@ -73,9 +80,11 @@ function readLibraryEditions(): FeedEdition[] {
 export function ListeningEditionsFeedCard({
   initialSocialState = null,
   communityPulse = null,
+  communityEvents = null,
 }: {
   initialSocialState?: SyncedSocialState | null;
   communityPulse?: SocialCommunityPulseSummary | null;
+  communityEvents?: SocialCommunityActivityEventSummary[] | null;
 }) {
   const preferences = useDiscoveryPreferences();
   const { savedEditions } = useSocialState(initialSocialState);
@@ -94,6 +103,10 @@ export function ListeningEditionsFeedCard({
   const [feedbackId, setFeedbackId] = useState<string | null>(null);
   const [libraryEditions, setLibraryEditions] = useState<FeedEdition[]>(() =>
     typeof window === "undefined" ? [] : readLibraryEditions(),
+  );
+  const editionHeat = useMemo(
+    () => getEditionCommunityHeat(communityEvents),
+    [communityEvents],
   );
 
   useEffect(() => {
@@ -148,6 +161,14 @@ export function ListeningEditionsFeedCard({
           return rightJoined - leftJoined;
         }
 
+        const leftHeat = editionHeat.get(left.id);
+        const rightHeat = editionHeat.get(right.id);
+        const leftHeatScore = leftHeat?.score ?? 0;
+        const rightHeatScore = rightHeat?.score ?? 0;
+        if (leftHeatScore !== rightHeatScore) {
+          return rightHeatScore - leftHeatScore;
+        }
+
         const leftCommunity = communityPulse?.editionCounts.find(
           (entry) => entry.editionId === left.id,
         );
@@ -164,7 +185,7 @@ export function ListeningEditionsFeedCard({
         return 0;
       })
       .slice(0, 4);
-  }, [communityPulse, joinedCircles, libraryEditions, savedEditions]);
+  }, [communityPulse, editionHeat, joinedCircles, libraryEditions, savedEditions]);
 
   return (
     <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-white shadow-[0_22px_60px_-42px_rgba(28,25,23,0.4)]">
@@ -203,6 +224,20 @@ export function ListeningEditionsFeedCard({
             key={edition.id}
             className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm"
           >
+            {(() => {
+              const heat = editionHeat.get(edition.id);
+              const badge = getCommunityHeatBadge(heat);
+              return badge ? (
+                <div className="mb-4 rounded-[1.1rem] border border-violet-200 bg-violet-50/80 px-4 py-3">
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-violet-700">
+                    {badge}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-violet-900">
+                    Backend event history shows fresh community momentum around this edition.
+                  </p>
+                </div>
+              ) : null;
+            })()}
             {(() => {
               const communitySummary =
                 communityPulse?.editionCounts.find((entry) => entry.editionId === edition.id) ?? null;
@@ -313,6 +348,14 @@ export function ListeningEditionsFeedCard({
                     return communitySummary ? (
                       <span className="rounded-full bg-sky-50 px-2.5 py-1 text-sky-700">
                         {communitySummary.saves} saves
+                      </span>
+                    ) : null;
+                  })()}
+                  {(() => {
+                    const badge = getCommunityHeatBadge(editionHeat.get(edition.id));
+                    return badge ? (
+                      <span className="rounded-full bg-violet-50 px-2.5 py-1 text-violet-700">
+                        {badge}
                       </span>
                     ) : null;
                   })()}

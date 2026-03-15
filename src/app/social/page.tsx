@@ -101,10 +101,12 @@ export default async function SocialPage({
       <ListeningEditionsFeedCard
         initialSocialState={backendLibrarySnapshot?.socialState ?? null}
         communityPulse={communityPulse}
+        communityEvents={communityEvents}
       />
       <BookCirclesFeedCard
         initialSocialState={backendLibrarySnapshot?.socialState ?? null}
         communityPulse={communityPulse}
+        communityEvents={communityEvents}
       />
     </AppShell>
   );
