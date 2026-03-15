@@ -162,6 +162,13 @@ export default function ImportPage() {
 
     return new URLSearchParams(window.location.search).get("edition");
   });
+  const [selectedEditionEntry] = useState<string | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    return new URLSearchParams(window.location.search).get("entry");
+  });
   const [selectedSource] = useState<"paste" | "upload" | "audio" | null>(() => {
     if (typeof window === "undefined") {
       return null;
@@ -772,6 +779,11 @@ export default function ImportPage() {
                     <span className="rounded-full bg-stone-100 px-2.5 py-1">
                       {selectedEdition.genreLabel}
                     </span>
+                    {selectedEditionEntry === "trending-edition" ? (
+                      <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
+                        Trending now
+                      </span>
+                    ) : null}
                   </div>
                   <h3 className="mt-3 text-lg font-semibold text-stone-950">
                     Start this import with {selectedEdition.title}
@@ -780,6 +792,18 @@ export default function ImportPage() {
                     {selectedEdition.creator} recommends {selectedEdition.narratorName} for{" "}
                     {selectedEdition.bookTitle}. It is best for {selectedEdition.bestFor}.
                   </p>
+                  {selectedEditionEntry === "trending-edition" ? (
+                    <div className="mt-4 rounded-[1.1rem] border border-amber-200 bg-amber-50/80 px-4 py-3 text-left">
+                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-amber-700">
+                        Focused from trending now
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-amber-900">
+                        This edition was chosen from the live home trend strip, so import is
+                        keeping the most active listening style front and center while you
+                        bring in the book.
+                      </p>
+                    </div>
+                  ) : null}
                   {selectedEditionReason ? (
                     <div className="mt-4 rounded-[1.1rem] border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-left">
                       <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
