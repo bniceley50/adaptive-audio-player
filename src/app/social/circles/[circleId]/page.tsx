@@ -34,7 +34,12 @@ export default async function SocialCirclePage({
     : null;
   const pulse = getSocialCommunityPulse();
   const events = listRecentSocialActivityEvents(12);
-  const detail = getPublicCircleDetail(circleId, pulse, events);
+  const detail = getPublicCircleDetail(
+    circleId,
+    pulse,
+    events,
+    backendLibrarySnapshot?.socialState ?? null,
+  );
   const allMoments = getAllPublicSocialMoments(backendLibrarySnapshot?.socialState ?? null, events);
   const relatedMoments = allMoments
     .filter((moment) => moment.circleId === circleId)

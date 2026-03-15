@@ -11,6 +11,20 @@ export interface CircleMembershipRecord {
   shareCount: number;
 }
 
+export interface CreatedSocialCircleRecord {
+  id: string;
+  title: string;
+  editionId: string;
+  host: string;
+  bookTitle: string;
+  memberCount: number;
+  checkpoint: string;
+  vibe: string;
+  summary: string;
+  sourceMomentId: string | null;
+  createdAt: string;
+}
+
 export interface PromotedSocialMomentRecord {
   id: string;
   bookId: string;
@@ -27,5 +41,6 @@ export interface PromotedSocialMomentRecord {
 export interface SyncedSocialState {
   savedEditions: SavedListeningEditionRecord[];
   circleMemberships: CircleMembershipRecord[];
+  createdCircles: CreatedSocialCircleRecord[];
   promotedMoments: PromotedSocialMomentRecord[];
 }

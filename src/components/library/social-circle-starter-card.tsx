@@ -1,4 +1,16 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import {
+  readJoinedCircles,
+  toggleJoinedCircle,
+} from "@/features/discovery/local-discovery";
+import {
+  createUserCreatedCircle,
+  joinCircleMembership,
+} from "@/features/social/local-social";
 import type { PublicSocialMoment } from "@/features/social/public-moments";
 import type { FeaturedBookCircle } from "@/features/discovery/book-circles";
 import type { FeaturedListeningEdition } from "@/features/discovery/listening-editions";
@@ -20,6 +32,43 @@ export function SocialCircleStarterCard({
   suggestedVibe: string;
   suggestedSummary: string;
 }) {
+  const router = useRouter();
+  const [feedback, setFeedback] = useState<string | null>(null);
+
+  function startFreshCircle() {
+    if (!edition) {
+      return;
+    }
+
+    const circleId = `created-${moment.id}`;
+    const alreadyJoined = readJoinedCircles().includes(circleId);
+    createUserCreatedCircle({
+      id: circleId,
+      title: suggestedTitle,
+      editionId: edition.id,
+      host: "You",
+      bookTitle: moment.bookTitle,
+      memberCount: 1,
+      checkpoint: suggestedCheckpoint,
+      vibe: suggestedVibe,
+      summary: suggestedSummary,
+      sourceMomentId: moment.id,
+      createdAt: new Date().toISOString(),
+    });
+    joinCircleMembership(circleId);
+    if (!alreadyJoined) {
+      toggleJoinedCircle(circleId);
+    }
+    setFeedback(
+      alreadyJoined
+        ? "Opened your existing synced circle starter from this moment."
+        : "Created a synced circle starter from this moment.",
+    );
+    router.push(
+      `/import?edition=${edition.id}&entry=moment-circle-starter&starterMoment=${moment.id}&starterCircle=${circleId}`,
+    );
+  }
+
   return (
     <>
       <section className="rounded-[2rem] border border-stone-200 bg-white/80 p-8 shadow-sm">
@@ -41,12 +90,13 @@ export function SocialCircleStarterCard({
           </div>
           <div className="flex flex-wrap gap-3">
             {edition ? (
-              <Link
+              <button
                 className="rounded-full bg-stone-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-800"
-                href={`/import?edition=${edition.id}&entry=moment-circle-starter&starterMoment=${moment.id}`}
+                onClick={startFreshCircle}
+                type="button"
               >
                 Start a fresh circle path
-              </Link>
+              </button>
             ) : null}
             {circle ? (
               <Link
@@ -64,6 +114,7 @@ export function SocialCircleStarterCard({
             </Link>
           </div>
         </div>
+        {feedback ? <p className="mt-4 text-sm font-medium text-emerald-700">{feedback}</p> : null}
       </section>
       <section className="grid gap-4 md:grid-cols-3">
         <article className="rounded-[1.4rem] border border-stone-200 bg-white p-5 shadow-sm">

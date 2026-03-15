@@ -34,16 +34,26 @@ export function SocialActivityTimelineCard({
 }: {
   initialSocialState?: SyncedSocialState | null;
 }) {
-  const { savedEditions, circleMemberships, promotedMoments } = useSocialState();
+  const { savedEditions, circleMemberships, createdCircles, promotedMoments } =
+    useSocialState();
 
   const events = useMemo(() => {
     const effectiveSocialState =
-      savedEditions.length > 0 || circleMemberships.length > 0 || promotedMoments.length > 0
-        ? { savedEditions, circleMemberships, promotedMoments }
+      savedEditions.length > 0 ||
+      circleMemberships.length > 0 ||
+      createdCircles.length > 0 ||
+      promotedMoments.length > 0
+        ? { savedEditions, circleMemberships, createdCircles, promotedMoments }
         : initialSocialState;
 
     return buildSocialTimelineEvents(effectiveSocialState);
-  }, [circleMemberships, initialSocialState, promotedMoments, savedEditions]);
+  }, [
+    circleMemberships,
+    createdCircles,
+    initialSocialState,
+    promotedMoments,
+    savedEditions,
+  ]);
 
   if (events.length === 0) {
     return null;

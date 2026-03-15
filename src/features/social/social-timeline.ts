@@ -1,4 +1,4 @@
-import { featuredBookCircles } from "@/features/discovery/book-circles";
+import { getAllPublicBookCircles } from "@/features/discovery/book-circles";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import type { SyncedSocialState } from "@/lib/types/social";
 
@@ -19,6 +19,7 @@ export function buildSocialTimelineEvents(
   }
 
   const nextEvents: SocialTimelineEvent[] = [];
+  const allCircles = getAllPublicBookCircles(socialState);
 
   for (const entry of socialState.savedEditions) {
     const edition =
@@ -49,8 +50,7 @@ export function buildSocialTimelineEvents(
   }
 
   for (const entry of socialState.circleMemberships) {
-    const circle =
-      featuredBookCircles.find((candidate) => candidate.id === entry.circleId) ?? null;
+    const circle = allCircles.find((candidate) => candidate.id === entry.circleId) ?? null;
     if (!circle) {
       continue;
     }

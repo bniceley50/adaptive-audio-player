@@ -2,6 +2,7 @@
 
 import type {
   CircleMembershipRecord,
+  CreatedSocialCircleRecord,
   PromotedSocialMomentRecord,
   SavedListeningEditionRecord,
   SyncedSocialState,
@@ -12,6 +13,7 @@ export const socialStateChangedEvent = "adaptive-audio-player:social-state-chang
 const savedEditionsStorageKey = "adaptive-audio-player.social.saved-editions";
 const circleMembershipsStorageKey =
   "adaptive-audio-player.social.circle-memberships";
+const createdCirclesStorageKey = "adaptive-audio-player.social.created-circles";
 const promotedMomentsStorageKey = "adaptive-audio-player.social.promoted-moments";
 
 function emitSocialStateChanged() {
@@ -58,10 +60,15 @@ export function readPromotedSocialMoments(): PromotedSocialMomentRecord[] {
   return readJsonValue<PromotedSocialMomentRecord[]>(promotedMomentsStorageKey, []);
 }
 
+export function readCreatedSocialCircles(): CreatedSocialCircleRecord[] {
+  return readJsonValue<CreatedSocialCircleRecord[]>(createdCirclesStorageKey, []);
+}
+
 export function readSocialStateSnapshot(): SyncedSocialState {
   return {
     savedEditions: readSavedListeningEditions(),
     circleMemberships: readCircleMemberships(),
+    createdCircles: readCreatedSocialCircles(),
     promotedMoments: readPromotedSocialMoments(),
   };
 }
@@ -70,11 +77,13 @@ export function writeSocialStateSnapshot(snapshot: SyncedSocialState | null) {
   const nextSnapshot = snapshot ?? {
     savedEditions: [],
     circleMemberships: [],
+    createdCircles: [],
     promotedMoments: [],
   };
 
   writeJsonValue(savedEditionsStorageKey, nextSnapshot.savedEditions, false);
   writeJsonValue(circleMembershipsStorageKey, nextSnapshot.circleMemberships, false);
+  writeJsonValue(createdCirclesStorageKey, nextSnapshot.createdCircles, false);
   writeJsonValue(promotedMomentsStorageKey, nextSnapshot.promotedMoments, true);
 }
 
@@ -172,6 +181,23 @@ export function incrementCircleShareCount(circleId: string) {
       : entry,
   );
   writeJsonValue(circleMembershipsStorageKey, next);
+  return next;
+}
+
+export function createUserCreatedCircle(circle: CreatedSocialCircleRecord) {
+  const current = readCreatedSocialCircles();
+  const existing = current.find((entry) => entry.id === circle.id);
+  const next = existing
+    ? current.map((entry) => (entry.id === circle.id ? { ...entry, ...circle } : entry))
+    : [circle, ...current];
+
+  writeJsonValue(createdCirclesStorageKey, next);
+  return next;
+}
+
+export function deleteUserCreatedCircle(circleId: string) {
+  const next = readCreatedSocialCircles().filter((entry) => entry.id !== circleId);
+  writeJsonValue(createdCirclesStorageKey, next);
   return next;
 }
 

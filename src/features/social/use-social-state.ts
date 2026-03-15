@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   readCircleMemberships,
+  readCreatedSocialCircles,
   readPromotedSocialMoments,
   readSavedListeningEditions,
   socialStateChangedEvent,
@@ -18,6 +19,10 @@ export function useSocialState(initialSocialState: SyncedSocialState | null = nu
     initialSocialState?.circleMemberships ??
     (typeof window === "undefined" ? [] : readCircleMemberships()),
   );
+  const [createdCircles, setCreatedCircles] = useState(() =>
+    initialSocialState?.createdCircles ??
+    (typeof window === "undefined" ? [] : readCreatedSocialCircles()),
+  );
   const [promotedMoments, setPromotedMoments] = useState(() =>
     initialSocialState?.promotedMoments ??
     (typeof window === "undefined" ? [] : readPromotedSocialMoments()),
@@ -27,6 +32,7 @@ export function useSocialState(initialSocialState: SyncedSocialState | null = nu
     function refresh() {
       setSavedEditions(readSavedListeningEditions());
       setCircleMemberships(readCircleMemberships());
+      setCreatedCircles(readCreatedSocialCircles());
       setPromotedMoments(readPromotedSocialMoments());
     }
 
@@ -41,6 +47,7 @@ export function useSocialState(initialSocialState: SyncedSocialState | null = nu
   return {
     savedEditions,
     circleMemberships,
+    createdCircles,
     promotedMoments,
   };
 }

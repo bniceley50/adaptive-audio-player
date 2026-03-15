@@ -151,6 +151,7 @@ describe("backend sqlite library sync", () => {
             shareCount: 2,
           },
         ],
+        createdCircles: [],
         promotedMoments: [],
       },
       syncedAt: "2026-03-08T12:03:00.000Z",
@@ -206,6 +207,7 @@ describe("backend sqlite library sync", () => {
             shareCount: 0,
           },
         ],
+        createdCircles: [],
         promotedMoments: [
           {
             id: "promoted-harbor-warning",
@@ -262,6 +264,7 @@ describe("backend sqlite library sync", () => {
             shareCount: 0,
           },
         ],
+        createdCircles: [],
         promotedMoments: [
           {
             id: "promoted-harbor-warning",

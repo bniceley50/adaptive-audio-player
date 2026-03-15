@@ -1,4 +1,7 @@
-import { featuredBookCircles } from "@/features/discovery/book-circles";
+import {
+  featuredBookCircles,
+  getAllPublicBookCircles,
+} from "@/features/discovery/book-circles";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import { publicSocialMoments } from "@/features/social/public-moments";
 import {
@@ -11,6 +14,7 @@ import type {
   SocialCommunityActivityEventSummary,
   SocialCommunityPulseSummary,
 } from "@/lib/backend/types";
+import type { SyncedSocialState } from "@/lib/types/social";
 
 export function formatSocialCommunityEventLabel(
   kind: SocialActivityEventKind,
@@ -155,6 +159,7 @@ export function getPublicEditionDetail(
   editionId: string,
   pulse: SocialCommunityPulseSummary,
   events: SocialCommunityActivityEventSummary[],
+  socialState: SyncedSocialState | null = null,
 ) {
   const edition =
     featuredListeningEditions.find((entry) => entry.id === editionId) ?? null;
@@ -163,7 +168,7 @@ export function getPublicEditionDetail(
     return null;
   }
 
-  const relatedCircles = featuredBookCircles.filter(
+  const relatedCircles = getAllPublicBookCircles(socialState).filter(
     (circle) => circle.editionId === editionId,
   );
   const summary =
@@ -243,8 +248,10 @@ export function getPublicCircleDetail(
   circleId: string,
   pulse: SocialCommunityPulseSummary,
   events: SocialCommunityActivityEventSummary[],
+  socialState: SyncedSocialState | null = null,
 ) {
-  const circle = featuredBookCircles.find((entry) => entry.id === circleId) ?? null;
+  const allCircles = getAllPublicBookCircles(socialState);
+  const circle = allCircles.find((entry) => entry.id === circleId) ?? null;
 
   if (!circle) {
     return null;
@@ -260,7 +267,7 @@ export function getPublicCircleDetail(
   const editionSummary = edition
     ? pulse.editionCounts.find((entry) => entry.editionId === edition.id) ?? null
     : null;
-  const otherActiveCircles = featuredBookCircles
+  const otherActiveCircles = allCircles
     .filter((entry) => entry.id !== circleId)
     .map((entry) => {
       const entrySummary =

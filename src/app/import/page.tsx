@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/shared/app-shell";
 import { JourneyHero } from "@/components/shared/journey-hero";
 import { StudioDisclosure } from "@/components/shared/studio-disclosure";
-import { featuredBookCircles } from "@/features/discovery/book-circles";
+import { getAllPublicBookCircles } from "@/features/discovery/book-circles";
 import {
   discoveryChangedEvent,
   readPinnedDiscoverySignal,
@@ -131,7 +131,8 @@ export default function ImportPage() {
   const [pinnedDiscoverySignal, setPinnedDiscoverySignal] = useState(() =>
     typeof window !== "undefined" ? readPinnedDiscoverySignal() : null,
   );
-  const { savedEditions, circleMemberships, promotedMoments } = useSocialState();
+  const { savedEditions, circleMemberships, createdCircles, promotedMoments } =
+    useSocialState();
   const discoveryPreferences = useDiscoveryPreferences();
   const effectiveFollowedAuthors = useMemo(
     () =>
@@ -189,9 +190,26 @@ export default function ImportPage() {
 
     return new URLSearchParams(window.location.search).get("starterMoment");
   });
+  const [starterCircleId] = useState<string | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    return new URLSearchParams(window.location.search).get("starterCircle");
+  });
 
   const chapters = useMemo(() => parseChapters(sourceText), [sourceText]);
   const trimmedSourceText = sourceText.trim();
+  const allPublicCircles = useMemo(
+    () =>
+      getAllPublicBookCircles({
+        savedEditions,
+        circleMemberships,
+        createdCircles,
+        promotedMoments,
+      }),
+    [circleMemberships, createdCircles, promotedMoments, savedEditions],
+  );
   const selectedEdition = useMemo(() => {
     return (
       featuredListeningEditions.find((edition) => edition.id === selectedEditionId) ?? null
@@ -207,12 +225,20 @@ export default function ImportPage() {
         {
           savedEditions: [],
           circleMemberships: [],
+          createdCircles,
           promotedMoments,
         },
         [],
       ).find((moment) => moment.id === starterMomentId) ?? null
     );
-  }, [promotedMoments, starterMomentId]);
+  }, [createdCircles, promotedMoments, starterMomentId]);
+  const starterCircle = useMemo(() => {
+    if (!starterCircleId) {
+      return null;
+    }
+
+    return allPublicCircles.find((circle) => circle.id === starterCircleId) ?? null;
+  }, [allPublicCircles, starterCircleId]);
   const selectedEditionReason = useMemo(() => {
     if (!selectedEdition) {
       return null;
@@ -246,10 +272,8 @@ export default function ImportPage() {
       return null;
     }
 
-    return (
-      featuredBookCircles.find((circle) => circle.id === latestCircleMembership.circleId) ?? null
-    );
-  }, [circleMemberships]);
+    return allPublicCircles.find((circle) => circle.id === latestCircleMembership.circleId) ?? null;
+  }, [allPublicCircles, circleMemberships]);
   const highlightedFuturePath = useMemo(() => {
     if (
       selectedSource === "audio" ||
@@ -844,6 +868,14 @@ export default function ImportPage() {
                       <p className="mt-2 text-sm leading-6 text-emerald-900">
                         This import is being framed as a fresh circle starter, so the selected edition stays in front as the quickest way to turn that moment into a new shared listening thread.
                       </p>
+                      {starterCircle ? (
+                        <Link
+                          className="mt-3 inline-flex rounded-full border border-emerald-300 bg-white px-4 py-2 text-sm font-medium text-emerald-900 transition hover:border-emerald-400 hover:bg-emerald-100/60"
+                          href={`/social/circles/${starterCircle.id}`}
+                        >
+                          Open {starterCircle.title}
+                        </Link>
+                      ) : null}
                     </div>
                   ) : null}
                   {selectedEditionReason ? (

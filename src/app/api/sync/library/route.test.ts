@@ -93,6 +93,7 @@ const validSnapshot = {
         shareCount: 1,
       },
     ],
+    createdCircles: [],
     promotedMoments: [],
   },
   syncedAt: "2026-03-09T10:02:00.000Z",

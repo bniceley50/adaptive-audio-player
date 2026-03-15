@@ -1,4 +1,4 @@
-import { featuredBookCircles } from "@/features/discovery/book-circles";
+import { getAllPublicBookCircles } from "@/features/discovery/book-circles";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import {
   getCommunityHeatBadge,
@@ -77,12 +77,15 @@ export function resolveMatchingPublicEdition(input: {
   );
 }
 
-export function resolveMatchingPublicCircle(editionId: string | null) {
+export function resolveMatchingPublicCircle(
+  editionId: string | null,
+  socialState: SyncedSocialState | null = null,
+) {
   if (!editionId) {
     return null;
   }
 
-  return featuredBookCircles.find((circle) => circle.editionId === editionId) ?? null;
+  return getAllPublicBookCircles(socialState).find((circle) => circle.editionId === editionId) ?? null;
 }
 
 function buildPromotedPublicMoment(record: PromotedSocialMomentRecord): PublicSocialMoment {
@@ -209,7 +212,7 @@ export function getPublicMomentDetail(
       : null;
   const circle =
     moment.circleId
-      ? featuredBookCircles.find((entry) => entry.id === moment.circleId) ?? null
+      ? getAllPublicBookCircles(socialState).find((entry) => entry.id === moment.circleId) ?? null
       : null;
   const activity = getMomentActivityScore(moment, pulse, events);
   const relatedMoments = allMoments
@@ -276,7 +279,7 @@ export function getPublicMomentsFeed(
           : null,
       circle:
         moment.circleId
-          ? featuredBookCircles.find((entry) => entry.id === moment.circleId) ?? null
+          ? getAllPublicBookCircles(socialState).find((entry) => entry.id === moment.circleId) ?? null
           : null,
       activity: getMomentActivityScore(moment, pulse, events),
     }))

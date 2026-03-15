@@ -9,7 +9,7 @@ import { SocialActivityTimelineCard } from "@/components/library/social-activity
 import { SocialMemoryCard } from "@/components/library/social-memory-card";
 import { SocialShelfCard } from "@/components/library/social-shelf-card";
 import { AppShell } from "@/components/shared/app-shell";
-import { featuredBookCircles } from "@/features/discovery/book-circles";
+import { getAllPublicBookCircles } from "@/features/discovery/book-circles";
 import { getAllPublicSocialMoments } from "@/features/social/public-moments";
 import {
   getSocialCommunityPulse,
@@ -43,8 +43,9 @@ export default async function SocialPage({
     : null;
   const communityPulse = getSocialCommunityPulse();
   const communityEvents = listRecentSocialActivityEvents(6);
+  const allCircles = getAllPublicBookCircles(backendLibrarySnapshot?.socialState ?? null);
   const focusedCircle = focusedCircleId
-    ? featuredBookCircles.find((circle) => circle.id === focusedCircleId) ?? null
+    ? allCircles.find((circle) => circle.id === focusedCircleId) ?? null
     : null;
   const focusedMoment = focusedMomentId
     ? getAllPublicSocialMoments(backendLibrarySnapshot?.socialState ?? null, communityEvents).find(

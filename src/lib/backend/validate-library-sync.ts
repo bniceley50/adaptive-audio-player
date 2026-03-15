@@ -675,6 +675,56 @@ export function parseLibrarySyncSnapshot(
                   })
                   .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
               : null;
+            const createdCircles = Array.isArray(input.socialState.createdCircles)
+              ? input.socialState.createdCircles
+                  .map((entry) => {
+                    if (!isRecord(entry)) {
+                      return null;
+                    }
+
+                    const id = readString(entry.id);
+                    const title = readString(entry.title);
+                    const editionId = readString(entry.editionId);
+                    const host = readString(entry.host);
+                    const bookTitle = readString(entry.bookTitle);
+                    const memberCount = readNumber(entry.memberCount);
+                    const checkpoint = readString(entry.checkpoint);
+                    const vibe = readString(entry.vibe);
+                    const summary = readString(entry.summary);
+                    const createdAt = readString(entry.createdAt);
+                    const sourceMomentId = readString(entry.sourceMomentId) ?? null;
+
+                    if (
+                      !id ||
+                      !title ||
+                      !editionId ||
+                      !host ||
+                      !bookTitle ||
+                      memberCount === null ||
+                      !checkpoint ||
+                      !vibe ||
+                      !summary ||
+                      !createdAt
+                    ) {
+                      return null;
+                    }
+
+                    return {
+                      id,
+                      title,
+                      editionId,
+                      host,
+                      bookTitle,
+                      memberCount,
+                      checkpoint,
+                      vibe,
+                      summary,
+                      sourceMomentId,
+                      createdAt,
+                    };
+                  })
+                  .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+              : null;
             const promotedMoments = Array.isArray(input.socialState.promotedMoments)
               ? input.socialState.promotedMoments
                   .map((entry) => {
@@ -722,13 +772,14 @@ export function parseLibrarySyncSnapshot(
                   .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
               : null;
 
-            if (!savedEditions || !circleMemberships || !promotedMoments) {
+            if (!savedEditions || !circleMemberships || !createdCircles || !promotedMoments) {
               return null;
             }
 
             return {
               savedEditions,
               circleMemberships,
+              createdCircles,
               promotedMoments,
             } satisfies SyncedSocialState;
           })()

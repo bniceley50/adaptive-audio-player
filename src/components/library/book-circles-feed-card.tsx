@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
-import { featuredBookCircles } from "@/features/discovery/book-circles";
+import { getAllPublicBookCircles } from "@/features/discovery/book-circles";
 import {
   getCircleDiscoveryReason,
   getRelativeDiscoveryBadge,
@@ -53,7 +53,7 @@ export function BookCirclesFeedCard({
 }) {
   const searchParams = useSearchParams();
   const preferences = useDiscoveryPreferences();
-  const { circleMemberships } = useSocialState(initialSocialState);
+  const { circleMemberships, createdCircles } = useSocialState(initialSocialState);
   const { joinedCircleTimestamps, personalizationPaused } = preferences;
   const effectivePreferences = useMemo(
     () => ({
@@ -72,10 +72,20 @@ export function BookCirclesFeedCard({
     () => getCircleCommunityHeat(communityEvents),
     [communityEvents],
   );
+  const allCircles = useMemo(
+    () =>
+      getAllPublicBookCircles({
+        savedEditions: [],
+        circleMemberships: [],
+        createdCircles,
+        promotedMoments: [],
+      }),
+    [createdCircles],
+  );
 
   const circles = useMemo(
     () =>
-      featuredBookCircles
+      allCircles
         .map((circle) => ({
           ...circle,
           edition:
@@ -139,6 +149,7 @@ export function BookCirclesFeedCard({
     [
       circleHeat,
       circleMemberships,
+      allCircles,
       communityPulse,
       highlightedCircleId,
       joinedCircles,
@@ -150,7 +161,7 @@ export function BookCirclesFeedCard({
     const shareText = `Join the public ${title} for ${bookTitle} in Adaptive Audio Player.`;
     const shareUrl =
       typeof window !== "undefined"
-        ? `${window.location.origin}/import?edition=${featuredBookCircles.find((circle) => circle.id === circleId)?.editionId ?? ""}`
+        ? `${window.location.origin}/import?edition=${allCircles.find((circle) => circle.id === circleId)?.editionId ?? ""}`
         : "https://github.com/bniceley50/adaptive-audio-player";
 
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {

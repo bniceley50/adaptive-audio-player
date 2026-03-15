@@ -34,7 +34,12 @@ export default async function SocialEditionPage({
     : null;
   const pulse = getSocialCommunityPulse();
   const events = listRecentSocialActivityEvents(12);
-  const detail = getPublicEditionDetail(editionId, pulse, events);
+  const detail = getPublicEditionDetail(
+    editionId,
+    pulse,
+    events,
+    backendLibrarySnapshot?.socialState ?? null,
+  );
   const allMoments = getAllPublicSocialMoments(backendLibrarySnapshot?.socialState ?? null, events);
   const relatedMoments = allMoments
     .filter((moment) => moment.editionId === editionId)
