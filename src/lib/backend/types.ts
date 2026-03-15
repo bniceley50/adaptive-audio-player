@@ -8,6 +8,7 @@ import type {
   PersistedPlaybackState,
   PlaybackDefaults,
 } from "@/lib/playback/local-playback";
+import type { SyncedDiscoveryPreferences } from "@/lib/types/discovery";
 
 export interface SyncedDraftText {
   bookId: string;
@@ -28,6 +29,7 @@ export interface LibrarySyncSnapshot {
   sampleRequest: LocalSampleRequest | null;
   playbackStates: SyncedPlaybackStateRecord[];
   playbackDefaults: PlaybackDefaults | null;
+  discoveryPreferences?: SyncedDiscoveryPreferences | null;
   generationOutputs?: GenerationOutputSummary[];
   syncedAt: string;
 }

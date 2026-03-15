@@ -134,6 +134,7 @@ function ensureDbSchema(db: DatabaseSync) {
       playback_defaults_json text,
       sample_request_json text,
       removed_books_json text,
+      discovery_preferences_json text,
       updated_at text not null,
       foreign key (workspace_id) references workspaces(id) on delete cascade
     );
@@ -293,6 +294,16 @@ function ensureDbSchema(db: DatabaseSync) {
 
   if (!hasRemovedBooksJson) {
     db.exec("alter table workspace_defaults add column removed_books_json text");
+  }
+
+  const hasDiscoveryPreferencesJson = workspaceDefaultsColumns.some(
+    (column) => column.name === "discovery_preferences_json",
+  );
+
+  if (!hasDiscoveryPreferencesJson) {
+    db.exec(
+      "alter table workspace_defaults add column discovery_preferences_json text",
+    );
   }
 }
 
@@ -1244,14 +1255,16 @@ export function syncWorkspaceLibrarySnapshot(
           playback_defaults_json,
           sample_request_json,
           removed_books_json,
+          discovery_preferences_json,
           updated_at
         )
-        values (?, ?, ?, ?, ?, ?)
+        values (?, ?, ?, ?, ?, ?, ?)
         on conflict(workspace_id) do update set
           default_profile_json = excluded.default_profile_json,
           playback_defaults_json = excluded.playback_defaults_json,
           sample_request_json = excluded.sample_request_json,
           removed_books_json = excluded.removed_books_json,
+          discovery_preferences_json = excluded.discovery_preferences_json,
           updated_at = excluded.updated_at
       `,
     ).run(
@@ -1262,6 +1275,9 @@ export function syncWorkspaceLibrarySnapshot(
       snapshot.playbackDefaults ? JSON.stringify(snapshot.playbackDefaults) : null,
       snapshot.sampleRequest ? JSON.stringify(snapshot.sampleRequest) : null,
       JSON.stringify(snapshot.removedBooks ?? []),
+      snapshot.discoveryPreferences
+        ? JSON.stringify(snapshot.discoveryPreferences)
+        : null,
       snapshot.syncedAt,
     );
 
@@ -1556,7 +1572,12 @@ export function getWorkspaceLibrarySnapshot(workspaceId: string) {
   const workspaceDefaults = db
     .prepare(
       `
-        select default_profile_json, playback_defaults_json, sample_request_json, removed_books_json
+        select
+          default_profile_json,
+          playback_defaults_json,
+          sample_request_json,
+          removed_books_json,
+          discovery_preferences_json
         from workspace_defaults
         where workspace_id = ?
       `,
@@ -1567,6 +1588,7 @@ export function getWorkspaceLibrarySnapshot(workspaceId: string) {
         playback_defaults_json: string | null;
         sample_request_json: string | null;
         removed_books_json: string | null;
+        discovery_preferences_json: string | null;
       }
     | undefined;
 
@@ -1606,6 +1628,9 @@ export function getWorkspaceLibrarySnapshot(workspaceId: string) {
     })),
     playbackDefaults: workspaceDefaults?.playback_defaults_json
       ? JSON.parse(workspaceDefaults.playback_defaults_json)
+      : null,
+    discoveryPreferences: workspaceDefaults?.discovery_preferences_json
+      ? JSON.parse(workspaceDefaults.discovery_preferences_json)
       : null,
     generationOutputs: listGenerationOutputsForWorkspace(workspaceId),
     syncedAt: workspaceRow.last_synced_at ?? new Date(0).toISOString(),

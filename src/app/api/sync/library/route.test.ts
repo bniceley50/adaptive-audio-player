@@ -18,6 +18,7 @@ import {
   createSignedAccountSession,
   createSignedWorkspaceCookieValue,
 } from "@/lib/backend/workspace-session";
+import type { LibrarySyncSnapshot } from "@/lib/backend/types";
 
 const validSnapshot = {
   libraryBooks: [
@@ -57,8 +58,27 @@ const validSnapshot = {
     speed: 1.15,
     sleepTimerMinutes: 15,
   },
+  discoveryPreferences: {
+    followedAuthors: ["Annie Hart"],
+    joinedCircles: ["circle-storm-harbor"],
+    trackedPlannedFeatures: ["private-audio-files"],
+    followedAuthorTimestamps: {
+      "Annie Hart": "2026-03-09T09:58:00.000Z",
+    },
+    joinedCircleTimestamps: {
+      "circle-storm-harbor": "2026-03-09T09:59:00.000Z",
+    },
+    trackedFeatureTimestamps: {
+      "private-audio-files": "2026-03-09T10:00:00.000Z",
+    },
+    pinnedDiscoverySignal: {
+      kind: "author",
+      id: "Annie Hart",
+    },
+    personalizationPaused: false,
+  },
   syncedAt: "2026-03-09T10:02:00.000Z",
-};
+} satisfies LibrarySyncSnapshot;
 
 describe("sync library route", () => {
   const createdDirs: string[] = [];
@@ -104,6 +124,13 @@ describe("sync library route", () => {
             title: "Storm Harbor",
           }),
         ],
+        discoveryPreferences: expect.objectContaining({
+          followedAuthors: ["Annie Hart"],
+          pinnedDiscoverySignal: {
+            kind: "author",
+            id: "Annie Hart",
+          },
+        }),
       }),
     });
   });
@@ -197,9 +224,13 @@ describe("sync library route", () => {
 
     expect(getWorkspaceUser("workspace-sync")?.email).toBe("gillian@example.com");
     expect(getWorkspaceSyncSummary("workspace-sync")?.syncedBookCount).toBe(1);
-    expect(getWorkspaceLibrarySnapshot("workspace-sync")?.libraryBooks).toEqual(
-      validSnapshot.libraryBooks,
-    );
+    expect(getWorkspaceLibrarySnapshot("workspace-sync")).toMatchObject({
+      libraryBooks: validSnapshot.libraryBooks,
+      discoveryPreferences: expect.objectContaining({
+        joinedCircles: ["circle-storm-harbor"],
+        trackedPlannedFeatures: ["private-audio-files"],
+      }),
+    });
   });
 
   it("rejects POST when the signed-in account does not own the linked workspace", async () => {

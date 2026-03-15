@@ -1,4 +1,5 @@
 import type { LibrarySyncSnapshot } from "./types.ts";
+import type { PinnedDiscoverySignal } from "@/lib/types/discovery";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -18,6 +19,52 @@ function readNullableNumber(value: unknown): number | null {
   }
 
   return readNumber(value);
+}
+
+function readStringArray(value: unknown): string[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  return value.filter((entry): entry is string => typeof entry === "string");
+}
+
+function readStringRecord(value: unknown): Record<string, string> | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const nextEntries = Object.entries(value).filter(
+    (entry): entry is [string, string] => typeof entry[1] === "string",
+  );
+
+  if (nextEntries.length !== Object.keys(value).length) {
+    return null;
+  }
+
+  return Object.fromEntries(nextEntries);
+}
+
+function readPinnedDiscoverySignal(value: unknown): PinnedDiscoverySignal {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const kind = readString(value.kind);
+  const id = readString(value.id);
+
+  if (
+    !id ||
+    (kind !== "circle" && kind !== "author" && kind !== "feature")
+  ) {
+    return null;
+  }
+
+  return { kind, id };
 }
 
 export function parseLibrarySyncSnapshot(
@@ -519,13 +566,69 @@ export function parseLibrarySyncSnapshot(
           })()
         : null;
 
+  const discoveryPreferences =
+    input.discoveryPreferences === undefined || input.discoveryPreferences === null
+      ? null
+      : isRecord(input.discoveryPreferences)
+        ? (() => {
+            const followedAuthors = readStringArray(
+              input.discoveryPreferences.followedAuthors,
+            );
+            const joinedCircles = readStringArray(
+              input.discoveryPreferences.joinedCircles,
+            );
+            const trackedPlannedFeatures = readStringArray(
+              input.discoveryPreferences.trackedPlannedFeatures,
+            );
+            const followedAuthorTimestamps = readStringRecord(
+              input.discoveryPreferences.followedAuthorTimestamps,
+            );
+            const joinedCircleTimestamps = readStringRecord(
+              input.discoveryPreferences.joinedCircleTimestamps,
+            );
+            const trackedFeatureTimestamps = readStringRecord(
+              input.discoveryPreferences.trackedFeatureTimestamps,
+            );
+            const personalizationPaused =
+              typeof input.discoveryPreferences.personalizationPaused === "boolean"
+                ? input.discoveryPreferences.personalizationPaused
+                : null;
+
+            if (
+              !followedAuthors ||
+              !joinedCircles ||
+              !trackedPlannedFeatures ||
+              !followedAuthorTimestamps ||
+              !joinedCircleTimestamps ||
+              !trackedFeatureTimestamps ||
+              personalizationPaused === null
+            ) {
+              return null;
+            }
+
+            return {
+              followedAuthors,
+              joinedCircles,
+              trackedPlannedFeatures,
+              followedAuthorTimestamps,
+              joinedCircleTimestamps,
+              trackedFeatureTimestamps,
+              pinnedDiscoverySignal: readPinnedDiscoverySignal(
+                input.discoveryPreferences.pinnedDiscoverySignal,
+              ),
+              personalizationPaused,
+            };
+          })()
+        : null;
+
   if (
     !libraryBooks ||
     removedBooks === null ||
     !draftTexts ||
     !listeningProfiles ||
     playbackStates === null ||
-    playbackDefaults === undefined
+    playbackDefaults === undefined ||
+    discoveryPreferences === undefined
   ) {
     return null;
   }
@@ -539,6 +642,7 @@ export function parseLibrarySyncSnapshot(
     sampleRequest,
     playbackStates,
     playbackDefaults,
+    discoveryPreferences,
     generationOutputs: [],
     syncedAt,
   };

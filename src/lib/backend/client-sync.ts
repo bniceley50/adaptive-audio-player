@@ -1,5 +1,6 @@
 "use client";
 
+import { readDiscoveryPreferencesSnapshot } from "@/features/discovery/local-discovery";
 import {
   readDefaultListeningProfile,
   readLocalDraftText,
@@ -38,6 +39,7 @@ export function buildClientLibrarySyncSnapshot() {
       })
       .filter((entry): entry is NonNullable<typeof entry> => entry !== null),
     playbackDefaults: readPlaybackDefaults(),
+    discoveryPreferences: readDiscoveryPreferencesSnapshot(),
     syncedAt: new Date().toISOString(),
   };
 }

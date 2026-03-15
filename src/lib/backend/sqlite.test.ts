@@ -114,6 +114,25 @@ describe("backend sqlite library sync", () => {
         speed: 1.15,
         sleepTimerMinutes: 15,
       },
+      discoveryPreferences: {
+        followedAuthors: ["Annie Hart"],
+        joinedCircles: ["circle-storm-harbor"],
+        trackedPlannedFeatures: ["private-audio-files"],
+        followedAuthorTimestamps: {
+          "Annie Hart": "2026-03-08T11:58:00.000Z",
+        },
+        joinedCircleTimestamps: {
+          "circle-storm-harbor": "2026-03-08T11:59:00.000Z",
+        },
+        trackedFeatureTimestamps: {
+          "private-audio-files": "2026-03-08T12:00:00.000Z",
+        },
+        pinnedDiscoverySignal: {
+          kind: "circle",
+          id: "circle-storm-harbor",
+        },
+        personalizationPaused: false,
+      },
       syncedAt: "2026-03-08T12:03:00.000Z",
     });
 
@@ -142,6 +161,21 @@ describe("backend sqlite library sync", () => {
       sampleRequest: null,
       playbackStates: [],
       playbackDefaults: null,
+      discoveryPreferences: {
+        followedAuthors: [],
+        joinedCircles: [],
+        trackedPlannedFeatures: ["richer-document-imports"],
+        followedAuthorTimestamps: {},
+        joinedCircleTimestamps: {},
+        trackedFeatureTimestamps: {
+          "richer-document-imports": "2026-03-08T12:04:30.000Z",
+        },
+        pinnedDiscoverySignal: {
+          kind: "feature",
+          id: "richer-document-imports",
+        },
+        personalizationPaused: true,
+      },
       syncedAt: "2026-03-08T12:05:00.000Z",
     });
 
@@ -150,18 +184,30 @@ describe("backend sqlite library sync", () => {
     expect(secondSummary?.syncedPlaybackCount).toBe(0);
     expect(secondSummary?.generatedOutputCount).toBe(0);
     expect(getWorkspaceSyncSummary("workspace-1")?.syncedBookCount).toBe(1);
-    expect(getWorkspaceLibrarySnapshot("workspace-1")?.libraryBooks).toEqual([
-      {
-        bookId: "book-1",
-        title: "Storm Harbor Revised",
-        chapterCount: 3,
-        updatedAt: "2026-03-08T12:04:00.000Z",
-        coverTheme: "from-emerald-200 via-teal-100 to-white",
-        coverLabel: "Revised coast",
-        coverGlyph: "SR",
-        genreLabel: "Mystery",
+    expect(getWorkspaceLibrarySnapshot("workspace-1")).toMatchObject({
+      libraryBooks: [
+        {
+          bookId: "book-1",
+          title: "Storm Harbor Revised",
+          chapterCount: 3,
+          updatedAt: "2026-03-08T12:04:00.000Z",
+          coverTheme: "from-emerald-200 via-teal-100 to-white",
+          coverLabel: "Revised coast",
+          coverGlyph: "SR",
+          genreLabel: "Mystery",
+        },
+      ],
+      discoveryPreferences: {
+        followedAuthors: [],
+        joinedCircles: [],
+        trackedPlannedFeatures: ["richer-document-imports"],
+        pinnedDiscoverySignal: {
+          kind: "feature",
+          id: "richer-document-imports",
+        },
+        personalizationPaused: true,
       },
-    ]);
+    });
   });
 
   it("creates users and links workspaces to them", () => {
@@ -213,6 +259,7 @@ describe("backend sqlite library sync", () => {
       sampleRequest: null,
       playbackStates: [],
       playbackDefaults: null,
+      discoveryPreferences: null,
       syncedAt: "2026-03-08T12:10:00.000Z",
     });
 

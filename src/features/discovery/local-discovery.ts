@@ -1,3 +1,11 @@
+import type {
+  DiscoveryTimestampMap,
+  PinnedDiscoverySignal,
+  SyncedDiscoveryPreferences,
+} from "@/lib/types/discovery";
+
+export type { PinnedDiscoverySignal, SyncedDiscoveryPreferences } from "@/lib/types/discovery";
+
 export const discoveryChangedEvent = "adaptive-audio-player:discovery-changed";
 
 const followedAuthorsStorageKey = "adaptive-audio-player.followed-authors";
@@ -14,12 +22,6 @@ const pinnedDiscoverySignalStorageKey =
   "adaptive-audio-player.pinned-discovery-signal";
 const discoveryPersonalizationPausedStorageKey =
   "adaptive-audio-player.discovery-personalization-paused";
-
-type TimestampMap = Record<string, string>;
-export type PinnedDiscoverySignal = {
-  kind: "circle" | "author" | "feature";
-  id: string;
-} | null;
 
 function emitDiscoveryChange() {
   if (typeof window === "undefined") {
@@ -42,14 +44,14 @@ function readStringList(storageKey: string): string[] {
   }
 }
 
-function readTimestampMap(storageKey: string): TimestampMap {
+function readTimestampMap(storageKey: string): DiscoveryTimestampMap {
   if (typeof window === "undefined") {
     return {};
   }
 
   try {
     const raw = window.localStorage.getItem(storageKey);
-    return raw ? (JSON.parse(raw) as TimestampMap) : {};
+    return raw ? (JSON.parse(raw) as DiscoveryTimestampMap) : {};
   } catch {
     return {};
   }
@@ -79,7 +81,11 @@ function writeStringList(storageKey: string, values: string[], emit = true) {
   }
 }
 
-function writeTimestampMap(storageKey: string, values: TimestampMap, emit = true) {
+function writeTimestampMap(
+  storageKey: string,
+  values: DiscoveryTimestampMap,
+  emit = true,
+) {
   if (typeof window === "undefined") {
     return;
   }
@@ -106,7 +112,7 @@ function syncTimestampMapEntry(
   id: string,
   isActive: boolean,
   emit = true,
-): TimestampMap {
+): DiscoveryTimestampMap {
   const currentMap = readTimestampMap(storageKey);
   const nextMap = { ...currentMap };
 
@@ -128,7 +134,7 @@ export function writeFollowedAuthors(authorNames: string[]) {
   writeStringList(followedAuthorsStorageKey, authorNames);
 }
 
-export function readFollowedAuthorTimestamps(): TimestampMap {
+export function readFollowedAuthorTimestamps(): DiscoveryTimestampMap {
   return readTimestampMap(followedAuthorTimestampsStorageKey);
 }
 
@@ -155,7 +161,7 @@ export function writeJoinedCircles(circleIds: string[]) {
   writeStringList(joinedCirclesStorageKey, circleIds);
 }
 
-export function readJoinedCircleTimestamps(): TimestampMap {
+export function readJoinedCircleTimestamps(): DiscoveryTimestampMap {
   return readTimestampMap(joinedCircleTimestampsStorageKey);
 }
 
@@ -182,7 +188,7 @@ export function writeTrackedPlannedFeatures(featureIds: string[]) {
   writeStringList(trackedPlannedFeaturesStorageKey, featureIds);
 }
 
-export function readTrackedFeatureTimestamps(): TimestampMap {
+export function readTrackedFeatureTimestamps(): DiscoveryTimestampMap {
   return readTimestampMap(trackedFeatureTimestampsStorageKey);
 }
 
@@ -234,13 +240,67 @@ export function toggleDiscoveryPersonalizationPaused(): boolean {
   return nextValue;
 }
 
+export function readDiscoveryPreferencesSnapshot(): SyncedDiscoveryPreferences {
+  return {
+    followedAuthors: readFollowedAuthors(),
+    joinedCircles: readJoinedCircles(),
+    trackedPlannedFeatures: readTrackedPlannedFeatures(),
+    followedAuthorTimestamps: readFollowedAuthorTimestamps(),
+    joinedCircleTimestamps: readJoinedCircleTimestamps(),
+    trackedFeatureTimestamps: readTrackedFeatureTimestamps(),
+    pinnedDiscoverySignal: readPinnedDiscoverySignal(),
+    personalizationPaused: readDiscoveryPersonalizationPaused(),
+  };
+}
+
+export function writeDiscoveryPreferencesSnapshot(
+  snapshot: SyncedDiscoveryPreferences | null,
+) {
+  const nextSnapshot = snapshot ?? {
+    followedAuthors: [],
+    joinedCircles: [],
+    trackedPlannedFeatures: [],
+    followedAuthorTimestamps: {},
+    joinedCircleTimestamps: {},
+    trackedFeatureTimestamps: {},
+    pinnedDiscoverySignal: null,
+    personalizationPaused: false,
+  };
+
+  writeStringList(followedAuthorsStorageKey, nextSnapshot.followedAuthors, false);
+  writeStringList(joinedCirclesStorageKey, nextSnapshot.joinedCircles, false);
+  writeStringList(
+    trackedPlannedFeaturesStorageKey,
+    nextSnapshot.trackedPlannedFeatures,
+    false,
+  );
+  writeTimestampMap(
+    followedAuthorTimestampsStorageKey,
+    nextSnapshot.followedAuthorTimestamps,
+    false,
+  );
+  writeTimestampMap(
+    joinedCircleTimestampsStorageKey,
+    nextSnapshot.joinedCircleTimestamps,
+    false,
+  );
+  writeTimestampMap(
+    trackedFeatureTimestampsStorageKey,
+    nextSnapshot.trackedFeatureTimestamps,
+    false,
+  );
+  writeJsonValue(
+    discoveryPersonalizationPausedStorageKey,
+    nextSnapshot.personalizationPaused,
+    false,
+  );
+  writeJsonValue(
+    pinnedDiscoverySignalStorageKey,
+    nextSnapshot.pinnedDiscoverySignal,
+    true,
+  );
+}
+
 export function clearAllDiscoveryPreferences() {
-  writeStringList(followedAuthorsStorageKey, [], false);
-  writeStringList(joinedCirclesStorageKey, [], false);
-  writeStringList(trackedPlannedFeaturesStorageKey, [], false);
-  writeTimestampMap(followedAuthorTimestampsStorageKey, {}, false);
-  writeTimestampMap(joinedCircleTimestampsStorageKey, {}, false);
-  writeTimestampMap(trackedFeatureTimestampsStorageKey, {}, false);
-  writeJsonValue(discoveryPersonalizationPausedStorageKey, false, false);
-  writeJsonValue(pinnedDiscoverySignalStorageKey, null, true);
+  writeDiscoveryPreferencesSnapshot(null);
 }

@@ -2,6 +2,10 @@
 
 import { useEffect, useRef } from "react";
 
+import {
+  discoveryChangedEvent,
+  writeDiscoveryPreferencesSnapshot,
+} from "@/features/discovery/local-discovery";
 import { buildClientLibrarySyncSnapshot } from "@/lib/backend/client-sync";
 import {
   type LocalLibraryBook,
@@ -100,6 +104,10 @@ export function WorkspaceSync() {
       for (const playbackState of snapshot.playbackStates) {
         writePersistedPlaybackState(playbackState.bookId, playbackState.state);
       }
+
+      if (snapshot.discoveryPreferences) {
+        writeDiscoveryPreferencesSnapshot(snapshot.discoveryPreferences);
+      }
     }
 
     function hasBackendSnapshotState(snapshot: LibrarySyncSnapshot | null) {
@@ -116,7 +124,8 @@ export function WorkspaceSync() {
         (snapshot.generationOutputs?.length ?? 0) > 0 ||
         !!snapshot.defaultListeningProfile ||
         !!snapshot.playbackDefaults ||
-        !!snapshot.sampleRequest
+        !!snapshot.sampleRequest ||
+        !!snapshot.discoveryPreferences
       );
     }
 
@@ -169,6 +178,7 @@ export function WorkspaceSync() {
       removedBooksChangedEvent,
       playbackChangedEvent,
       playbackDefaultsChangedEvent,
+      discoveryChangedEvent,
       "storage",
     ] as const;
 
