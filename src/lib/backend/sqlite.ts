@@ -344,6 +344,24 @@ function readSocialStateFromJson(value: string | null | undefined): SocialStateS
   }
 }
 
+function readSocialActivityMetadata(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(value) as {
+      bookTitle?: string;
+      chapterLabel?: string;
+      quoteText?: string;
+      editionId?: string | null;
+      circleId?: string | null;
+    };
+  } catch {
+    return null;
+  }
+}
+
 function recordSocialActivityEvent(
   db: DatabaseSync,
   input: {
@@ -352,6 +370,13 @@ function recordSocialActivityEvent(
     subjectId: string;
     quantity?: number;
     occurredAt: string;
+    metadata?: {
+      bookTitle?: string;
+      chapterLabel?: string;
+      quoteText?: string;
+      editionId?: string | null;
+      circleId?: string | null;
+    } | null;
   },
 ) {
   db.prepare(
@@ -365,7 +390,7 @@ function recordSocialActivityEvent(
         occurred_at,
         metadata_json
       )
-      values (?, ?, ?, ?, ?, ?, null)
+      values (?, ?, ?, ?, ?, ?, ?)
     `,
   ).run(
     randomUUID(),
@@ -374,6 +399,7 @@ function recordSocialActivityEvent(
     input.subjectId,
     input.quantity ?? 1,
     input.occurredAt,
+    input.metadata ? JSON.stringify(input.metadata) : null,
   );
 }
 
@@ -389,6 +415,9 @@ function recordSocialActivityDiff(
   );
   const previousCircleMemberships = new Map(
     (previousState?.circleMemberships ?? []).map((entry) => [entry.circleId, entry]),
+  );
+  const previousPromotedMoments = new Map(
+    (previousState?.promotedMoments ?? []).map((entry) => [entry.id, entry]),
   );
 
   for (const entry of nextState?.savedEditions ?? []) {
@@ -451,6 +480,26 @@ function recordSocialActivityDiff(
         subjectId: entry.circleId,
         quantity: nextShareCount - previousShareCount,
         occurredAt: entry.lastOpenedAt ?? occurredAt,
+      });
+    }
+  }
+
+  for (const entry of nextState?.promotedMoments ?? []) {
+    const previousEntry = previousPromotedMoments.get(entry.id);
+
+    if (!previousEntry) {
+      recordSocialActivityEvent(db, {
+        workspaceId,
+        kind: "moment-promoted",
+        subjectId: entry.id,
+        occurredAt: entry.promotedAt ?? occurredAt,
+        metadata: {
+          bookTitle: entry.bookTitle,
+          chapterLabel: entry.chapterLabel,
+          quoteText: entry.quoteText,
+          editionId: entry.editionId,
+          circleId: entry.circleId,
+        },
       });
     }
   }
@@ -1836,9 +1885,11 @@ export function getSocialCommunityPulse(): SocialCommunityPulseSummary {
     string,
     { circleId: string; joins: number; reopens: number; shares: number }
   >();
+  const momentCounts = new Map<string, { momentId: string; promotions: number }>();
   const socialWorkspaces = new Set<string>();
   let totalSavedEditions = 0;
   let totalJoinedCircles = 0;
+  let totalPromotedMoments = 0;
   let lastSyncedAt: string | null = null;
 
   for (const row of rows) {
@@ -1887,12 +1938,23 @@ export function getSocialCommunityPulse(): SocialCommunityPulseSummary {
       }
       circleCounts.set(row.subject_id, current);
     }
+
+    if (row.kind === "moment-promoted") {
+      const current = momentCounts.get(row.subject_id) ?? {
+        momentId: row.subject_id,
+        promotions: 0,
+      };
+      current.promotions += row.quantity;
+      totalPromotedMoments += row.quantity;
+      momentCounts.set(row.subject_id, current);
+    }
   }
 
   return {
     totalSocialWorkspaces: socialWorkspaces.size,
     totalSavedEditions,
     totalJoinedCircles,
+    totalPromotedMoments,
     editionCounts: [...editionCounts.values()].sort((left, right) => {
       if (right.saves !== left.saves) {
         return right.saves - left.saves;
@@ -1908,6 +1970,9 @@ export function getSocialCommunityPulse(): SocialCommunityPulseSummary {
       }
       return right.shares - left.shares;
     }),
+    momentCounts: [...momentCounts.values()].sort((left, right) => {
+      return right.promotions - left.promotions;
+    }),
     lastSyncedAt,
   };
 }
@@ -1920,6 +1985,7 @@ export function listRecentSocialActivityEvents(
     .prepare(
       `
         select id, workspace_id, kind, subject_id, quantity, occurred_at
+          , metadata_json
         from social_activity_events
         order by occurred_at desc
         limit ?
@@ -1932,6 +1998,7 @@ export function listRecentSocialActivityEvents(
     subject_id: string;
     quantity: number;
     occurred_at: string;
+    metadata_json: string | null;
   }>;
 
   return rows.map((row) => ({
@@ -1941,6 +2008,7 @@ export function listRecentSocialActivityEvents(
     subjectId: row.subject_id,
     quantity: row.quantity,
     occurredAt: row.occurred_at,
+    metadata: readSocialActivityMetadata(row.metadata_json),
   }));
 }
 

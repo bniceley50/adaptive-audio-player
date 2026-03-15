@@ -206,7 +206,20 @@ describe("backend sqlite library sync", () => {
             shareCount: 0,
           },
         ],
-        promotedMoments: [],
+        promotedMoments: [
+          {
+            id: "promoted-harbor-warning",
+            bookId: "book-1",
+            bookTitle: "Storm Harbor Revised",
+            chapterIndex: 0,
+            chapterLabel: "Chapter 1",
+            progressSeconds: 94,
+            quoteText: "The harbor kept its warnings polished and quiet.",
+            promotedAt: "2026-03-08T12:04:40.000Z",
+            editionId: "cinematic-harbor",
+            circleId: "circle-future-imports",
+          },
+        ],
       },
       syncedAt: "2026-03-08T12:05:00.000Z",
     });
@@ -249,7 +262,20 @@ describe("backend sqlite library sync", () => {
             shareCount: 0,
           },
         ],
-        promotedMoments: [],
+        promotedMoments: [
+          {
+            id: "promoted-harbor-warning",
+            bookId: "book-1",
+            bookTitle: "Storm Harbor Revised",
+            chapterIndex: 0,
+            chapterLabel: "Chapter 1",
+            progressSeconds: 94,
+            quoteText: "The harbor kept its warnings polished and quiet.",
+            promotedAt: "2026-03-08T12:04:40.000Z",
+            editionId: "cinematic-harbor",
+            circleId: "circle-future-imports",
+          },
+        ],
       },
     });
 
@@ -257,6 +283,7 @@ describe("backend sqlite library sync", () => {
       totalSocialWorkspaces: 1,
       totalSavedEditions: 1,
       totalJoinedCircles: 2,
+      totalPromotedMoments: 1,
       editionCounts: [
         {
           editionId: "cinematic-harbor",
@@ -278,11 +305,26 @@ describe("backend sqlite library sync", () => {
           shares: 0,
         },
       ],
-      lastSyncedAt: "2026-03-08T12:04:35.000Z",
+      momentCounts: [
+        {
+          momentId: "promoted-harbor-warning",
+          promotions: 1,
+        },
+      ],
+      lastSyncedAt: "2026-03-08T12:04:40.000Z",
     });
 
     expect(listRecentSocialActivityEvents(6)).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({
+          kind: "moment-promoted",
+          subjectId: "promoted-harbor-warning",
+          quantity: 1,
+          metadata: expect.objectContaining({
+            bookTitle: "Storm Harbor Revised",
+            chapterLabel: "Chapter 1",
+          }),
+        }),
         expect.objectContaining({
           kind: "circle-joined",
           subjectId: "circle-future-imports",

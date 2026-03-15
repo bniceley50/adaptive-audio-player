@@ -1,6 +1,10 @@
 import { featuredBookCircles } from "@/features/discovery/book-circles";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
-import { getCommunityHeatBadge, getEditionCommunityHeat } from "@/features/social/community-heat";
+import {
+  getCommunityHeatBadge,
+  getEditionCommunityHeat,
+  getMomentCommunityHeat,
+} from "@/features/social/community-heat";
 import type {
   SocialCommunityActivityEventSummary,
   SocialCommunityPulseSummary,
@@ -96,9 +100,58 @@ function buildPromotedPublicMoment(record: PromotedSocialMomentRecord): PublicSo
   };
 }
 
-export function getAllPublicSocialMoments(socialState: SyncedSocialState | null = null) {
-  const promotedMoments = (socialState?.promotedMoments ?? []).map(buildPromotedPublicMoment);
-  return [...promotedMoments, ...publicSocialMoments];
+function buildPromotedMomentFromEvent(
+  event: SocialCommunityActivityEventSummary,
+): PublicSocialMoment | null {
+  if (event.kind !== "moment-promoted") {
+    return null;
+  }
+
+  const quote = event.metadata?.quoteText?.trim();
+  const bookTitle = event.metadata?.bookTitle?.trim();
+  const chapterLabel = event.metadata?.chapterLabel?.trim();
+
+  if (!quote || !bookTitle || !chapterLabel) {
+    return null;
+  }
+
+  return {
+    id: event.subjectId,
+    editionId: event.metadata?.editionId ?? null,
+    circleId: event.metadata?.circleId ?? null,
+    bookTitle,
+    chapterLabel,
+    quote,
+    curatorNote:
+      "Promoted from a saved quote in a real player session so it can live inside the public social layer.",
+    moodLabel: "Shared moment",
+    source: "promoted",
+  };
+}
+
+export function getAllPublicSocialMoments(
+  socialState: SyncedSocialState | null = null,
+  events: SocialCommunityActivityEventSummary[] = [],
+) {
+  const byId = new Map<string, PublicSocialMoment>();
+
+  for (const moment of publicSocialMoments) {
+    byId.set(moment.id, moment);
+  }
+
+  for (const event of events) {
+    const promotedMoment = buildPromotedMomentFromEvent(event);
+    if (promotedMoment) {
+      byId.set(promotedMoment.id, promotedMoment);
+    }
+  }
+
+  for (const record of socialState?.promotedMoments ?? []) {
+    const promotedMoment = buildPromotedPublicMoment(record);
+    byId.set(promotedMoment.id, promotedMoment);
+  }
+
+  return [...byId.values()];
 }
 
 export function getMomentActivityScore(
@@ -106,6 +159,8 @@ export function getMomentActivityScore(
   pulse: SocialCommunityPulseSummary,
   events: SocialCommunityActivityEventSummary[],
 ) {
+  const momentSummary =
+    pulse.momentCounts.find((entry) => entry.momentId === moment.id) ?? null;
   const editionSummary =
     moment.editionId
       ? pulse.editionCounts.find((entry) => entry.editionId === moment.editionId) ?? null
@@ -116,16 +171,20 @@ export function getMomentActivityScore(
       : null;
   const editionHeat =
     moment.editionId ? getEditionCommunityHeat(events).get(moment.editionId) ?? null : null;
+  const momentHeat = getMomentCommunityHeat(events).get(moment.id) ?? null;
 
   return {
+    momentSummary,
     editionSummary,
     circleSummary,
-    heatBadge: getCommunityHeatBadge(editionHeat),
+    heatBadge: getCommunityHeatBadge(momentHeat ?? editionHeat),
     score:
+      (momentSummary?.promotions ?? 0) * 12 +
       (editionSummary?.saves ?? 0) * 10 +
       (editionSummary?.reuses ?? 0) * 4 +
       (circleSummary?.joins ?? 0) * 8 +
       (circleSummary?.shares ?? 0) * 3 +
+      (momentHeat?.score ?? 0) +
       (editionHeat?.score ?? 0) +
       (moment.source === "promoted" ? 12 : 0),
   };
@@ -137,7 +196,7 @@ export function getPublicMomentDetail(
   events: SocialCommunityActivityEventSummary[],
   socialState: SyncedSocialState | null = null,
 ) {
-  const allMoments = getAllPublicSocialMoments(socialState);
+  const allMoments = getAllPublicSocialMoments(socialState, events);
   const moment = allMoments.find((entry) => entry.id === momentId) ?? null;
 
   if (!moment) {
@@ -176,7 +235,7 @@ export function getPublicMomentsFeed(
   events: SocialCommunityActivityEventSummary[],
   socialState: SyncedSocialState | null = null,
 ) {
-  return getAllPublicSocialMoments(socialState)
+  return getAllPublicSocialMoments(socialState, events)
     .map((moment) => ({
       moment,
       edition:

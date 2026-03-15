@@ -59,6 +59,9 @@ export function SocialMomentsFeedCard({
             </p>
             <p className="mt-3 text-sm leading-6 text-stone-600">{moment.curatorNote}</p>
             <div className="mt-4 flex flex-wrap gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+              <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
+                {activity.momentSummary?.promotions ?? 0} promotions
+              </span>
               <span className="rounded-full bg-sky-50 px-2.5 py-1 text-sky-700">
                 {activity.editionSummary?.saves ?? 0} saves
               </span>

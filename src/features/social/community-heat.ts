@@ -9,7 +9,11 @@ export interface CommunityHeatSummary {
 }
 
 function getWeight(kind: SocialActivityEventKind) {
-  if (kind === "edition-saved" || kind === "circle-joined") {
+  if (
+    kind === "edition-saved" ||
+    kind === "circle-joined" ||
+    kind === "moment-promoted"
+  ) {
     return 4;
   }
 
@@ -64,6 +68,12 @@ export function getCircleCommunityHeat(
       event.kind === "circle-reopened" ||
       event.kind === "circle-shared",
   );
+}
+
+export function getMomentCommunityHeat(
+  events: SocialCommunityActivityEventSummary[] | null | undefined,
+) {
+  return accumulateHeat(events ?? [], (event) => event.kind === "moment-promoted");
 }
 
 export function getCommunityHeatBadge(summary: CommunityHeatSummary | null | undefined) {

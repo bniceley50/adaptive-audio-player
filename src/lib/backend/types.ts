@@ -181,12 +181,27 @@ export interface SocialCommunityCircleSummary {
   shares: number;
 }
 
+export interface SocialCommunityMomentSummary {
+  momentId: string;
+  promotions: number;
+}
+
+export interface SocialActivityEventMetadata {
+  bookTitle?: string;
+  chapterLabel?: string;
+  quoteText?: string;
+  editionId?: string | null;
+  circleId?: string | null;
+}
+
 export interface SocialCommunityPulseSummary {
   totalSocialWorkspaces: number;
   totalSavedEditions: number;
   totalJoinedCircles: number;
+  totalPromotedMoments: number;
   editionCounts: SocialCommunityEditionSummary[];
   circleCounts: SocialCommunityCircleSummary[];
+  momentCounts: SocialCommunityMomentSummary[];
   lastSyncedAt: string | null;
 }
 
@@ -195,7 +210,8 @@ export type SocialActivityEventKind =
   | "edition-reused"
   | "circle-joined"
   | "circle-reopened"
-  | "circle-shared";
+  | "circle-shared"
+  | "moment-promoted";
 
 export interface SocialCommunityActivityEventSummary {
   id: string;
@@ -204,4 +220,5 @@ export interface SocialCommunityActivityEventSummary {
   subjectId: string;
   quantity: number;
   occurredAt: string;
+  metadata: SocialActivityEventMetadata | null;
 }

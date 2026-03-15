@@ -1,5 +1,6 @@
 import { featuredBookCircles } from "@/features/discovery/book-circles";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
+import { publicSocialMoments } from "@/features/social/public-moments";
 import {
   getCircleCommunityHeat,
   getCommunityHeatBadge,
@@ -31,6 +32,10 @@ export function formatSocialCommunityEventLabel(
     return `${quantity} reopen${quantity === 1 ? "" : "s"}`;
   }
 
+  if (kind === "moment-promoted") {
+    return `${quantity} moment${quantity === 1 ? "" : "s"}`;
+  }
+
   return `${quantity} share${quantity === 1 ? "" : "s"}`;
 }
 
@@ -58,6 +63,18 @@ export function formatSocialCommunityRelativeTime(value: string) {
 }
 
 export function describeSocialCommunityEvent(event: SocialCommunityActivityEventSummary) {
+  if (event.kind === "moment-promoted") {
+    const moment = publicSocialMoments.find((entry) => entry.id === event.subjectId) ?? null;
+    return {
+      title: event.metadata?.bookTitle ?? moment?.bookTitle ?? "Public moment",
+      detail:
+        event.metadata?.quoteText ??
+        moment?.quote ??
+        "A memorable line promoted from a listener's player into the public social layer.",
+      href: `/social/moments/${event.subjectId}`,
+    };
+  }
+
   if (event.kind === "edition-saved" || event.kind === "edition-reused") {
     const edition =
       featuredListeningEditions.find((entry) => entry.id === event.subjectId) ?? null;
@@ -116,6 +133,14 @@ export function describeSocialCommunityTimelineEvent(
       eyebrow: "Back in rotation",
       title: `${quantityLabel} reopened this circle`,
       detail: `${subject.title} is getting reopened as listeners come back to ${subject.detail.toLowerCase()}.`,
+    };
+  }
+
+  if (event.kind === "moment-promoted") {
+    return {
+      eyebrow: "Moment promoted",
+      title: `${quantityLabel} promoted this moment`,
+      detail: `${subject.title} is now carrying a memorable line into the shared social layer.`,
     };
   }
 

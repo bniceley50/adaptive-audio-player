@@ -11,6 +11,7 @@ describe("community trending helpers", () => {
         totalSocialWorkspaces: 3,
         totalSavedEditions: 9,
         totalJoinedCircles: 4,
+        totalPromotedMoments: 0,
         lastSyncedAt: "2026-03-15T10:00:00.000Z",
         editionCounts: [
           {
@@ -20,6 +21,7 @@ describe("community trending helpers", () => {
           },
         ],
         circleCounts: [],
+        momentCounts: [],
       }),
     ).toMatchObject([
       {
@@ -40,6 +42,7 @@ describe("community trending helpers", () => {
         totalSocialWorkspaces: 3,
         totalSavedEditions: 9,
         totalJoinedCircles: 4,
+        totalPromotedMoments: 0,
         lastSyncedAt: "2026-03-15T10:00:00.000Z",
         editionCounts: [],
         circleCounts: [
@@ -50,6 +53,7 @@ describe("community trending helpers", () => {
             shares: 1,
           },
         ],
+        momentCounts: [],
       }),
     ).toMatchObject([
       {

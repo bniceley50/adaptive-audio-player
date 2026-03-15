@@ -39,11 +39,11 @@ export function SocialCommunityPulseCard({
         </h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
           This summary is aggregated from durable social activity events, so it reflects
-          real saves, joins, reopens, and shares in the backend instead of only the latest
+          real saves, joins, reopens, shares, and promoted moments in the backend instead of only the latest
           snapshot per workspace.
         </p>
       </div>
-      <div className="grid gap-4 p-6 md:grid-cols-4">
+      <div className="grid gap-4 p-6 md:grid-cols-5">
         <article className="rounded-[1.4rem] border border-stone-200 bg-stone-50/80 p-4 shadow-sm">
           <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
             Active workspaces
@@ -66,6 +66,14 @@ export function SocialCommunityPulseCard({
           </p>
           <p className="mt-3 text-2xl font-semibold text-stone-950">
             {pulse.totalJoinedCircles}
+          </p>
+        </article>
+        <article className="rounded-[1.4rem] border border-stone-200 bg-stone-50/80 p-4 shadow-sm">
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+            Promoted moments
+          </p>
+          <p className="mt-3 text-2xl font-semibold text-stone-950">
+            {pulse.totalPromotedMoments}
           </p>
         </article>
         <article className="rounded-[1.4rem] border border-stone-200 bg-stone-50/80 p-4 shadow-sm">

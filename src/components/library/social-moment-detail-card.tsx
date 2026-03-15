@@ -8,6 +8,7 @@ import type { PublicSocialMoment } from "@/features/social/public-moments";
 import type {
   SocialCommunityCircleSummary,
   SocialCommunityEditionSummary,
+  SocialCommunityMomentSummary,
 } from "@/lib/backend/types";
 
 export function SocialMomentDetailCard({
@@ -21,6 +22,7 @@ export function SocialMomentDetailCard({
   edition: FeaturedListeningEdition | null;
   circle: FeaturedBookCircle | null;
   activity: {
+    momentSummary: SocialCommunityMomentSummary | null;
     editionSummary: SocialCommunityEditionSummary | null;
     circleSummary: SocialCommunityCircleSummary | null;
     heatBadge: string | null;
@@ -29,6 +31,7 @@ export function SocialMomentDetailCard({
   relatedMoments: {
     moment: PublicSocialMoment;
     activity: {
+      momentSummary: SocialCommunityMomentSummary | null;
       editionSummary: SocialCommunityEditionSummary | null;
       circleSummary: SocialCommunityCircleSummary | null;
       heatBadge: string | null;
@@ -106,18 +109,18 @@ export function SocialMomentDetailCard({
         </article>
         <article className="rounded-[1.4rem] border border-stone-200 bg-white p-5 shadow-sm">
           <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
-            Edition saves
+            Promotions
           </p>
           <p className="mt-3 text-2xl font-semibold text-stone-950">
-            {activity.editionSummary?.saves ?? 0}
+            {activity.momentSummary?.promotions ?? 0}
           </p>
         </article>
         <article className="rounded-[1.4rem] border border-stone-200 bg-white p-5 shadow-sm">
           <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
-            Circle joins
+            Edition saves
           </p>
           <p className="mt-3 text-2xl font-semibold text-stone-950">
-            {activity.circleSummary?.joins ?? 0}
+            {activity.editionSummary?.saves ?? 0}
           </p>
         </article>
       </section>

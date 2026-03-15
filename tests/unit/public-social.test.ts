@@ -11,10 +11,12 @@ const pulse: SocialCommunityPulseSummary = {
   totalSocialWorkspaces: 2,
   totalSavedEditions: 4,
   totalJoinedCircles: 3,
+  totalPromotedMoments: 1,
   editionCounts: [{ editionId: "cinematic-harbor", saves: 3, reuses: 2 }],
   circleCounts: [
     { circleId: "storm-harbor-night-watch", joins: 2, reopens: 1, shares: 1 },
   ],
+  momentCounts: [{ momentId: "promoted-storm-line", promotions: 1 }],
   lastSyncedAt: "2026-03-15T12:00:00.000Z",
 };
 
@@ -26,6 +28,7 @@ const events = [
     subjectId: "cinematic-harbor",
     quantity: 1,
     occurredAt: new Date().toISOString(),
+    metadata: null,
   },
   {
     id: "2",
@@ -34,6 +37,7 @@ const events = [
     subjectId: "storm-harbor-night-watch",
     quantity: 1,
     occurredAt: new Date().toISOString(),
+    metadata: null,
   },
 ];
 

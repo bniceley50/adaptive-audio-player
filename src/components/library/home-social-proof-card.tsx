@@ -34,7 +34,7 @@ export function HomeSocialProofCard({
           workspaces, not just local demos.
         </p>
       </div>
-      <div className="grid gap-4 p-6 md:grid-cols-3">
+      <div className="grid gap-4 p-6 md:grid-cols-4">
         <article className="rounded-[1.4rem] border border-stone-200 bg-stone-50/80 p-4 shadow-sm">
           <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
             Active social workspaces
@@ -67,6 +67,17 @@ export function HomeSocialProofCard({
             {topCircle && pulse.circleCounts[0]
               ? `${pulse.circleCounts[0].joins} joins across synced workspaces`
               : "Joined circles will start showing up here as shared activity grows."}
+          </p>
+        </article>
+        <article className="rounded-[1.4rem] border border-stone-200 bg-stone-50/80 p-4 shadow-sm">
+          <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+            Promoted moments
+          </p>
+          <p className="mt-3 text-2xl font-semibold text-stone-950">
+            {pulse.totalPromotedMoments}
+          </p>
+          <p className="mt-2 text-sm leading-6 text-stone-600">
+            Memorable lines promoted from real player sessions into the social layer.
           </p>
         </article>
       </div>
