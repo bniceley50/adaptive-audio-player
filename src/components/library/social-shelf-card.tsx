@@ -65,16 +65,26 @@ export function SocialShelfCard() {
   return (
     <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-white shadow-[0_22px_60px_-42px_rgba(28,25,23,0.4)]">
       <div className="border-b border-stone-200/80 bg-[linear-gradient(135deg,#fffdf7_0%,#f7f3ea_52%,#eef4ff_100%)] p-6">
-        <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-          Social shelf
-        </p>
-        <h2 className="mt-2 text-xl font-semibold text-stone-900">
-          Manage your synced editions and circles
-        </h2>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
-          These are the social items that now follow your workspace. Reuse them fast or
-          clean them up without hunting through multiple discovery cards.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="max-w-3xl">
+            <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
+              Social shelf
+            </p>
+            <h2 className="mt-2 text-xl font-semibold text-stone-900">
+              Manage your synced editions and circles
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-stone-600">
+              These are the social items that now follow your workspace. Reuse them fast or
+              clean them up without hunting through multiple discovery cards.
+            </p>
+          </div>
+          <Link
+            className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+            href="/social"
+          >
+            Open social page
+          </Link>
+        </div>
       </div>
       <div className="grid gap-4 p-6 xl:grid-cols-2">
         <article className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm">

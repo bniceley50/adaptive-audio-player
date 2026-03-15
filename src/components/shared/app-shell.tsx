@@ -17,6 +17,7 @@ export function AppShell({
   const navItems = [
     { href: "/", label: "Home", description: "Library and account" },
     { href: "/import", label: "Import", description: "Bring in a new book" },
+    { href: "/social", label: "Social", description: "Editions and circles" },
     { href: "/jobs", label: "Jobs", description: "Queue and backend activity" },
   ];
 
