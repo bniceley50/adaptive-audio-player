@@ -189,3 +189,19 @@ export interface SocialCommunityPulseSummary {
   circleCounts: SocialCommunityCircleSummary[];
   lastSyncedAt: string | null;
 }
+
+export type SocialActivityEventKind =
+  | "edition-saved"
+  | "edition-reused"
+  | "circle-joined"
+  | "circle-reopened"
+  | "circle-shared";
+
+export interface SocialCommunityActivityEventSummary {
+  id: string;
+  workspaceId: string;
+  kind: SocialActivityEventKind;
+  subjectId: string;
+  quantity: number;
+  occurredAt: string;
+}

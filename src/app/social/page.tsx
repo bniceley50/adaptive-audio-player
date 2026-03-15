@@ -2,13 +2,18 @@ import { BookCirclesFeedCard } from "@/components/library/book-circles-feed-card
 import { ListeningEditionsFeedCard } from "@/components/library/listening-editions-feed-card";
 import { SocialActivitySummaryCard } from "@/components/library/social-activity-summary-card";
 import { SocialBackendSnapshotCard } from "@/components/library/social-backend-snapshot-card";
+import { SocialCommunityActivityCard } from "@/components/library/social-community-activity-card";
 import { SocialCommunityPulseCard } from "@/components/library/social-community-pulse-card";
 import { SocialActivityTimelineCard } from "@/components/library/social-activity-timeline-card";
 import { SocialMemoryCard } from "@/components/library/social-memory-card";
 import { SocialShelfCard } from "@/components/library/social-shelf-card";
 import { AppShell } from "@/components/shared/app-shell";
 import { featuredBookCircles } from "@/features/discovery/book-circles";
-import { getSocialCommunityPulse, getWorkspaceLibrarySnapshot } from "@/lib/backend/sqlite";
+import {
+  getSocialCommunityPulse,
+  getWorkspaceLibrarySnapshot,
+  listRecentSocialActivityEvents,
+} from "@/lib/backend/sqlite";
 import { readWorkspaceIdFromRequest } from "@/lib/backend/workspace-session";
 
 export default async function SocialPage({
@@ -31,6 +36,7 @@ export default async function SocialPage({
     ? getWorkspaceLibrarySnapshot(workspaceId)
     : null;
   const communityPulse = getSocialCommunityPulse();
+  const communityEvents = listRecentSocialActivityEvents(6);
   const focusedCircle = focusedCircleId
     ? featuredBookCircles.find((circle) => circle.id === focusedCircleId) ?? null
     : null;
@@ -85,6 +91,7 @@ export default async function SocialPage({
         syncedAt={backendLibrarySnapshot?.syncedAt ?? null}
       />
       <SocialCommunityPulseCard pulse={communityPulse} />
+      <SocialCommunityActivityCard events={communityEvents} />
       <SocialActivitySummaryCard />
       <SocialActivityTimelineCard
         initialSocialState={backendLibrarySnapshot?.socialState ?? null}

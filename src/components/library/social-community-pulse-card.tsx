@@ -38,8 +38,9 @@ export function SocialCommunityPulseCard({
           Backend-backed social activity across synced workspaces
         </h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
-          This summary is aggregated from stored social snapshots, so it reflects real saved
-          editions and joined circles in the backend, not only the current browser session.
+          This summary is aggregated from durable social activity events, so it reflects
+          real saves, joins, reopens, and shares in the backend instead of only the latest
+          snapshot per workspace.
         </p>
       </div>
       <div className="grid gap-4 p-6 md:grid-cols-4">

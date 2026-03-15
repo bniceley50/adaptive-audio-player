@@ -13,6 +13,7 @@ import {
   getAccountSessionById,
   getGenerationArtifactForJob,
   getGenerationOutputsForBook,
+  getSocialCommunityPulse,
   getWorkerHeartbeat,
   listGenerationOutputHistoryForBook,
   getGenerationJob,
@@ -24,6 +25,7 @@ import {
   listRecentSyncJobsForUser,
   listRecentSyncJobsForWorkspace,
   listRecentGenerationJobsForBook,
+  listRecentSocialActivityEvents,
   listWorkspacesForUser,
   listAccountSessionsForUser,
   listEndedAccountSessionsForUser,
@@ -247,6 +249,54 @@ describe("backend sqlite library sync", () => {
         ],
       },
     });
+
+    expect(getSocialCommunityPulse()).toMatchObject({
+      totalSocialWorkspaces: 1,
+      totalSavedEditions: 1,
+      totalJoinedCircles: 2,
+      editionCounts: [
+        {
+          editionId: "cinematic-harbor",
+          saves: 1,
+          reuses: 1,
+        },
+      ],
+      circleCounts: [
+        {
+          circleId: "circle-storm-harbor",
+          joins: 1,
+          reopens: 1,
+          shares: 2,
+        },
+        {
+          circleId: "circle-future-imports",
+          joins: 1,
+          reopens: 0,
+          shares: 0,
+        },
+      ],
+      lastSyncedAt: "2026-03-08T12:04:35.000Z",
+    });
+
+    expect(listRecentSocialActivityEvents(6)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "circle-joined",
+          subjectId: "circle-future-imports",
+          quantity: 1,
+        }),
+        expect.objectContaining({
+          kind: "circle-shared",
+          subjectId: "circle-storm-harbor",
+          quantity: 2,
+        }),
+        expect.objectContaining({
+          kind: "edition-reused",
+          subjectId: "cinematic-harbor",
+          quantity: 1,
+        }),
+      ]),
+    );
   });
 
   it("creates users and links workspaces to them", () => {

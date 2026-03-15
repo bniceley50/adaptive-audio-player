@@ -12,6 +12,8 @@ import type {
   GenerationOutputSummary,
   GenerationJobKind,
   LibrarySyncSnapshot,
+  SocialActivityEventKind,
+  SocialCommunityActivityEventSummary,
   SocialCommunityPulseSummary,
   SyncedBookDisplayMeta,
   SyncJobSummary,
@@ -37,6 +39,8 @@ type SyncJobRow = {
   book_title: string | null;
   playable_artifact_kind: string | null;
 };
+
+type SocialStateSnapshot = LibrarySyncSnapshot["socialState"];
 
 function buildPlayerResumePath(
   bookId: string | null,
@@ -184,6 +188,17 @@ function ensureDbSchema(db: DatabaseSync) {
       last_job_kind text,
       last_job_status text
     );
+
+    create table if not exists social_activity_events (
+      id text primary key,
+      workspace_id text not null,
+      kind text not null,
+      subject_id text not null,
+      quantity integer not null default 1,
+      occurred_at text not null,
+      metadata_json text,
+      foreign key (workspace_id) references workspaces(id) on delete cascade
+    );
   `);
 
   const workspaceColumns = db
@@ -314,6 +329,130 @@ function ensureDbSchema(db: DatabaseSync) {
 
   if (!hasSocialStateJson) {
     db.exec("alter table workspace_defaults add column social_state_json text");
+  }
+}
+
+function readSocialStateFromJson(value: string | null | undefined): SocialStateSnapshot {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(value) as SocialStateSnapshot;
+  } catch {
+    return null;
+  }
+}
+
+function recordSocialActivityEvent(
+  db: DatabaseSync,
+  input: {
+    workspaceId: string;
+    kind: SocialActivityEventKind;
+    subjectId: string;
+    quantity?: number;
+    occurredAt: string;
+  },
+) {
+  db.prepare(
+    `
+      insert into social_activity_events (
+        id,
+        workspace_id,
+        kind,
+        subject_id,
+        quantity,
+        occurred_at,
+        metadata_json
+      )
+      values (?, ?, ?, ?, ?, ?, null)
+    `,
+  ).run(
+    randomUUID(),
+    input.workspaceId,
+    input.kind,
+    input.subjectId,
+    input.quantity ?? 1,
+    input.occurredAt,
+  );
+}
+
+function recordSocialActivityDiff(
+  db: DatabaseSync,
+  workspaceId: string,
+  previousState: SocialStateSnapshot,
+  nextState: SocialStateSnapshot,
+  occurredAt: string,
+) {
+  const previousSavedEditions = new Map(
+    (previousState?.savedEditions ?? []).map((entry) => [entry.editionId, entry]),
+  );
+  const previousCircleMemberships = new Map(
+    (previousState?.circleMemberships ?? []).map((entry) => [entry.circleId, entry]),
+  );
+
+  for (const entry of nextState?.savedEditions ?? []) {
+    const previousEntry = previousSavedEditions.get(entry.editionId);
+
+    if (!previousEntry) {
+      recordSocialActivityEvent(db, {
+        workspaceId,
+        kind: "edition-saved",
+        subjectId: entry.editionId,
+        occurredAt: entry.savedAt ?? occurredAt,
+      });
+    }
+
+    if (
+      entry.lastUsedAt &&
+      (!previousEntry?.lastUsedAt ||
+        new Date(entry.lastUsedAt).getTime() > new Date(previousEntry.lastUsedAt).getTime())
+    ) {
+      recordSocialActivityEvent(db, {
+        workspaceId,
+        kind: "edition-reused",
+        subjectId: entry.editionId,
+        occurredAt: entry.lastUsedAt,
+      });
+    }
+  }
+
+  for (const entry of nextState?.circleMemberships ?? []) {
+    const previousEntry = previousCircleMemberships.get(entry.circleId);
+
+    if (!previousEntry) {
+      recordSocialActivityEvent(db, {
+        workspaceId,
+        kind: "circle-joined",
+        subjectId: entry.circleId,
+        occurredAt: entry.joinedAt ?? occurredAt,
+      });
+    }
+
+    if (
+      entry.lastOpenedAt &&
+      (!previousEntry?.lastOpenedAt ||
+        new Date(entry.lastOpenedAt).getTime() > new Date(previousEntry.lastOpenedAt).getTime())
+    ) {
+      recordSocialActivityEvent(db, {
+        workspaceId,
+        kind: "circle-reopened",
+        subjectId: entry.circleId,
+        occurredAt: entry.lastOpenedAt,
+      });
+    }
+
+    const previousShareCount = previousEntry?.shareCount ?? 0;
+    const nextShareCount = entry.shareCount ?? 0;
+    if (nextShareCount > previousShareCount) {
+      recordSocialActivityEvent(db, {
+        workspaceId,
+        kind: "circle-shared",
+        subjectId: entry.circleId,
+        quantity: nextShareCount - previousShareCount,
+        occurredAt: entry.lastOpenedAt ?? occurredAt,
+      });
+    }
   }
 }
 
@@ -1145,6 +1284,18 @@ export function syncWorkspaceLibrarySnapshot(
   db.exec("begin");
 
   try {
+    const previousWorkspaceDefaults = db
+      .prepare(
+        `
+          select social_state_json
+          from workspace_defaults
+          where workspace_id = ?
+        `,
+      )
+      .get(workspaceId) as { social_state_json: string | null } | undefined;
+    const previousSocialState = readSocialStateFromJson(
+      previousWorkspaceDefaults?.social_state_json,
+    );
     const draftTextMap = new Map(
       snapshot.draftTexts.map((draft) => [draft.bookId, draft.text]),
     );
@@ -1291,6 +1442,14 @@ export function syncWorkspaceLibrarySnapshot(
         ? JSON.stringify(snapshot.discoveryPreferences)
         : null,
       snapshot.socialState ? JSON.stringify(snapshot.socialState) : null,
+      snapshot.syncedAt,
+    );
+
+    recordSocialActivityDiff(
+      db,
+      workspaceId,
+      previousSocialState,
+      snapshot.socialState ?? null,
       snapshot.syncedAt,
     );
 
@@ -1660,15 +1819,16 @@ export function getSocialCommunityPulse(): SocialCommunityPulseSummary {
   const rows = db
     .prepare(
       `
-        select workspace_defaults.social_state_json, workspaces.last_synced_at
-        from workspace_defaults
-        inner join workspaces on workspaces.id = workspace_defaults.workspace_id
-        where workspace_defaults.social_state_json is not null
+        select workspace_id, kind, subject_id, quantity, occurred_at
+        from social_activity_events
       `,
     )
     .all() as Array<{
-    social_state_json: string | null;
-    last_synced_at: string | null;
+    workspace_id: string;
+    kind: SocialActivityEventKind;
+    subject_id: string;
+    quantity: number;
+    occurred_at: string;
   }>;
 
   const editionCounts = new Map<string, { editionId: string; saves: number; reuses: number }>();
@@ -1676,73 +1836,61 @@ export function getSocialCommunityPulse(): SocialCommunityPulseSummary {
     string,
     { circleId: string; joins: number; reopens: number; shares: number }
   >();
-  let totalSocialWorkspaces = 0;
+  const socialWorkspaces = new Set<string>();
   let totalSavedEditions = 0;
   let totalJoinedCircles = 0;
   let lastSyncedAt: string | null = null;
 
   for (const row of rows) {
-    if (!row.social_state_json) {
-      continue;
-    }
-
-    let parsed: LibrarySyncSnapshot["socialState"] = null;
-    try {
-      parsed = JSON.parse(row.social_state_json) as LibrarySyncSnapshot["socialState"];
-    } catch {
-      parsed = null;
-    }
+    socialWorkspaces.add(row.workspace_id);
 
     if (
-      !parsed ||
-      ((parsed.savedEditions?.length ?? 0) === 0 &&
-        (parsed.circleMemberships?.length ?? 0) === 0)
+      !lastSyncedAt ||
+      new Date(row.occurred_at).getTime() > new Date(lastSyncedAt).getTime()
     ) {
-      continue;
+      lastSyncedAt = row.occurred_at;
     }
 
-    totalSocialWorkspaces += 1;
-    totalSavedEditions += parsed.savedEditions.length;
-    totalJoinedCircles += parsed.circleMemberships.length;
-
-    if (
-      row.last_synced_at &&
-      (!lastSyncedAt || new Date(row.last_synced_at).getTime() > new Date(lastSyncedAt).getTime())
-    ) {
-      lastSyncedAt = row.last_synced_at;
-    }
-
-    for (const entry of parsed.savedEditions) {
-      const current = editionCounts.get(entry.editionId) ?? {
-        editionId: entry.editionId,
+    if (row.kind === "edition-saved" || row.kind === "edition-reused") {
+      const current = editionCounts.get(row.subject_id) ?? {
+        editionId: row.subject_id,
         saves: 0,
         reuses: 0,
       };
-      current.saves += 1;
-      if (entry.lastUsedAt) {
-        current.reuses += 1;
+      if (row.kind === "edition-saved") {
+        current.saves += row.quantity;
+        totalSavedEditions += row.quantity;
+      } else {
+        current.reuses += row.quantity;
       }
-      editionCounts.set(entry.editionId, current);
+      editionCounts.set(row.subject_id, current);
     }
 
-    for (const entry of parsed.circleMemberships) {
-      const current = circleCounts.get(entry.circleId) ?? {
-        circleId: entry.circleId,
+    if (
+      row.kind === "circle-joined" ||
+      row.kind === "circle-reopened" ||
+      row.kind === "circle-shared"
+    ) {
+      const current = circleCounts.get(row.subject_id) ?? {
+        circleId: row.subject_id,
         joins: 0,
         reopens: 0,
         shares: 0,
       };
-      current.joins += 1;
-      if (entry.lastOpenedAt) {
-        current.reopens += 1;
+      if (row.kind === "circle-joined") {
+        current.joins += row.quantity;
+        totalJoinedCircles += row.quantity;
+      } else if (row.kind === "circle-reopened") {
+        current.reopens += row.quantity;
+      } else {
+        current.shares += row.quantity;
       }
-      current.shares += entry.shareCount;
-      circleCounts.set(entry.circleId, current);
+      circleCounts.set(row.subject_id, current);
     }
   }
 
   return {
-    totalSocialWorkspaces,
+    totalSocialWorkspaces: socialWorkspaces.size,
     totalSavedEditions,
     totalJoinedCircles,
     editionCounts: [...editionCounts.values()].sort((left, right) => {
@@ -1762,6 +1910,38 @@ export function getSocialCommunityPulse(): SocialCommunityPulseSummary {
     }),
     lastSyncedAt,
   };
+}
+
+export function listRecentSocialActivityEvents(
+  limit = 8,
+): SocialCommunityActivityEventSummary[] {
+  const db = getDatabase();
+  const rows = db
+    .prepare(
+      `
+        select id, workspace_id, kind, subject_id, quantity, occurred_at
+        from social_activity_events
+        order by occurred_at desc
+        limit ?
+      `,
+    )
+    .all(limit) as Array<{
+    id: string;
+    workspace_id: string;
+    kind: SocialActivityEventKind;
+    subject_id: string;
+    quantity: number;
+    occurred_at: string;
+  }>;
+
+  return rows.map((row) => ({
+    id: row.id,
+    workspaceId: row.workspace_id,
+    kind: row.kind,
+    subjectId: row.subject_id,
+    quantity: row.quantity,
+    occurredAt: row.occurred_at,
+  }));
 }
 
 export function getSyncedBookDraftText(workspaceId: string, bookId: string): string | null {
