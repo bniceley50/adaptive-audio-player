@@ -14,6 +14,7 @@ import {
   touchSavedListeningEdition,
 } from "@/features/social/local-social";
 import { useSocialState } from "@/features/social/use-social-state";
+import type { SocialCommunityPulseSummary } from "@/lib/backend/types";
 import type { SyncedSocialState } from "@/lib/types/social";
 import {
   defaultTasteChangedEvent,
@@ -71,8 +72,10 @@ function readLibraryEditions(): FeedEdition[] {
 
 export function ListeningEditionsFeedCard({
   initialSocialState = null,
+  communityPulse = null,
 }: {
   initialSocialState?: SyncedSocialState | null;
+  communityPulse?: SocialCommunityPulseSummary | null;
 }) {
   const preferences = useDiscoveryPreferences();
   const { savedEditions } = useSocialState(initialSocialState);
@@ -188,6 +191,27 @@ export function ListeningEditionsFeedCard({
             className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm"
           >
             {(() => {
+              const communitySummary =
+                communityPulse?.editionCounts.find((entry) => entry.editionId === edition.id) ?? null;
+              return communitySummary ? (
+                <div className="mb-4 rounded-[1.1rem] border border-sky-200 bg-sky-50/80 px-4 py-3">
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
+                    Community pulse
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-sky-900">
+                    {communitySummary.saves} save
+                    {communitySummary.saves === 1 ? "" : "s"} across synced workspaces
+                    {communitySummary.reuses > 0
+                      ? `, ${communitySummary.reuses} reuse${
+                          communitySummary.reuses === 1 ? "" : "s"
+                        }`
+                      : ""}
+                    .
+                  </p>
+                </div>
+              ) : null;
+            })()}
+            {(() => {
               const reason = getEditionDiscoveryReason(edition.id, effectivePreferences);
               return reason ? (
                 <div className="mb-4 rounded-[1.1rem] border border-emerald-200 bg-emerald-50/80 px-4 py-3">
@@ -269,6 +293,16 @@ export function ListeningEditionsFeedCard({
                       Saved
                     </span>
                   ) : null}
+                  {(() => {
+                    const communitySummary =
+                      communityPulse?.editionCounts.find((entry) => entry.editionId === edition.id) ??
+                      null;
+                    return communitySummary ? (
+                      <span className="rounded-full bg-sky-50 px-2.5 py-1 text-sky-700">
+                        {communitySummary.saves} saves
+                      </span>
+                    ) : null;
+                  })()}
                   <span className="rounded-full bg-stone-100 px-2.5 py-1 capitalize">
                     {edition.mode}
                   </span>

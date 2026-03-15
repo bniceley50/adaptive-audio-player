@@ -20,6 +20,7 @@ import {
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 import { useSocialState } from "@/features/social/use-social-state";
+import type { SocialCommunityPulseSummary } from "@/lib/backend/types";
 import type { SyncedSocialState } from "@/lib/types/social";
 
 function getCircleActivityTime(
@@ -35,8 +36,10 @@ function getCircleActivityTime(
 
 export function BookCirclesFeedCard({
   initialSocialState = null,
+  communityPulse = null,
 }: {
   initialSocialState?: SyncedSocialState | null;
+  communityPulse?: SocialCommunityPulseSummary | null;
 }) {
   const preferences = useDiscoveryPreferences();
   const { circleMemberships } = useSocialState(initialSocialState);
@@ -153,6 +156,8 @@ export function BookCirclesFeedCard({
         {circles.map((circle) => {
           const joined = joinedCircles.includes(circle.id);
           const membership = circleMemberships.find((entry) => entry.circleId === circle.id);
+          const communitySummary =
+            communityPulse?.circleCounts.find((entry) => entry.circleId === circle.id) ?? null;
           const pinned =
             pinnedDiscoverySignal?.kind === "circle" && pinnedDiscoverySignal.id === circle.id;
           const freshnessBadge = getRelativeDiscoveryBadge(joinedCircleTimestamps[circle.id]);
@@ -162,6 +167,23 @@ export function BookCirclesFeedCard({
             key={circle.id}
             className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm"
           >
+              {communitySummary ? (
+                <div className="mb-4 rounded-[1.1rem] border border-sky-200 bg-sky-50/80 px-4 py-3">
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
+                    Community pulse
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-sky-900">
+                    {communitySummary.joins} join
+                    {communitySummary.joins === 1 ? "" : "s"} across synced workspaces
+                    {communitySummary.shares > 0
+                      ? `, ${communitySummary.shares} share${
+                          communitySummary.shares === 1 ? "" : "s"
+                        }`
+                      : ""}
+                    .
+                  </p>
+                </div>
+              ) : null}
               {(() => {
                 const reason = getCircleDiscoveryReason(circle.id, effectivePreferences);
                 return reason ? (
@@ -197,6 +219,11 @@ export function BookCirclesFeedCard({
                 {membership?.shareCount ? (
                   <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
                     {membership.shareCount} share{membership.shareCount === 1 ? "" : "s"}
+                  </span>
+                ) : null}
+                {communitySummary ? (
+                  <span className="rounded-full bg-sky-50 px-2.5 py-1 text-sky-700">
+                    {communitySummary.joins} joins
                   </span>
                 ) : null}
                 {pinned ? (

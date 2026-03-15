@@ -45,9 +45,11 @@ export default async function SocialPage() {
       <SocialShelfCard />
       <ListeningEditionsFeedCard
         initialSocialState={backendLibrarySnapshot?.socialState ?? null}
+        communityPulse={communityPulse}
       />
       <BookCirclesFeedCard
         initialSocialState={backendLibrarySnapshot?.socialState ?? null}
+        communityPulse={communityPulse}
       />
     </AppShell>
   );
