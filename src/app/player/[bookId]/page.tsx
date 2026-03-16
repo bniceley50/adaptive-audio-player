@@ -13,12 +13,10 @@ import {
 } from "@/components/shared/action-launchpad";
 import { BookIdentityCard } from "@/components/shared/book-identity-card";
 import { ExperienceModeToggle } from "@/components/shared/experience-mode-toggle";
-import { JourneyHero } from "@/components/shared/journey-hero";
 import { StateSummaryPanel } from "@/components/shared/state-summary-panel";
 import { NowPlaying } from "@/components/player/now-playing";
 import { getAuthorSpotlight } from "@/features/discovery/author-spotlights";
 import {
-  buildPlayerListeningState,
   getUpdatedAtWeight,
   narratorNames,
   tastePresets,
@@ -242,11 +240,6 @@ export default function PlayerPage({ params }: PlayerPageProps) {
   const importedAudioChapterStarts = isImportedAudioBook
     ? importedAudioChapters.map((chapter) => chapter.startSeconds)
     : null;
-  const listeningState = buildPlayerListeningState({
-    historicalArtifactId,
-    renderState,
-    preferredAudioKind,
-  });
   const playerNextMove = preferredAudioKind === "imported-audio"
     ? {
         eyebrow: "Recommended next move",
@@ -367,40 +360,6 @@ export default function PlayerPage({ params }: PlayerPageProps) {
       ),
     },
   ] as const;
-  const playerJourneyIndex = preferredAudioKind === "imported-audio"
-    ? 3
-    : preferredAudioKind === "full-book-generation"
-    ? 3
-    : preferredAudioKind === "sample-generation"
-      ? 2
-      : 1;
-  const playerJourney = [
-    {
-      id: "import",
-      label: "01",
-      title: "Import",
-      detail: "Bring in the manuscript",
-    },
-    {
-      id: "taste",
-      label: "02",
-      title: "Taste",
-      detail: "Choose narrator and mode",
-    },
-    {
-      id: "sample",
-      label: "03",
-      title: "Sample",
-      detail: "Judge the preview render",
-    },
-    {
-      id: "listen",
-      label: "04",
-      title: "Listen",
-      detail: "Play the approved version",
-    },
-  ] as const;
-
   useEffect(() => {
     if (!isImportedAudioBook) {
       return;
@@ -766,26 +725,28 @@ export default function PlayerPage({ params }: PlayerPageProps) {
   }
 
   return (
-    <AppShell eyebrow="Player" title={`Now playing ${bookTitle}`}>
-      <JourneyHero
-        eyebrow="Journey"
-        title="Import, shape, preview, then listen"
-        detail="Playback is the last step of the adaptive audiobook loop. From here, you can keep listening, compare preserved renders, or return to setup when you need to reshape the taste."
-        currentIndex={playerJourneyIndex}
-        currentTitle={playerJourney[playerJourneyIndex]?.title}
-        steps={playerJourney}
-      />
+    <AppShell eyebrow="Player" title="Listen to your book">
       <ExperienceModeToggle
-        detail="Everyday keeps playback focused on the current book, presets, and your next move. Studio reveals adaptive compare and deeper render context when you want to inspect the system."
+        detail="Everyday keeps playback focused on the book, your place, and the next simple action. Studio reveals compare mode and deeper system context."
         mode={experienceMode}
         onModeChange={setExperienceMode}
-        title="Listen in everyday mode or open Studio"
+        title="Keep playback simple or open advanced controls"
       />
       <section className="rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#fffefb_0%,#ffffff_42%,#eef4ff_100%)] p-6 shadow-[0_24px_70px_-46px_rgba(28,25,23,0.42)]">
         <StateSummaryPanel
-          label={listeningState.label}
-          detail={listeningState.detail}
-          action={listeningState.action}
+          label={preferredAudioKind ? "Playback is ready" : "Playback needs audio first"}
+          detail={
+            preferredAudioKind
+              ? `You are on the listening screen for ${bookTitle}. Keep listening here, or return to setup only if you want to change how the book sounds.`
+              : "This book needs a generated sample, a full-book render, or an imported audio file before playback can start."
+          }
+          action={
+            preferredAudioKind
+              ? "Press play and keep going"
+              : "Go back to setup and generate audio"
+          }
+          actionLabel="Best next step"
+          sectionLabel="Now playing"
           statsClassName="mt-5 grid gap-3 md:grid-cols-[1.15fr_0.85fr_0.85fr]"
         >
           <BookIdentityCard
@@ -822,7 +783,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
             </p>
           </article>
         </StateSummaryPanel>
-        {preferredAudioKind !== "imported-audio" ? (
+        {experienceMode === "studio" && preferredAudioKind !== "imported-audio" ? (
         <div className="mt-5 rounded-[1.5rem] border border-stone-200/80 bg-white/85 p-4 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-2xl">
@@ -882,7 +843,9 @@ export default function PlayerPage({ params }: PlayerPageProps) {
         </div>
         ) : null}
       </section>
-      <AuthorSpotlightCard spotlight={authorSpotlight} />
+      {experienceMode === "studio" ? (
+        <AuthorSpotlightCard spotlight={authorSpotlight} />
+      ) : null}
       {experienceMode === "studio" && sampleIsReady && fullBookIsReady ? (
         <section className="rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#111827_0%,#1c1917_45%,#292524_100%)] p-6 text-white shadow-[0_28px_80px_-46px_rgba(17,24,39,0.9)]">
           <div className="flex flex-wrap items-start justify-between gap-4">
@@ -1103,7 +1066,9 @@ export default function PlayerPage({ params }: PlayerPageProps) {
             ) : null}
           </>
         ) : null}
-        <ActionLaunchpad className="mb-5 grid gap-4 lg:grid-cols-3" items={playerLaunchpad} />
+        {experienceMode === "studio" ? (
+          <ActionLaunchpad className="mb-5 grid gap-4 lg:grid-cols-3" items={playerLaunchpad} />
+        ) : null}
         <div className="flex flex-wrap gap-3">
           <Link
             className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700"
@@ -1117,12 +1082,14 @@ export default function PlayerPage({ params }: PlayerPageProps) {
           >
             Import another draft
           </Link>
-          <Link
-            className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700"
-            href="/#default-taste"
-          >
-            Manage default taste
-          </Link>
+          {experienceMode === "studio" ? (
+            <Link
+              className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700"
+              href="/#default-taste"
+            >
+              Manage default taste
+            </Link>
+          ) : null}
         </div>
       </section>
     </AppShell>
