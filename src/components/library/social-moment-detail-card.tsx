@@ -194,27 +194,27 @@ export function SocialMomentDetailCard({
           <div className="flex flex-wrap gap-3">
             {circle ? (
               <Link
-                className="rounded-full bg-stone-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-800"
+                className="inline-flex items-center justify-center rounded-full bg-[#274c5b] px-5 py-3 text-sm font-semibold text-stone-50 shadow-[0_14px_32px_-24px_rgba(39,76,91,0.8)] transition hover:bg-[#1f3d49]"
                 href={`/social/circles/${circle.id}?moment=${moment.id}&entry=moment-path#moment-led`}
               >
                 Start with this circle path
               </Link>
             ) : edition ? (
               <Link
-                className="rounded-full bg-stone-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-800"
+                className="inline-flex items-center justify-center rounded-full bg-[#274c5b] px-5 py-3 text-sm font-semibold text-stone-50 shadow-[0_14px_32px_-24px_rgba(39,76,91,0.8)] transition hover:bg-[#1f3d49]"
                 href={`/social/editions/${edition.id}?moment=${moment.id}&entry=moment-path#moment-led`}
               >
                 Start with this edition path
               </Link>
             ) : null}
             <Link
-              className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+              className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-semibold text-stone-900 transition hover:border-stone-400 hover:bg-stone-50"
               href={`/social/circles/start?moment=${moment.id}`}
             >
               Start a fresh circle
             </Link>
             <button
-              className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+              className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-semibold text-stone-900 transition hover:border-stone-400 hover:bg-stone-50"
               onClick={() => {
                 void copyMoment();
               }}
@@ -223,7 +223,7 @@ export function SocialMomentDetailCard({
               {copied ? "Copied" : "Copy moment"}
             </button>
             <button
-              className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-semibold text-stone-900 transition hover:border-stone-400 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
               disabled={reporting}
               onClick={() => {
                 void reportMoment();
@@ -234,7 +234,7 @@ export function SocialMomentDetailCard({
             </button>
             {canModerate ? (
               <button
-                className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-semibold text-stone-900 transition hover:border-stone-400 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
                 disabled={moderating}
                 onClick={() => {
                   void handleModerationAction(
@@ -251,7 +251,7 @@ export function SocialMomentDetailCard({
               </button>
             ) : null}
             <Link
-              className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+              className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-semibold text-stone-900 transition hover:border-stone-400 hover:bg-stone-50"
               href="/social"
             >
               Back to social

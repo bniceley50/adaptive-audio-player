@@ -63,15 +63,21 @@ export function AppShell({
                       key={item.href}
                       className={`rounded-[1.25rem] border px-4 py-3 transition ${
                         isActive
-                          ? "border-stone-950 bg-stone-950 text-white shadow-[0_18px_36px_-28px_rgba(28,25,23,0.7)]"
+                          ? "border-[#274c5b] bg-[#274c5b] text-stone-50 shadow-[0_18px_36px_-28px_rgba(39,76,91,0.7)]"
                           : "border-stone-200 bg-stone-50/80 text-stone-900 hover:border-stone-300 hover:bg-white"
                       }`}
                       href={item.href}
                     >
-                      <span className="block text-sm font-semibold">{item.label}</span>
+                      <span
+                        className={`block text-sm font-semibold ${
+                          isActive ? "text-stone-50" : "text-stone-900"
+                        }`}
+                      >
+                        {item.label}
+                      </span>
                       <span
                         className={`mt-1 block text-xs leading-5 ${
-                          isActive ? "text-stone-200" : "text-stone-600"
+                          isActive ? "text-stone-100/90" : "text-stone-600"
                         }`}
                       >
                         {item.description}

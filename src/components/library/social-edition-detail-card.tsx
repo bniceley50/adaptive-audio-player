@@ -138,21 +138,21 @@ export function SocialEditionDetailCard({
           </div>
           <div className="flex flex-wrap gap-3">
             <Link
-              className="rounded-full bg-stone-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-stone-800"
+              className="inline-flex items-center justify-center rounded-full bg-[#274c5b] px-5 py-3 text-sm font-semibold text-stone-50 shadow-[0_14px_32px_-24px_rgba(39,76,91,0.8)] transition hover:bg-[#1f3d49]"
               href={`/import?edition=${edition.id}`}
               onClick={handleUseEdition}
             >
               Start with this edition
             </Link>
             <button
-              className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+              className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-semibold text-stone-900 transition hover:border-stone-400 hover:bg-stone-50"
               onClick={handleToggleSave}
               type="button"
             >
               {savedEdition ? "Unsave edition" : "Save edition"}
             </button>
             <Link
-              className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+              className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-semibold text-stone-900 transition hover:border-stone-400 hover:bg-stone-50"
               href="/social"
             >
               Back to social
