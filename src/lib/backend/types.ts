@@ -272,3 +272,4 @@ export interface PublicSocialMomentRecord {
 
 export type PublicSocialReportContentKind = "circle" | "moment";
 export type PublicSocialModerationStatus = "active" | "review" | "hidden";
+export type PublicSocialModerationAction = "hide" | "restore";

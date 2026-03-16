@@ -5,8 +5,8 @@ import { mapPublicSocialCircleRecord } from "@/features/discovery/book-circles";
 import {
   listAllSocialActivityEvents,
   getSocialCommunityPulse,
-  listPublicSocialCircles,
-  listPublicSocialMoments,
+  listPublicSocialCirclesWithOptions,
+  listPublicSocialMomentsWithOptions,
   getWorkspaceLibrarySnapshot,
 } from "@/lib/backend/sqlite";
 import { getPublicEditionDetail } from "@/features/social/public-social";
@@ -40,8 +40,12 @@ export default async function SocialEditionPage({
     : null;
   const pulse = getSocialCommunityPulse();
   const events = listAllSocialActivityEvents();
-  const persistentCircles = listPublicSocialCircles().map(mapPublicSocialCircleRecord);
-  const persistentMoments = listPublicSocialMoments().map(mapPublicSocialMomentRecord);
+  const persistentCircles = listPublicSocialCirclesWithOptions({
+    includeHiddenOwnedByWorkspaceId: workspaceId,
+  }).map(mapPublicSocialCircleRecord);
+  const persistentMoments = listPublicSocialMomentsWithOptions({
+    includeHiddenOwnedByWorkspaceId: workspaceId,
+  }).map(mapPublicSocialMomentRecord);
   const detail = getPublicEditionDetail(
     editionId,
     pulse,

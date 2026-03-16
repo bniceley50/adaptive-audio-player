@@ -3,6 +3,7 @@ import type { SyncedSocialState } from "@/lib/types/social";
 
 export type FeaturedBookCircle = {
   id: string;
+  ownerWorkspaceId?: string;
   title: string;
   editionId: string;
   host: string;
@@ -63,6 +64,7 @@ export function mapPublicSocialCircleRecord(
 ): FeaturedBookCircle {
   return {
     id: circle.id,
+    ownerWorkspaceId: circle.ownerWorkspaceId,
     title: circle.title,
     editionId: circle.editionId,
     host: circle.ownerDisplayName?.trim() || circle.host,

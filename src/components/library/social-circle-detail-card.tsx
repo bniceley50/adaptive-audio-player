@@ -32,6 +32,7 @@ export function SocialCircleDetailCard({
   sourceMoment = null,
   entry = null,
   initialSocialState = null,
+  canModerate = false,
 }: {
   circle: FeaturedBookCircle;
   edition: FeaturedListeningEdition | null;
@@ -55,10 +56,12 @@ export function SocialCircleDetailCard({
   sourceMoment?: PublicSocialMoment | null;
   entry?: string | null;
   initialSocialState?: SyncedSocialState | null;
+  canModerate?: boolean;
 }) {
   const { circleMemberships } = useSocialState(initialSocialState);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [reporting, setReporting] = useState(false);
+  const [moderating, setModerating] = useState(false);
   const membership = useMemo(
     () => circleMemberships.find((entry) => entry.circleId === circle.id) ?? null,
     [circle.id, circleMemberships],
@@ -138,6 +141,49 @@ export function SocialCircleDetailCard({
     } finally {
       setReporting(false);
       window.setTimeout(() => setFeedback(null), 2400);
+    }
+  }
+
+  async function handleModerationAction(action: "hide" | "restore") {
+    setModerating(true);
+    setFeedback(null);
+    let shouldReload = false;
+
+    try {
+      const response = await fetch("/api/social/moderation", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          contentKind: "circle",
+          contentId: circle.id,
+          action,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string; moderationStatus?: string }
+        | null;
+
+      if (!response.ok) {
+        setFeedback(payload?.error ?? "Could not update moderation state.");
+      } else {
+        shouldReload = true;
+        setFeedback(
+          action === "hide"
+            ? "Hidden from public feeds. This page stays available to you so you can restore it."
+            : "Restored to public discovery.",
+        );
+      }
+    } catch {
+      setFeedback("Could not update moderation state.");
+    } finally {
+      setModerating(false);
+      if (shouldReload) {
+        window.setTimeout(() => {
+          window.location.reload();
+        }, 900);
+      }
     }
   }
 
@@ -250,6 +296,24 @@ export function SocialCircleDetailCard({
             >
               {reporting ? "Reporting..." : "Report circle"}
             </button>
+            {canModerate ? (
+              <button
+                className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={moderating}
+                onClick={() => {
+                  void handleModerationAction(
+                    circle.moderationStatus === "hidden" ? "restore" : "hide",
+                  );
+                }}
+                type="button"
+              >
+                {moderating
+                  ? "Saving..."
+                  : circle.moderationStatus === "hidden"
+                    ? "Restore circle"
+                    : "Hide circle"}
+              </button>
+            ) : null}
             <Link
               className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
               href="/social"

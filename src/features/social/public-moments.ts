@@ -15,6 +15,7 @@ import type { PromotedSocialMomentRecord, SyncedSocialState } from "@/lib/types/
 
 export type PublicSocialMoment = {
   id: string;
+  ownerWorkspaceId?: string;
   editionId: string | null;
   circleId: string | null;
   bookTitle: string;
@@ -33,6 +34,7 @@ export function mapPublicSocialMomentRecord(
 ): PublicSocialMoment {
   return {
     id: record.id,
+    ownerWorkspaceId: record.ownerWorkspaceId,
     editionId: record.editionId,
     circleId: record.circleId,
     bookTitle: record.bookTitle,
@@ -122,6 +124,7 @@ export function resolveMatchingPublicCircle(
 function buildPromotedPublicMoment(record: PromotedSocialMomentRecord): PublicSocialMoment {
   return {
     id: record.id,
+    ownerWorkspaceId: undefined,
     editionId: record.editionId,
     circleId: record.circleId,
     bookTitle: record.bookTitle,
@@ -154,6 +157,7 @@ function buildPromotedMomentFromEvent(
 
   return {
     id: event.subjectId,
+    ownerWorkspaceId: undefined,
     editionId: event.metadata?.editionId ?? null,
     circleId: event.metadata?.circleId ?? null,
     bookTitle,

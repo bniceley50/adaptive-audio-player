@@ -14,6 +14,7 @@ import type {
   GenerationJobKind,
   LibrarySyncSnapshot,
   PublicSocialCircleRecord,
+  PublicSocialModerationAction,
   PublicSocialModerationStatus,
   PublicSocialMomentRecord,
   PublicSocialReportContentKind,
@@ -2313,7 +2314,15 @@ export function listAllSocialActivityEvents(): SocialCommunityActivityEventSumma
 }
 
 export function listPublicSocialCircles(): PublicSocialCircleRecord[] {
+  return listPublicSocialCirclesWithOptions();
+}
+
+export function listPublicSocialCirclesWithOptions(options?: {
+  includeHiddenOwnedByWorkspaceId?: string | null;
+}): PublicSocialCircleRecord[] {
   const db = getDatabase();
+  const includeHiddenOwnedByWorkspaceId =
+    options?.includeHiddenOwnedByWorkspaceId?.trim() || null;
   const rows = db
     .prepare(
       `
@@ -2339,10 +2348,11 @@ export function listPublicSocialCircles(): PublicSocialCircleRecord[] {
         left join workspaces on workspaces.id = public_social_circles.owner_workspace_id
         left join users on users.id = workspaces.user_id
         where public_social_circles.moderation_status != 'hidden'
+           or (? is not null and public_social_circles.owner_workspace_id = ?)
         order by public_social_circles.updated_at desc, public_social_circles.created_at desc
       `,
     )
-    .all() as Array<{
+    .all(includeHiddenOwnedByWorkspaceId, includeHiddenOwnedByWorkspaceId) as Array<{
     id: string;
     owner_workspace_id: string;
     owner_user_id: string | null;
@@ -2386,7 +2396,15 @@ export function listPublicSocialCircles(): PublicSocialCircleRecord[] {
 }
 
 export function listPublicSocialMoments(): PublicSocialMomentRecord[] {
+  return listPublicSocialMomentsWithOptions();
+}
+
+export function listPublicSocialMomentsWithOptions(options?: {
+  includeHiddenOwnedByWorkspaceId?: string | null;
+}): PublicSocialMomentRecord[] {
   const db = getDatabase();
+  const includeHiddenOwnedByWorkspaceId =
+    options?.includeHiddenOwnedByWorkspaceId?.trim() || null;
   const rows = db
     .prepare(
       `
@@ -2411,10 +2429,11 @@ export function listPublicSocialMoments(): PublicSocialMomentRecord[] {
         left join workspaces on workspaces.id = public_social_moments.owner_workspace_id
         left join users on users.id = workspaces.user_id
         where public_social_moments.moderation_status != 'hidden'
+           or (? is not null and public_social_moments.owner_workspace_id = ?)
         order by public_social_moments.updated_at desc, public_social_moments.promoted_at desc
       `,
     )
-    .all() as Array<{
+    .all(includeHiddenOwnedByWorkspaceId, includeHiddenOwnedByWorkspaceId) as Array<{
     id: string;
     owner_workspace_id: string;
     owner_user_id: string | null;
@@ -2453,6 +2472,51 @@ export function listPublicSocialMoments(): PublicSocialMomentRecord[] {
     promotedAt: row.promoted_at,
     updatedAt: row.updated_at,
   }));
+}
+
+export function updatePublicSocialModerationState(input: {
+  workspaceId: string;
+  contentKind: PublicSocialReportContentKind;
+  contentId: string;
+  action: PublicSocialModerationAction;
+}) {
+  const db = getDatabase();
+  const tableName =
+    input.contentKind === "circle" ? "public_social_circles" : "public_social_moments";
+  const row = db
+    .prepare(
+      `
+        select owner_workspace_id, moderation_status
+        from ${tableName}
+        where id = ?
+      `,
+    )
+    .get(input.contentId) as
+    | {
+        owner_workspace_id: string;
+        moderation_status: PublicSocialModerationStatus;
+      }
+    | undefined;
+
+  if (!row) {
+    return { error: "not-found" as const };
+  }
+
+  if (row.owner_workspace_id !== input.workspaceId) {
+    return { error: "forbidden" as const };
+  }
+
+  const nextStatus: PublicSocialModerationStatus =
+    input.action === "hide" ? "hidden" : "active";
+  db.prepare(
+    `
+      update ${tableName}
+      set moderation_status = ?
+      where id = ?
+    `,
+  ).run(nextStatus, input.contentId);
+
+  return { ok: true as const, moderationStatus: nextStatus };
 }
 
 export function getPublicSocialReportCount(

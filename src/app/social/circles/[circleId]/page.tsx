@@ -5,8 +5,8 @@ import { mapPublicSocialCircleRecord } from "@/features/discovery/book-circles";
 import {
   listAllSocialActivityEvents,
   getSocialCommunityPulse,
-  listPublicSocialCircles,
-  listPublicSocialMoments,
+  listPublicSocialCirclesWithOptions,
+  listPublicSocialMomentsWithOptions,
   getWorkspaceLibrarySnapshot,
 } from "@/lib/backend/sqlite";
 import { getPublicCircleDetail } from "@/features/social/public-social";
@@ -40,8 +40,12 @@ export default async function SocialCirclePage({
     : null;
   const pulse = getSocialCommunityPulse();
   const events = listAllSocialActivityEvents();
-  const persistentCircles = listPublicSocialCircles().map(mapPublicSocialCircleRecord);
-  const persistentMoments = listPublicSocialMoments().map(mapPublicSocialMomentRecord);
+  const persistentCircles = listPublicSocialCirclesWithOptions({
+    includeHiddenOwnedByWorkspaceId: workspaceId,
+  }).map(mapPublicSocialCircleRecord);
+  const persistentMoments = listPublicSocialMomentsWithOptions({
+    includeHiddenOwnedByWorkspaceId: workspaceId,
+  }).map(mapPublicSocialMomentRecord);
   const detail = getPublicCircleDetail(
     circleId,
     pulse,
@@ -79,6 +83,7 @@ export default async function SocialCirclePage({
         sourceMoment={sourceMoment}
         entry={entry ?? null}
         initialSocialState={backendLibrarySnapshot?.socialState ?? null}
+        canModerate={detail.circle.ownerWorkspaceId === workspaceId}
       />
     </AppShell>
   );

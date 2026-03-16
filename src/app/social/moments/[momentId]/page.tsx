@@ -9,8 +9,8 @@ import {
 import {
   listAllSocialActivityEvents,
   getSocialCommunityPulse,
-  listPublicSocialCircles,
-  listPublicSocialMoments,
+  listPublicSocialCirclesWithOptions,
+  listPublicSocialMomentsWithOptions,
   getWorkspaceLibrarySnapshot,
 } from "@/lib/backend/sqlite";
 import { readWorkspaceIdFromRequest } from "@/lib/backend/workspace-session";
@@ -27,8 +27,12 @@ export default async function SocialMomentPage({
     : null;
   const pulse = getSocialCommunityPulse();
   const events = listAllSocialActivityEvents();
-  const persistentCircles = listPublicSocialCircles().map(mapPublicSocialCircleRecord);
-  const persistentMoments = listPublicSocialMoments().map(mapPublicSocialMomentRecord);
+  const persistentCircles = listPublicSocialCirclesWithOptions({
+    includeHiddenOwnedByWorkspaceId: workspaceId,
+  }).map(mapPublicSocialCircleRecord);
+  const persistentMoments = listPublicSocialMomentsWithOptions({
+    includeHiddenOwnedByWorkspaceId: workspaceId,
+  }).map(mapPublicSocialMomentRecord);
   const detail = getPublicMomentDetail(
     momentId,
     pulse,
@@ -50,6 +54,7 @@ export default async function SocialMomentPage({
         circle={detail.circle}
         activity={detail.activity}
         relatedMoments={detail.relatedMoments}
+        canModerate={detail.moment.ownerWorkspaceId === workspaceId}
       />
     </AppShell>
   );

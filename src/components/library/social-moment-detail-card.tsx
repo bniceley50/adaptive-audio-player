@@ -17,6 +17,7 @@ export function SocialMomentDetailCard({
   circle,
   activity,
   relatedMoments,
+  canModerate = false,
 }: {
   moment: PublicSocialMoment;
   edition: FeaturedListeningEdition | null;
@@ -38,10 +39,12 @@ export function SocialMomentDetailCard({
       score: number;
     };
   }[];
+  canModerate?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   const [reporting, setReporting] = useState(false);
   const [reportFeedback, setReportFeedback] = useState<string | null>(null);
+  const [moderating, setModerating] = useState(false);
 
   async function copyMoment() {
     if (typeof navigator === "undefined" || !navigator.clipboard) {
@@ -85,6 +88,49 @@ export function SocialMomentDetailCard({
     } finally {
       setReporting(false);
       window.setTimeout(() => setReportFeedback(null), 2400);
+    }
+  }
+
+  async function handleModerationAction(action: "hide" | "restore") {
+    setModerating(true);
+    setReportFeedback(null);
+    let shouldReload = false;
+
+    try {
+      const response = await fetch("/api/social/moderation", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          contentKind: "moment",
+          contentId: moment.id,
+          action,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+
+      if (!response.ok) {
+        setReportFeedback(payload?.error ?? "Could not update moderation state.");
+      } else {
+        shouldReload = true;
+        setReportFeedback(
+          action === "hide"
+            ? "Hidden from public feeds. This page stays available to you so you can restore it."
+            : "Restored to public discovery.",
+        );
+      }
+    } catch {
+      setReportFeedback("Could not update moderation state.");
+    } finally {
+      setModerating(false);
+      if (shouldReload) {
+        window.setTimeout(() => {
+          window.location.reload();
+        }, 900);
+      }
     }
   }
 
@@ -174,6 +220,24 @@ export function SocialMomentDetailCard({
             >
               {reporting ? "Reporting..." : "Report moment"}
             </button>
+            {canModerate ? (
+              <button
+                className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={moderating}
+                onClick={() => {
+                  void handleModerationAction(
+                    moment.moderationStatus === "hidden" ? "restore" : "hide",
+                  );
+                }}
+                type="button"
+              >
+                {moderating
+                  ? "Saving..."
+                  : moment.moderationStatus === "hidden"
+                    ? "Restore moment"
+                    : "Hide moment"}
+              </button>
+            ) : null}
             <Link
               className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
               href="/social"
