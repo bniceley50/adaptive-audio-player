@@ -6,12 +6,18 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { POST } from "@/app/api/social/moderation/route";
 import {
+  createAccountSession,
+  linkWorkspaceToUser,
   listPublicSocialCirclesWithOptions,
   listPublicSocialMomentsWithOptions,
   resetDatabaseForTests,
   syncWorkspaceLibrarySnapshot,
+  upsertUserByEmail,
 } from "@/lib/backend/sqlite";
-import { createSignedWorkspaceCookieValue } from "@/lib/backend/workspace-session";
+import {
+  createSignedAccountSession,
+  createSignedWorkspaceCookieValue,
+} from "@/lib/backend/workspace-session";
 
 describe("social moderation route", () => {
   const createdDirs: string[] = [];
@@ -22,6 +28,7 @@ describe("social moderation route", () => {
       rmSync(dir, { recursive: true, force: true });
     }
     delete process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH;
+    delete process.env.ADAPTIVE_AUDIO_PLAYER_MODERATION_REVIEWERS;
   });
 
   function createWorkspaceCookie(workspaceId: string) {
@@ -201,7 +208,57 @@ describe("social moderation route", () => {
 
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toEqual({
-      error: "Only the owner can manage this public content.",
+      error: "Only the owner or an allowlisted reviewer can manage this public content.",
+    });
+  });
+
+  it("lets an allowlisted reviewer moderate another workspace's content", async () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), "adaptive-audio-player-"));
+    createdDirs.push(tempDir);
+    process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
+    process.env.ADAPTIVE_AUDIO_PLAYER_MODERATION_REVIEWERS = "reviewer@example.com";
+
+    seedOwnerContent("workspace-owner");
+    const reviewer = upsertUserByEmail({
+      email: "reviewer@example.com",
+      displayName: "Reviewer",
+    });
+    linkWorkspaceToUser("workspace-reviewer", reviewer.id);
+    const session = createAccountSession(
+      reviewer.id,
+      new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      "Reviewer browser",
+    );
+
+    const response = await POST(
+      new Request("http://127.0.0.1:3100/api/social/moderation", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          host: "127.0.0.1:3100",
+          origin: "http://127.0.0.1:3100",
+          cookie: [
+            createWorkspaceCookie("workspace-reviewer"),
+            `adaptive-audio-player.account=${createSignedAccountSession(
+              reviewer.id,
+              session?.id ?? "",
+            )}`,
+          ].join("; "),
+        },
+        body: JSON.stringify({
+          contentKind: "circle",
+          contentId: "owned-circle",
+          action: "hide",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      contentKind: "circle",
+      contentId: "owned-circle",
+      moderationStatus: "hidden",
     });
   });
 });

@@ -59,7 +59,7 @@ function buildQueueItems(
       kind: "moment" as const,
       id: moment.id,
       title: moment.bookTitle,
-      subtitle: `“${moment.quoteText}”`,
+      subtitle: `${moment.ownerDisplayName?.trim() || "Unknown owner"} · “${moment.quoteText}”`,
       moderationStatus: moment.moderationStatus,
       reportCount: moment.reportCount,
       lastReportedAt: moment.lastReportedAt,
@@ -82,9 +82,11 @@ function buildQueueItems(
 export function SocialReviewQueueCard({
   circles,
   moments,
+  mode = "owner",
 }: {
   circles: PublicSocialCircleRecord[];
   moments: PublicSocialMomentRecord[];
+  mode?: "owner" | "reviewer";
 }) {
   const items = buildQueueItems(circles, moments);
 
@@ -101,14 +103,17 @@ export function SocialReviewQueueCard({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl">
             <p className="text-xs font-medium uppercase tracking-[0.22em] text-amber-700">
-              Moderation queue
+              {mode === "reviewer" ? "Reviewer inbox" : "Moderation queue"}
             </p>
             <h2 className="mt-2 text-xl font-semibold text-stone-900">
-              Review the public circles and moments you own
+              {mode === "reviewer"
+                ? "Review reported public social content across accounts"
+                : "Review the public circles and moments you own"}
             </h2>
             <p className="mt-2 text-sm leading-6 text-stone-700">
-              Public content that has been reported or hidden stays manageable here. Open
-              an item to hide it, restore it, or confirm that it should stay visible.
+              {mode === "reviewer"
+                ? "This inbox brings together reported and hidden public content across the app. Open an item to hide it, restore it, or keep it public as a reviewer."
+                : "Public content that has been reported or hidden stays manageable here. Open an item to hide it, restore it, or confirm that it should stay visible."}
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -120,7 +125,7 @@ export function SocialReviewQueueCard({
             </div>
             <div className="rounded-[1.1rem] border border-stone-200 bg-white/90 px-4 py-3 shadow-sm">
               <p className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-stone-500">
-                Hidden by you
+                {mode === "reviewer" ? "Hidden items" : "Hidden by you"}
               </p>
               <p className="mt-2 text-lg font-semibold text-stone-950">{hiddenCount}</p>
             </div>

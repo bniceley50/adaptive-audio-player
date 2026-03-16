@@ -2319,10 +2319,12 @@ export function listPublicSocialCircles(): PublicSocialCircleRecord[] {
 
 export function listPublicSocialCirclesWithOptions(options?: {
   includeHiddenOwnedByWorkspaceId?: string | null;
+  includeAllHidden?: boolean;
 }): PublicSocialCircleRecord[] {
   const db = getDatabase();
   const includeHiddenOwnedByWorkspaceId =
     options?.includeHiddenOwnedByWorkspaceId?.trim() || null;
+  const includeAllHidden = options?.includeAllHidden ? 1 : 0;
   const rows = db
     .prepare(
       `
@@ -2347,12 +2349,17 @@ export function listPublicSocialCirclesWithOptions(options?: {
         from public_social_circles
         left join workspaces on workspaces.id = public_social_circles.owner_workspace_id
         left join users on users.id = workspaces.user_id
-        where public_social_circles.moderation_status != 'hidden'
+        where ? = 1
+           or public_social_circles.moderation_status != 'hidden'
            or (? is not null and public_social_circles.owner_workspace_id = ?)
         order by public_social_circles.updated_at desc, public_social_circles.created_at desc
       `,
     )
-    .all(includeHiddenOwnedByWorkspaceId, includeHiddenOwnedByWorkspaceId) as Array<{
+    .all(
+      includeAllHidden,
+      includeHiddenOwnedByWorkspaceId,
+      includeHiddenOwnedByWorkspaceId,
+    ) as Array<{
     id: string;
     owner_workspace_id: string;
     owner_user_id: string | null;
@@ -2401,10 +2408,12 @@ export function listPublicSocialMoments(): PublicSocialMomentRecord[] {
 
 export function listPublicSocialMomentsWithOptions(options?: {
   includeHiddenOwnedByWorkspaceId?: string | null;
+  includeAllHidden?: boolean;
 }): PublicSocialMomentRecord[] {
   const db = getDatabase();
   const includeHiddenOwnedByWorkspaceId =
     options?.includeHiddenOwnedByWorkspaceId?.trim() || null;
+  const includeAllHidden = options?.includeAllHidden ? 1 : 0;
   const rows = db
     .prepare(
       `
@@ -2428,12 +2437,17 @@ export function listPublicSocialMomentsWithOptions(options?: {
         from public_social_moments
         left join workspaces on workspaces.id = public_social_moments.owner_workspace_id
         left join users on users.id = workspaces.user_id
-        where public_social_moments.moderation_status != 'hidden'
+        where ? = 1
+           or public_social_moments.moderation_status != 'hidden'
            or (? is not null and public_social_moments.owner_workspace_id = ?)
         order by public_social_moments.updated_at desc, public_social_moments.promoted_at desc
       `,
     )
-    .all(includeHiddenOwnedByWorkspaceId, includeHiddenOwnedByWorkspaceId) as Array<{
+    .all(
+      includeAllHidden,
+      includeHiddenOwnedByWorkspaceId,
+      includeHiddenOwnedByWorkspaceId,
+    ) as Array<{
     id: string;
     owner_workspace_id: string;
     owner_user_id: string | null;
@@ -2476,6 +2490,7 @@ export function listPublicSocialMomentsWithOptions(options?: {
 
 export function updatePublicSocialModerationState(input: {
   workspaceId: string;
+  isReviewer?: boolean;
   contentKind: PublicSocialReportContentKind;
   contentId: string;
   action: PublicSocialModerationAction;
@@ -2502,7 +2517,7 @@ export function updatePublicSocialModerationState(input: {
     return { error: "not-found" as const };
   }
 
-  if (row.owner_workspace_id !== input.workspaceId) {
+  if (row.owner_workspace_id !== input.workspaceId && !input.isReviewer) {
     return { error: "forbidden" as const };
   }
 

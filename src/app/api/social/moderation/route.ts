@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { verifySameOriginMutation } from "@/lib/backend/csrf";
+import { isModerationReviewerAccount } from "@/lib/backend/moderation";
 import { updatePublicSocialModerationState } from "@/lib/backend/sqlite";
 import type {
   PublicSocialModerationAction,
@@ -38,8 +39,9 @@ export async function POST(request: Request) {
     parseCookieValue(request, accountCookieName),
   );
   const workspaceAccess = verifyWorkspaceAccess(existingWorkspaceId, accountId);
+  const isReviewer = isModerationReviewerAccount(accountId);
 
-  if (workspaceAccess.error) {
+  if (workspaceAccess.error && !isReviewer) {
     return NextResponse.json({ error: workspaceAccess.error }, { status: 403 });
   }
 
@@ -74,6 +76,7 @@ export async function POST(request: Request) {
 
   const result = updatePublicSocialModerationState({
     workspaceId: workspaceAccess.workspaceId,
+    isReviewer,
     contentKind,
     contentId,
     action,
@@ -88,7 +91,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { error: "Only the owner can manage this public content." },
+      { error: "Only the owner or an allowlisted reviewer can manage this public content." },
       { status: 403 },
     );
   }

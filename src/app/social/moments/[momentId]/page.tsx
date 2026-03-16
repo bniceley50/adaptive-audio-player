@@ -13,7 +13,11 @@ import {
   listPublicSocialMomentsWithOptions,
   getWorkspaceLibrarySnapshot,
 } from "@/lib/backend/sqlite";
-import { readWorkspaceIdFromRequest } from "@/lib/backend/workspace-session";
+import { isModerationReviewerAccount } from "@/lib/backend/moderation";
+import {
+  readAccountIdFromRequest,
+  readWorkspaceIdFromRequest,
+} from "@/lib/backend/workspace-session";
 
 export default async function SocialMomentPage({
   params,
@@ -29,7 +33,9 @@ export default async function SocialMomentPage({
   const entry = Array.isArray(resolvedSearchParams.entry)
     ? resolvedSearchParams.entry[0]
     : resolvedSearchParams.entry;
+  const accountId = await readAccountIdFromRequest();
   const workspaceId = await readWorkspaceIdFromRequest();
+  const isReviewer = isModerationReviewerAccount(accountId);
   const backendLibrarySnapshot = workspaceId
     ? getWorkspaceLibrarySnapshot(workspaceId)
     : null;
@@ -37,9 +43,11 @@ export default async function SocialMomentPage({
   const events = listAllSocialActivityEvents();
   const persistentCircles = listPublicSocialCirclesWithOptions({
     includeHiddenOwnedByWorkspaceId: workspaceId,
+    includeAllHidden: isReviewer,
   }).map(mapPublicSocialCircleRecord);
   const persistentMoments = listPublicSocialMomentsWithOptions({
     includeHiddenOwnedByWorkspaceId: workspaceId,
+    includeAllHidden: isReviewer,
   }).map(mapPublicSocialMomentRecord);
   const detail = getPublicMomentDetail(
     momentId,
@@ -62,7 +70,7 @@ export default async function SocialMomentPage({
         circle={detail.circle}
         activity={detail.activity}
         relatedMoments={detail.relatedMoments}
-        canModerate={detail.moment.ownerWorkspaceId === workspaceId}
+        canModerate={detail.moment.ownerWorkspaceId === workspaceId || isReviewer}
         entry={entry ?? null}
       />
     </AppShell>

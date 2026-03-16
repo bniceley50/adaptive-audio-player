@@ -28,7 +28,11 @@ import {
   getWorkspaceLibrarySnapshot,
   listRecentSocialActivityEvents,
 } from "@/lib/backend/sqlite";
-import { readWorkspaceIdFromRequest } from "@/lib/backend/workspace-session";
+import { isModerationReviewerAccount } from "@/lib/backend/moderation";
+import {
+  readAccountIdFromRequest,
+  readWorkspaceIdFromRequest,
+} from "@/lib/backend/workspace-session";
 
 export default async function SocialPage({
   searchParams,
@@ -49,7 +53,9 @@ export default async function SocialPage({
   const entry = Array.isArray(resolvedSearchParams.entry)
     ? resolvedSearchParams.entry[0]
     : resolvedSearchParams.entry;
+  const accountId = await readAccountIdFromRequest();
   const workspaceId = await readWorkspaceIdFromRequest();
+  const isReviewer = isModerationReviewerAccount(accountId);
   const backendLibrarySnapshot = workspaceId
     ? getWorkspaceLibrarySnapshot(workspaceId)
     : null;
@@ -61,18 +67,20 @@ export default async function SocialPage({
   const moderationCircles = workspaceId
     ? listPublicSocialCirclesWithOptions({
         includeHiddenOwnedByWorkspaceId: workspaceId,
+        includeAllHidden: isReviewer,
       }).filter(
         (circle) =>
-          circle.ownerWorkspaceId === workspaceId &&
+          (isReviewer || circle.ownerWorkspaceId === workspaceId) &&
           (circle.moderationStatus === "review" || circle.moderationStatus === "hidden"),
       )
     : [];
   const moderationMoments = workspaceId
     ? listPublicSocialMomentsWithOptions({
         includeHiddenOwnedByWorkspaceId: workspaceId,
+        includeAllHidden: isReviewer,
       }).filter(
         (moment) =>
-          moment.ownerWorkspaceId === workspaceId &&
+          (isReviewer || moment.ownerWorkspaceId === workspaceId) &&
           (moment.moderationStatus === "review" || moment.moderationStatus === "hidden"),
       )
     : [];
@@ -174,7 +182,11 @@ export default async function SocialPage({
           </div>
         </section>
       ) : null}
-      <SocialReviewQueueCard circles={moderationCircles} moments={moderationMoments} />
+      <SocialReviewQueueCard
+        circles={moderationCircles}
+        moments={moderationMoments}
+        mode={isReviewer ? "reviewer" : "owner"}
+      />
       <SocialBackendSnapshotCard
         socialState={backendLibrarySnapshot?.socialState ?? null}
         syncedAt={backendLibrarySnapshot?.syncedAt ?? null}

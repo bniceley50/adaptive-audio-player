@@ -76,3 +76,18 @@ export function getWorkerConfig() {
     ),
   };
 }
+
+export function getModerationReviewerEmails() {
+  const configured = readOptionalStringEnv(
+    "ADAPTIVE_AUDIO_PLAYER_MODERATION_REVIEWERS",
+  );
+
+  if (!configured) {
+    return [];
+  }
+
+  return configured
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+}

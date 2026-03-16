@@ -14,7 +14,11 @@ import {
   getAllPublicSocialMoments,
   mapPublicSocialMomentRecord,
 } from "@/features/social/public-moments";
-import { readWorkspaceIdFromRequest } from "@/lib/backend/workspace-session";
+import { isModerationReviewerAccount } from "@/lib/backend/moderation";
+import {
+  readAccountIdFromRequest,
+  readWorkspaceIdFromRequest,
+} from "@/lib/backend/workspace-session";
 
 export default async function SocialEditionPage({
   params,
@@ -34,7 +38,9 @@ export default async function SocialEditionPage({
   const entry = Array.isArray(resolvedSearchParams.entry)
     ? resolvedSearchParams.entry[0]
     : resolvedSearchParams.entry;
+  const accountId = await readAccountIdFromRequest();
   const workspaceId = await readWorkspaceIdFromRequest();
+  const isReviewer = isModerationReviewerAccount(accountId);
   const backendLibrarySnapshot = workspaceId
     ? getWorkspaceLibrarySnapshot(workspaceId)
     : null;
@@ -42,9 +48,11 @@ export default async function SocialEditionPage({
   const events = listAllSocialActivityEvents();
   const persistentCircles = listPublicSocialCirclesWithOptions({
     includeHiddenOwnedByWorkspaceId: workspaceId,
+    includeAllHidden: isReviewer,
   }).map(mapPublicSocialCircleRecord);
   const persistentMoments = listPublicSocialMomentsWithOptions({
     includeHiddenOwnedByWorkspaceId: workspaceId,
+    includeAllHidden: isReviewer,
   }).map(mapPublicSocialMomentRecord);
   const detail = getPublicEditionDetail(
     editionId,
