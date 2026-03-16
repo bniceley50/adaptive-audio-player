@@ -67,6 +67,11 @@ const narratorOptions = [
   },
 ];
 
+const primaryActionClass =
+  "inline-flex rounded-full bg-[#274c5b] px-5 py-3 text-sm font-semibold text-stone-50 shadow-[0_14px_32px_-24px_rgba(39,76,91,0.8)] transition hover:bg-[#1f3d49] disabled:bg-stone-300 disabled:text-stone-500";
+const secondaryActionClass =
+  "inline-flex rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/15 disabled:border-white/10 disabled:bg-transparent disabled:text-stone-400";
+
 export default function BookPage({ params }: BookPageProps) {
   const { bookId } = use(params);
   const router = useRouter();
@@ -1088,7 +1093,7 @@ export default function BookPage({ params }: BookPageProps) {
                       key={preset.id}
                       className={`rounded-[1.4rem] border px-4 py-4 text-left shadow-sm transition ${
                         isActive
-                          ? "border-stone-950 bg-[linear-gradient(135deg,#fff8ed_0%,#f5eee0_100%)] shadow-[0_20px_40px_-32px_rgba(41,37,36,0.65)]"
+                          ? "border-[#274c5b] bg-[linear-gradient(135deg,#eef7fb_0%,#f7fbfd_100%)] shadow-[0_20px_40px_-32px_rgba(39,76,91,0.4)]"
                           : "border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50/70"
                       }`}
                       type="button"
@@ -1102,7 +1107,7 @@ export default function BookPage({ params }: BookPageProps) {
                           {preset.title}
                         </span>
                         {isActive ? (
-                          <span className="rounded-full bg-stone-950 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white">
+                          <span className="rounded-full bg-[#274c5b] px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white">
                             Active
                           </span>
                         ) : null}
@@ -1166,14 +1171,14 @@ export default function BookPage({ params }: BookPageProps) {
                   key={narrator.id}
                   className={`group relative flex cursor-pointer items-start gap-4 overflow-hidden rounded-[1.5rem] border p-4 shadow-sm transition ${
                     selectedNarrator === narrator.id
-                      ? "border-stone-950 bg-[linear-gradient(135deg,#fffdf8_0%,#f5eee0_100%)] shadow-[0_22px_45px_-38px_rgba(41,37,36,0.7)]"
+                      ? "border-[#274c5b] bg-[linear-gradient(135deg,#eef7fb_0%,#f7fbfd_100%)] shadow-[0_22px_45px_-38px_rgba(39,76,91,0.42)]"
                       : "border-stone-200 bg-stone-50/70 hover:border-stone-300 hover:bg-white"
                   }`}
                 >
                   <div
                     className={`absolute inset-y-0 left-0 w-1.5 transition ${
                       selectedNarrator === narrator.id
-                        ? "bg-stone-950"
+                        ? "bg-[#274c5b]"
                         : "bg-transparent group-hover:bg-stone-300"
                     }`}
                   />
@@ -1191,7 +1196,7 @@ export default function BookPage({ params }: BookPageProps) {
                         {narrator.name}
                       </span>
                       {selectedNarrator === narrator.id ? (
-                        <span className="rounded-full bg-stone-900 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-white">
+                        <span className="rounded-full bg-[#274c5b] px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-white">
                           Selected
                         </span>
                       ) : null}
@@ -1242,7 +1247,7 @@ export default function BookPage({ params }: BookPageProps) {
                   key={mode}
                   className={`rounded-[1.5rem] border px-4 py-4 text-left shadow-sm transition ${
                     selectedMode === mode
-                      ? "border-stone-950 bg-[linear-gradient(135deg,#1c1917_0%,#44403c_100%)] text-white shadow-[0_24px_45px_-34px_rgba(28,25,23,0.85)]"
+                      ? "border-[#274c5b] bg-[linear-gradient(135deg,#274c5b_0%,#335d6f_100%)] text-white shadow-[0_24px_45px_-34px_rgba(39,76,91,0.72)]"
                       : "border-stone-200 bg-stone-50/70 text-stone-900 hover:border-stone-300 hover:bg-white"
                   }`}
                   type="button"
@@ -1275,7 +1280,7 @@ export default function BookPage({ params }: BookPageProps) {
       </section>
 
       <section className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
-        <article className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(145deg,#111827_0%,#1c1917_45%,#292524_100%)] p-6 text-white shadow-[0_28px_80px_-46px_rgba(17,24,39,0.9)]">
+        <article className="overflow-hidden rounded-[2rem] border border-[#274c5b]/30 bg-[linear-gradient(145deg,#17323e_0%,#274c5b_45%,#486b7c_100%)] p-6 text-white shadow-[0_28px_80px_-46px_rgba(23,50,62,0.78)]">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-xl">
               <p className="text-sm uppercase tracking-[0.24em] text-stone-300">
@@ -1422,7 +1427,7 @@ export default function BookPage({ params }: BookPageProps) {
           ) : null}
           <div className="mt-6 flex flex-wrap gap-3">
             <button
-              className="rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-stone-950 shadow-[0_20px_40px_-30px_rgba(252,211,77,0.85)] disabled:bg-amber-200 disabled:text-stone-500"
+              className={primaryActionClass}
               type="button"
               disabled={sampleJobIsActive}
               onClick={() => {
@@ -1436,7 +1441,7 @@ export default function BookPage({ params }: BookPageProps) {
                   : "Generate sample"}
             </button>
             <button
-              className="rounded-full border border-white/20 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+              className={secondaryActionClass}
               type="button"
               onClick={saveAsDefaultTaste}
             >
@@ -1444,7 +1449,7 @@ export default function BookPage({ params }: BookPageProps) {
             </button>
             {sampleIsCurrent || fullBookJobIsActive ? (
               <button
-                className="rounded-full border border-white/20 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10 disabled:border-white/10 disabled:bg-transparent disabled:text-stone-400"
+                className={secondaryActionClass}
                 type="button"
                 disabled={!sampleIsCurrent || chapters.length === 0 || fullBookJobIsActive}
                 onClick={() => {
@@ -1460,7 +1465,7 @@ export default function BookPage({ params }: BookPageProps) {
             ) : null}
             {sampleIsCurrent ? (
               <Link
-                className="rounded-full border border-white/20 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+                className={secondaryActionClass}
                 href={`/player/${bookId}?narrator=${selectedNarrator}&mode=${selectedMode}&artifact=sample&renderState=current`}
               >
                 Open generated sample
@@ -1472,7 +1477,7 @@ export default function BookPage({ params }: BookPageProps) {
             )}
             {sampleOutput?.assetPath && sampleIsCurrent ? (
               <Link
-                className="rounded-full border border-white/20 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+                className={secondaryActionClass}
                 href={`/api/audio/generated/${bookId}?kind=sample-generation`}
                 target="_blank"
               >
@@ -1481,7 +1486,7 @@ export default function BookPage({ params }: BookPageProps) {
             ) : null}
             {fullBookOutput?.assetPath ? (
               <Link
-                className="rounded-full border border-white/20 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+                className={secondaryActionClass}
                 href={`/player/${bookId}?artifact=full&renderState=current`}
               >
                 Listen to full book
@@ -1489,7 +1494,7 @@ export default function BookPage({ params }: BookPageProps) {
             ) : null}
             {fullBookOutput?.assetPath ? (
               <Link
-                className="rounded-full border border-white/20 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+                className={secondaryActionClass}
                 href={`/api/audio/generated/${bookId}?kind=full-book-generation`}
                 target="_blank"
               >
@@ -1497,14 +1502,14 @@ export default function BookPage({ params }: BookPageProps) {
               </Link>
             ) : null}
             <Link
-              className="rounded-full border border-white/20 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+              className={secondaryActionClass}
               href="/import"
             >
               Back to import
             </Link>
             {experienceMode === "studio" ? (
               <Link
-                className="rounded-full border border-white/20 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+                className={secondaryActionClass}
                 href="/#default-taste"
               >
                 Review default taste

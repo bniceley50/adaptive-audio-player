@@ -50,6 +50,9 @@ interface PlayerPageProps {
   params: Promise<{ bookId: string }>;
 }
 
+const secondaryActionClass =
+  "rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-800 transition hover:border-stone-400 hover:bg-stone-50";
+
 export default function PlayerPage({ params }: PlayerPageProps) {
   const { bookId } = use(params);
   const router = useRouter();
@@ -812,7 +815,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                   key={preset.id}
                   className={`rounded-[1.3rem] border px-4 py-4 shadow-sm transition ${
                     isActive
-                      ? "border-stone-950 bg-[linear-gradient(135deg,#fff8ed_0%,#f5eee0_100%)] shadow-[0_18px_36px_-30px_rgba(41,37,36,0.55)]"
+                      ? "border-[#274c5b] bg-[linear-gradient(135deg,#eef7fb_0%,#f7fbfd_100%)] shadow-[0_18px_36px_-30px_rgba(39,76,91,0.36)]"
                       : "border-stone-200 bg-stone-50/70 hover:border-stone-300 hover:bg-white"
                   }`}
                   href={`/player/${bookId}?artifact=${preferredAudioKind === "full-book-generation" ? "full" : "sample"}&narrator=${preset.narratorId}&mode=${preset.mode}&renderState=current`}
@@ -822,7 +825,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                       {preset.title}
                     </span>
                     {isActive ? (
-                      <span className="rounded-full bg-stone-950 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white">
+                      <span className="rounded-full bg-[#274c5b] px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white">
                         Active
                       </span>
                     ) : null}
@@ -847,7 +850,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
         <AuthorSpotlightCard spotlight={authorSpotlight} />
       ) : null}
       {experienceMode === "studio" && sampleIsReady && fullBookIsReady ? (
-        <section className="rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#111827_0%,#1c1917_45%,#292524_100%)] p-6 text-white shadow-[0_28px_80px_-46px_rgba(17,24,39,0.9)]">
+        <section className="rounded-[2rem] border border-[#274c5b]/30 bg-[linear-gradient(135deg,#17323e_0%,#274c5b_45%,#486b7c_100%)] p-6 text-white shadow-[0_28px_80px_-46px_rgba(23,50,62,0.78)]">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-3xl">
               <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-300">
@@ -902,7 +905,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
               </p>
               <div className="mt-4">
                 <Link
-                  className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
+                  className="inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#274c5b] transition hover:bg-stone-100"
                   href={`/player/${bookId}?artifact=sample&renderState=current`}
                 >
                   Listen to sample
@@ -935,7 +938,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
               </p>
               <div className="mt-4">
                 <Link
-                  className="inline-flex rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/15"
+                  className="inline-flex rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#274c5b] transition hover:bg-stone-100"
                   href={`/player/${bookId}?artifact=full&renderState=current`}
                 >
                   Listen to full book
@@ -980,7 +983,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                 <Link
                   className={`rounded-full border px-4 py-2 text-sm font-medium ${
                     preferredAudioKind === "sample-generation"
-                      ? "border-stone-950 bg-stone-950 text-white"
+                      ? "border-[#274c5b] bg-[#274c5b] text-white"
                       : "border-stone-300 text-stone-700"
                   }`}
                   href={`/player/${bookId}?narrator=${narratorId}&mode=${mode}&artifact=sample&renderState=current`}
@@ -990,7 +993,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                 <Link
                   className={`rounded-full border px-4 py-2 text-sm font-medium ${
                     preferredAudioKind === "full-book-generation"
-                      ? "border-stone-950 bg-stone-950 text-white"
+                      ? "border-[#274c5b] bg-[#274c5b] text-white"
                       : "border-stone-300 text-stone-700"
                   }`}
                   href={`/player/${bookId}?narrator=${narratorId}&mode=${mode}&artifact=full&renderState=current`}
@@ -1071,20 +1074,20 @@ export default function PlayerPage({ params }: PlayerPageProps) {
         ) : null}
         <div className="flex flex-wrap gap-3">
           <Link
-            className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700"
+            className={secondaryActionClass}
             href={`/books/${bookId}?from=player`}
           >
             Back to setup
           </Link>
           <Link
-            className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700"
+            className={secondaryActionClass}
             href="/import"
           >
             Import another draft
           </Link>
           {experienceMode === "studio" ? (
             <Link
-              className="rounded-full border border-stone-300 px-5 py-3 text-sm font-medium text-stone-700"
+              className={secondaryActionClass}
               href="/#default-taste"
             >
               Manage default taste

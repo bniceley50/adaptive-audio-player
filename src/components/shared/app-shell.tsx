@@ -42,8 +42,9 @@ export function AppShell({
                   {title}
                 </h1>
                 <p className="max-w-2xl text-sm leading-6 text-stone-600 lg:text-base">
-                  Private AI audiobooks with customizable voices, adaptive listening
-                  modes, and a backend workflow strong enough to feel like a real SaaS.
+                  Bring in a book, choose how it should sound, and listen. Community
+                  picks and advanced controls are there when you want them, not when
+                  you are trying to get started.
                 </p>
               </div>
             </div>

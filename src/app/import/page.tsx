@@ -66,6 +66,17 @@ function sortByRecent<
   });
 }
 
+const primaryActionClass =
+  "rounded-full bg-[#274c5b] px-5 py-3 text-sm font-semibold text-stone-50 shadow-[0_14px_32px_-24px_rgba(39,76,91,0.8)] transition hover:bg-[#1f3d49] disabled:bg-stone-300 disabled:text-stone-500";
+const secondaryActionClass =
+  "rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-800 transition hover:border-stone-400 hover:bg-stone-50";
+const compactPrimaryActionClass =
+  "rounded-full bg-[#274c5b] px-4 py-2 text-sm font-semibold text-stone-50 shadow-[0_14px_32px_-24px_rgba(39,76,91,0.8)] transition hover:bg-[#1f3d49]";
+const compactSecondaryActionClass =
+  "rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-800 transition hover:border-stone-400 hover:bg-stone-50";
+const fileInputClass =
+  "mt-5 block w-full text-sm text-stone-700 file:mr-4 file:rounded-full file:border-0 file:bg-[#274c5b] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-stone-50";
+
 export default function ImportPage() {
   const router = useRouter();
   const titleInputRef = useRef<HTMLInputElement | null>(null);
@@ -561,7 +572,7 @@ export default function ImportPage() {
                 Fastest first run. Paste chapters directly and move into voice setup right away.
               </p>
               <button
-                className="mt-4 rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
+                className={`mt-4 ${compactPrimaryActionClass}`}
                 type="button"
                 onClick={() => sourceTextRef.current?.focus()}
               >
@@ -577,7 +588,7 @@ export default function ImportPage() {
                 Plain text uploads work today. The rest of the flow stays the same after upload.
               </p>
               <button
-                className="mt-4 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                className={`mt-4 ${compactSecondaryActionClass}`}
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
               >
@@ -593,7 +604,7 @@ export default function ImportPage() {
                 Bring in a DRM-free or already-converted personal audiobook file and open it directly in the player.
               </p>
               <button
-                className="mt-4 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                className={`mt-4 ${compactSecondaryActionClass}`}
                 type="button"
                 onClick={() => audioFileInputRef.current?.click()}
               >
@@ -632,7 +643,7 @@ export default function ImportPage() {
                 </span>
                 <span className="mt-2 block text-stone-600">{fileLabel}</span>
                 <input
-                  className="mt-5 block w-full text-sm text-stone-700 file:mr-4 file:rounded-full file:border-0 file:bg-stone-950 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white"
+                  className={fileInputClass}
                   type="file"
                   accept=".txt,text/plain"
                   ref={fileInputRef}
@@ -652,7 +663,7 @@ export default function ImportPage() {
                 </span>
                 <span className="mt-2 block text-stone-600">{audioFileLabel}</span>
                 <input
-                  className="mt-5 block w-full text-sm text-stone-700 file:mr-4 file:rounded-full file:border-0 file:bg-stone-950 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white"
+                  className={fileInputClass}
                   type="file"
                   accept=".mp3,.m4b,audio/mpeg,audio/mp4"
                   ref={audioFileInputRef}
@@ -678,7 +689,7 @@ export default function ImportPage() {
                 />
                 <div className="mt-4 flex flex-wrap items-center gap-3">
                   <button
-                    className="rounded-full bg-stone-950 px-5 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-stone-800"
+                    className={primaryActionClass}
                     type="button"
                     onClick={previewPastedText}
                   >
@@ -692,7 +703,7 @@ export default function ImportPage() {
             </div>
 
             <aside className="space-y-4">
-              <div className="rounded-[1.5rem] border border-stone-950 bg-[linear-gradient(135deg,#111827_0%,#1f2937_45%,#312e81_100%)] p-5 text-white shadow-sm">
+              <div className="rounded-[1.5rem] border border-[#274c5b]/30 bg-[linear-gradient(135deg,#17323e_0%,#274c5b_48%,#5d8092_100%)] p-5 text-white shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div>
                     <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/70">
@@ -719,7 +730,7 @@ export default function ImportPage() {
                 </div>
                 <div className="mt-4 flex flex-wrap gap-3">
                   <button
-                    className="rounded-full bg-white px-5 py-3 text-sm font-medium text-stone-950 shadow-sm transition hover:bg-stone-100"
+                    className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-[#274c5b] shadow-sm transition hover:bg-stone-100"
                     type="button"
                     onClick={nextStepCard.action}
                   >
@@ -862,7 +873,7 @@ export default function ImportPage() {
               <div className="rounded-[1.5rem] border border-stone-200 bg-stone-50/80 p-5 shadow-sm">
                 <div className="flex flex-wrap gap-3">
                   <button
-                    className="rounded-full bg-stone-950 px-5 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-stone-800 disabled:bg-stone-300 disabled:text-stone-500"
+                    className={primaryActionClass}
                     type="button"
                     disabled={chapters.length === 0}
                     onClick={continueToSetup}
@@ -870,7 +881,7 @@ export default function ImportPage() {
                     Continue to voice setup
                   </button>
                   <Link
-                    className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 shadow-sm transition hover:border-stone-400 hover:text-stone-950"
+                    className={secondaryActionClass}
                     href="/"
                   >
                     Back to library
