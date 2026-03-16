@@ -103,18 +103,18 @@ export default async function SocialPage({
     : null;
 
   return (
-    <AppShell eyebrow="Social" title="Saved editions and public circles">
+    <AppShell eyebrow="Community" title="Saved listening versions and book clubs">
       <section className="rounded-[2rem] border border-stone-200 bg-white/80 p-8 shadow-sm">
         <p className="text-sm font-medium uppercase tracking-[0.22em] text-stone-500">
-          Social listening
+          Community
         </p>
         <h2 className="mt-4 max-w-2xl text-3xl font-semibold tracking-tight text-stone-950">
-          Keep your best listening editions and circles in one place.
+          Keep your best listening versions, groups, and highlights in one place.
         </h2>
         <p className="mt-4 max-w-3xl text-base leading-7 text-stone-600">
-          This page brings together the synced social shelf and the public discovery feed.
-          Save an edition, reopen a circle, and keep your social listening state easy to
-          manage across workspaces.
+          This page brings together your synced community shelf and the public discovery
+          feed. Save a listening version, reopen a group, and keep your shared listening
+          activity easy to manage across workspaces.
         </p>
       </section>
       {focusedCircle ? (
@@ -122,15 +122,15 @@ export default async function SocialPage({
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-3xl">
               <p className="text-xs font-medium uppercase tracking-[0.22em] text-amber-700">
-                {entry === "trending-circle" ? "Focused from trending now" : "Focused circle"}
+                {entry === "trending-circle" ? "Focused from trending now" : "Focused group"}
               </p>
               <h2 className="mt-2 text-2xl font-semibold text-stone-950">
                 {focusedCircle.title}
               </h2>
               <p className="mt-3 text-sm leading-6 text-stone-600">
                 {entry === "trending-circle"
-                  ? "You landed here from the live home trend strip, so this circle is highlighted first instead of dropping you into the full feed cold."
-                  : "This circle is highlighted first so you can jump straight into the specific public listening path you selected."}
+                  ? "You landed here from the live home trend strip, so this group is highlighted first instead of dropping you into the full feed cold."
+                  : "This group is highlighted first so you can jump straight into the specific shared listening path you selected."}
               </p>
             </div>
             <div className="rounded-[1.2rem] border border-amber-200 bg-white/90 px-4 py-4 shadow-sm">
@@ -152,7 +152,7 @@ export default async function SocialPage({
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-3xl">
               <p className="text-xs font-medium uppercase tracking-[0.22em] text-emerald-700">
-                {entry === "trending-moment" ? "Focused from trending now" : "Focused moment"}
+                {entry === "trending-moment" ? "Focused from trending now" : "Focused highlight"}
               </p>
               <h2 className="mt-2 text-2xl font-semibold text-stone-950">
                 {focusedMoment.bookTitle}
@@ -162,8 +162,8 @@ export default async function SocialPage({
               </p>
               <p className="mt-3 text-sm leading-6 text-stone-600">
                 {entry === "trending-moment"
-                  ? "You landed here from the live home trend strip, so this promoted moment is highlighted first instead of getting buried inside the full social feed."
-                  : "This moment is highlighted first so you can jump straight into the specific shared quote you selected."}
+                  ? "You landed here from the live home trend strip, so this shared highlight is highlighted first instead of getting buried inside the full community feed."
+                  : "This highlight is highlighted first so you can jump straight into the specific shared quote you selected."}
               </p>
             </div>
             <div className="rounded-[1.2rem] border border-emerald-200 bg-white/90 px-4 py-4 shadow-sm">
@@ -176,7 +176,7 @@ export default async function SocialPage({
               <p className="mt-2 text-sm leading-6 text-stone-600">
                 {focusedMoment.source === "promoted"
                   ? "Promoted from a real player session"
-                  : "Curated public moment"}
+                  : "Curated public highlight"}
               </p>
             </div>
           </div>

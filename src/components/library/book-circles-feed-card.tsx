@@ -201,18 +201,18 @@ export function BookCirclesFeedCard({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-2xl">
             <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-              Public book circles
+              Book clubs and groups
             </p>
             <h2 className="mt-2 text-xl font-semibold text-stone-900">
-              Join a serious listening group in one tap
+              Join a listening group in one tap
             </h2>
             <p className="mt-2 text-sm leading-6 text-stone-600">
-              Start from a public circle with a recommended edition, a clear weekly
-              checkpoint, and a title people are already moving through together.
+              Start from a public group with a recommended listening version, a clear
+              weekly checkpoint, and a title people are already moving through together.
             </p>
             {highlightedCircleId ? (
               <p className="mt-2 text-sm leading-6 text-amber-700">
-                Focused from a trending circle pick so you can land on the exact group that
+                Focused from a trending group pick so you can land on the exact group that
                 brought you here.
               </p>
             ) : null}
@@ -224,7 +224,7 @@ export function BookCirclesFeedCard({
           </div>
           <div className="rounded-[1.2rem] border border-stone-200 bg-white px-4 py-3 shadow-sm">
             <p className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-stone-500">
-              Open circles
+              Open groups
             </p>
             <p className="mt-2 text-base font-semibold text-stone-950">{circles.length}</p>
           </div>
@@ -260,7 +260,7 @@ export function BookCirclesFeedCard({
                       {badge}
                     </p>
                     <p className="mt-2 text-sm leading-6 text-violet-900">
-                      Backend event history shows fresh community momentum around this circle.
+                      Backend event history shows fresh community momentum around this group.
                     </p>
                   </div>
                 ) : null;
@@ -315,12 +315,12 @@ export function BookCirclesFeedCard({
                 ) : membership ? (
                   <div className="mb-4 rounded-[1.1rem] border border-amber-200 bg-amber-50/80 px-4 py-3">
                     <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-amber-700">
-                      From your synced circles
+                      From your synced groups
                     </p>
                     <p className="mt-2 text-sm leading-6 text-amber-900">
                       {membership.lastOpenedAt
-                        ? "You already reopened this circle, so it stays near the top of discovery."
-                        : "You joined this circle before, so it stays ready across devices and workspaces."}
+                        ? "You already reopened this group, so it stays near the top of discovery."
+                        : "You joined this group before, so it stays ready across devices and workspaces."}
                     </p>
                   </div>
                 ) : null;
@@ -407,7 +407,7 @@ export function BookCirclesFeedCard({
                     }
                   }}
                 >
-                  {joined ? "Joined" : "Join circle"}
+                  {joined ? "Joined" : "Join group"}
                 </button>
                 <Link
                   className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
@@ -416,7 +416,7 @@ export function BookCirclesFeedCard({
                     touchCircleMembership(circle.id);
                   }}
                 >
-                  View circle
+                  View group
                 </Link>
                 <button
                   className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"

@@ -209,13 +209,13 @@ export function ListeningEditionsFeedCard({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-2xl">
             <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-              Listening editions feed
+              Listening versions
             </p>
             <h2 className="mt-2 text-xl font-semibold text-stone-900">
               Borrow a sound that already works
             </h2>
             <p className="mt-2 text-sm leading-6 text-stone-600">
-              Start with a community-ready or library-proven listening edition, then
+              Start with a community-ready or library-proven listening version, then
               make it your default in one tap.
             </p>
             {personalizationPaused ? (
@@ -229,7 +229,7 @@ export function ListeningEditionsFeedCard({
               Discoverable now
             </p>
             <p className="mt-2 text-base font-semibold text-stone-950">
-              {editions.length} edition{editions.length === 1 ? "" : "s"}
+              {editions.length} version{editions.length === 1 ? "" : "s"}
             </p>
           </div>
         </div>
@@ -295,8 +295,8 @@ export function ListeningEditionsFeedCard({
                   </p>
                   <p className="mt-2 text-sm leading-6 text-amber-900">
                     {savedEdition.lastUsedAt
-                      ? "You saved this edition and already used it in your flow."
-                      : "You saved this edition so it stays easy to reuse across devices and workspaces."}
+                      ? "You saved this version and already used it in your flow."
+                      : "You saved this version so it stays easy to reuse across devices and workspaces."}
                   </p>
                   {savedEdition.lastUsedAt ? (
                     <p className="mt-2 text-xs font-medium uppercase tracking-[0.16em] text-amber-700">
@@ -343,7 +343,7 @@ export function ListeningEditionsFeedCard({
                 })()}
                 <div className="flex flex-wrap items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
                   <span className="rounded-full bg-stone-100 px-2.5 py-1">
-                    {edition.source === "community" ? "Public feed" : "From your library"}
+                    {edition.source === "community" ? "Public picks" : "From your library"}
                   </span>
                   {allCircles.some(
                     (circle) => joinedCircles.includes(circle.id) && circle.editionId === edition.id,
@@ -419,7 +419,7 @@ export function ListeningEditionsFeedCard({
                   window.setTimeout(() => setFeedbackId(null), 1800);
                 }}
               >
-                {feedbackId === edition.id ? "Edition ready" : "Use as default"}
+                {feedbackId === edition.id ? "Version ready" : "Use as default"}
               </button>
               <button
                 className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
@@ -429,8 +429,8 @@ export function ListeningEditionsFeedCard({
                 }}
               >
                 {savedEditions.some((entry) => entry.editionId === edition.id)
-                  ? "Unsave edition"
-                  : "Save edition"}
+                  ? "Unsave version"
+                  : "Save version"}
               </button>
               <Link
                 className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
@@ -440,12 +440,12 @@ export function ListeningEditionsFeedCard({
                     : `/social/editions/${edition.id}`
                 }
               >
-                {edition.bookId ? "Open book" : "View edition"}
+                {edition.bookId ? "Open book" : "View version"}
               </Link>
             </div>
             {feedbackId === edition.id ? (
               <p className="mt-3 text-sm text-emerald-700">
-                This edition is now the default starting taste for new imports.
+                This version is now the default starting sound for new imports.
               </p>
             ) : null}
           </article>

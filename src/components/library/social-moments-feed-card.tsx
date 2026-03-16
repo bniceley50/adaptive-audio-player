@@ -49,14 +49,14 @@ export function SocialMomentsFeedCard({
     <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-white shadow-[0_22px_60px_-42px_rgba(28,25,23,0.4)]">
       <div className="border-b border-stone-200/80 bg-[linear-gradient(135deg,#fff8f1_0%,#ffffff_54%,#eef4ff_100%)] p-6">
         <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-          Public moments
+          Shared highlights
         </p>
         <h2 className="mt-2 text-xl font-semibold text-stone-900">
           Memorable lines people keep passing around
         </h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
-          Public moments tie a quote to a listening edition and a live circle, so the
-          social layer has something richer than counts and joins.
+          Shared highlights tie a quote to a listening version and a live group, so the
+          community layer has something richer than counts and joins.
         </p>
       </div>
       <div className="grid gap-4 p-6 xl:grid-cols-3">
@@ -119,22 +119,22 @@ export function SocialMomentsFeedCard({
             </div>
             <div className="mt-4 space-y-2 text-sm text-stone-600">
               {moment.ownerLabel ? <p>Shared by {moment.ownerLabel}</p> : null}
-              <p>{edition ? `${edition.title} · ${edition.narratorName}` : "No linked edition yet"}</p>
-              <p>{circle ? `${circle.title}` : "No linked circle yet"}</p>
+              <p>{edition ? `${edition.title} · ${edition.narratorName}` : "No linked version yet"}</p>
+              <p>{circle ? `${circle.title}` : "No linked group yet"}</p>
             </div>
             <div className="mt-4 flex flex-wrap gap-3">
               <Link
                 className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
                 href={`/social/moments/${moment.id}`}
               >
-                View moment
+                View highlight
               </Link>
               {circle ? (
                 <Link
                   className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
                   href={`/social/circles/${circle.id}`}
                 >
-                  Open circle
+                  Open group
                 </Link>
               ) : null}
             </div>

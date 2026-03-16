@@ -89,29 +89,29 @@ export function SocialActivitySummaryCard() {
           Synced activity
         </p>
         <h2 className="mt-2 text-xl font-semibold text-stone-900">
-          Your social listening shelf is active
+          Your community shelf is active
         </h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
-          Saved editions, circle joins, and share activity now travel with the workspace.
-          This is the current shape of that synced social state.
+          Saved listening versions, group joins, and share activity now travel with the
+          workspace. This is the current shape of that synced community state.
         </p>
       </div>
       <div className="grid gap-4 p-6 md:grid-cols-4">
         <article className="rounded-[1.4rem] border border-stone-200 bg-stone-50/80 p-4 shadow-sm">
           <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
-            Saved editions
+            Saved versions
           </p>
           <p className="mt-3 text-2xl font-semibold text-stone-950">{savedEditions.length}</p>
         </article>
         <article className="rounded-[1.4rem] border border-stone-200 bg-stone-50/80 p-4 shadow-sm">
           <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
-            Joined circles
+            Joined groups
           </p>
           <p className="mt-3 text-2xl font-semibold text-stone-950">{circleMemberships.length}</p>
         </article>
         <article className="rounded-[1.4rem] border border-stone-200 bg-stone-50/80 p-4 shadow-sm">
           <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
-            Circle shares
+            Group shares
           </p>
           <p className="mt-3 text-2xl font-semibold text-stone-950">{totalShareCount}</p>
         </article>
@@ -127,7 +127,7 @@ export function SocialActivitySummaryCard() {
       <div className="grid gap-4 border-t border-stone-200/80 p-6 md:grid-cols-2">
         <article className="rounded-[1.4rem] border border-stone-200 bg-white p-4 shadow-sm">
           <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
-            Latest saved edition
+            Latest saved version
           </p>
           <p className="mt-3 text-sm font-semibold text-stone-950">
             {latestSavedEdition?.edition?.title ?? "Nothing saved yet"}
@@ -135,12 +135,12 @@ export function SocialActivitySummaryCard() {
           <p className="mt-2 text-sm leading-6 text-stone-600">
             {latestSavedEdition?.edition
               ? `${latestSavedEdition.edition.narratorName} · ${latestSavedEdition.edition.mode}`
-              : "Save an edition from the public feed to start building a synced shelf."}
+              : "Save a listening version from the public feed to start building a synced shelf."}
           </p>
         </article>
         <article className="rounded-[1.4rem] border border-stone-200 bg-white p-4 shadow-sm">
           <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
-            Latest joined circle
+            Latest joined group
           </p>
           <p className="mt-3 text-sm font-semibold text-stone-950">
             {latestCircle?.circle?.title ?? "No circle joined yet"}
@@ -148,7 +148,7 @@ export function SocialActivitySummaryCard() {
           <p className="mt-2 text-sm leading-6 text-stone-600">
             {latestCircle?.circle
               ? latestCircle.circle.checkpoint
-              : "Join a circle from the public feed to keep its checkpoint and activity synced."}
+              : "Join a group from the public feed to keep its checkpoint and activity synced."}
           </p>
         </article>
       </div>
