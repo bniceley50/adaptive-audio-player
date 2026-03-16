@@ -7,6 +7,7 @@ import { SocialCommunityPulseCard } from "@/components/library/social-community-
 import { SocialMomentsFeedCard } from "@/components/library/social-moments-feed-card";
 import { SocialActivityTimelineCard } from "@/components/library/social-activity-timeline-card";
 import { SocialMemoryCard } from "@/components/library/social-memory-card";
+import { SocialReviewQueueCard } from "@/components/library/social-review-queue-card";
 import { SocialShelfCard } from "@/components/library/social-shelf-card";
 import { AppShell } from "@/components/shared/app-shell";
 import {
@@ -21,7 +22,9 @@ import {
   listAllSocialActivityEvents,
   getSocialCommunityPulse,
   listPublicSocialCircles,
+  listPublicSocialCirclesWithOptions,
   listPublicSocialMoments,
+  listPublicSocialMomentsWithOptions,
   getWorkspaceLibrarySnapshot,
   listRecentSocialActivityEvents,
 } from "@/lib/backend/sqlite";
@@ -55,6 +58,24 @@ export default async function SocialPage({
   const communityEvents = listAllSocialActivityEvents();
   const persistentCircles = listPublicSocialCircles().map(mapPublicSocialCircleRecord);
   const persistentMoments = listPublicSocialMoments().map(mapPublicSocialMomentRecord);
+  const moderationCircles = workspaceId
+    ? listPublicSocialCirclesWithOptions({
+        includeHiddenOwnedByWorkspaceId: workspaceId,
+      }).filter(
+        (circle) =>
+          circle.ownerWorkspaceId === workspaceId &&
+          (circle.moderationStatus === "review" || circle.moderationStatus === "hidden"),
+      )
+    : [];
+  const moderationMoments = workspaceId
+    ? listPublicSocialMomentsWithOptions({
+        includeHiddenOwnedByWorkspaceId: workspaceId,
+      }).filter(
+        (moment) =>
+          moment.ownerWorkspaceId === workspaceId &&
+          (moment.moderationStatus === "review" || moment.moderationStatus === "hidden"),
+      )
+    : [];
   const allCircles = getAllPublicBookCircles(
     backendLibrarySnapshot?.socialState ?? null,
     communityEvents,
@@ -153,6 +174,7 @@ export default async function SocialPage({
           </div>
         </section>
       ) : null}
+      <SocialReviewQueueCard circles={moderationCircles} moments={moderationMoments} />
       <SocialBackendSnapshotCard
         socialState={backendLibrarySnapshot?.socialState ?? null}
         syncedAt={backendLibrarySnapshot?.syncedAt ?? null}

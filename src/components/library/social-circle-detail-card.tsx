@@ -218,6 +218,16 @@ export function SocialCircleDetailCard({
             <h2 className="mt-4 text-3xl font-semibold tracking-tight text-stone-950">
               {circle.bookTitle}
             </h2>
+            {entry === "review-queue" ? (
+              <div className="mt-4 rounded-[1.2rem] border border-amber-200 bg-amber-50/80 px-4 py-4">
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-amber-700">
+                  Opened from moderation queue
+                </p>
+                <p className="mt-2 text-sm leading-6 text-amber-900">
+                  This circle is in your moderation workflow, so you can review its current state and decide whether it should stay public.
+                </p>
+              </div>
+            ) : null}
             {sourceMoment ? (
               <div
                 id="moment-led"

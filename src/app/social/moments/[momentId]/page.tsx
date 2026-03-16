@@ -17,10 +17,18 @@ import { readWorkspaceIdFromRequest } from "@/lib/backend/workspace-session";
 
 export default async function SocialMomentPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ momentId: string }>;
+  searchParams?: Promise<{
+    entry?: string | string[];
+  }>;
 }) {
   const { momentId } = await params;
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const entry = Array.isArray(resolvedSearchParams.entry)
+    ? resolvedSearchParams.entry[0]
+    : resolvedSearchParams.entry;
   const workspaceId = await readWorkspaceIdFromRequest();
   const backendLibrarySnapshot = workspaceId
     ? getWorkspaceLibrarySnapshot(workspaceId)
@@ -55,6 +63,7 @@ export default async function SocialMomentPage({
         activity={detail.activity}
         relatedMoments={detail.relatedMoments}
         canModerate={detail.moment.ownerWorkspaceId === workspaceId}
+        entry={entry ?? null}
       />
     </AppShell>
   );
