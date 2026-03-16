@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/shared/app-shell";
-import { JourneyHero } from "@/components/shared/journey-hero";
 import { StudioDisclosure } from "@/components/shared/studio-disclosure";
 import { getAllPublicBookCircles } from "@/features/discovery/book-circles";
 import {
@@ -14,7 +13,6 @@ import {
 } from "@/features/discovery/local-discovery";
 import { getEditionDiscoveryReason } from "@/features/discovery/personalization";
 import { featuredListeningEditions } from "@/features/discovery/listening-editions";
-import { getAllPublicSocialMoments } from "@/features/social/public-moments";
 import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
 import { useSocialState } from "@/features/social/use-social-state";
 import { extractImportText } from "@/lib/import/extract-text";
@@ -37,33 +35,6 @@ import {
   getSupportedAudioImportExtension,
   isSupportedAudioImportExtension,
 } from "@/lib/validation/import-validation";
-
-const importJourney = [
-  {
-    id: "import",
-    label: "01",
-    title: "Import the source",
-    detail: "Paste text, upload TXT, or bring in a private audiobook file.",
-  },
-  {
-    id: "taste",
-    label: "02",
-    title: "Design the taste",
-    detail: "Pick the narrator and listening mode that fit this title.",
-  },
-  {
-    id: "sample",
-    label: "03",
-    title: "Generate the sample",
-    detail: "Create the first preview before you commit to a full render.",
-  },
-  {
-    id: "listen",
-    label: "04",
-    title: "Listen and promote",
-    detail: "Open the player, then move into a full-book render when it feels right.",
-  },
-] as const;
 
 function suggestTitleFromFilename(filename: string): string {
   const baseName = filename.replace(/\.[^.]+$/, "").trim();
@@ -183,21 +154,6 @@ export default function ImportPage() {
 
     return null;
   });
-  const [starterMomentId] = useState<string | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-
-    return new URLSearchParams(window.location.search).get("starterMoment");
-  });
-  const [starterCircleId] = useState<string | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-
-    return new URLSearchParams(window.location.search).get("starterCircle");
-  });
-
   const chapters = useMemo(() => parseChapters(sourceText), [sourceText]);
   const trimmedSourceText = sourceText.trim();
   const allPublicCircles = useMemo(
@@ -215,30 +171,6 @@ export default function ImportPage() {
       featuredListeningEditions.find((edition) => edition.id === selectedEditionId) ?? null
     );
   }, [selectedEditionId]);
-  const starterMoment = useMemo(() => {
-    if (!starterMomentId) {
-      return null;
-    }
-
-    return (
-      getAllPublicSocialMoments(
-        {
-          savedEditions: [],
-          circleMemberships: [],
-          createdCircles,
-          promotedMoments,
-        },
-        [],
-      ).find((moment) => moment.id === starterMomentId) ?? null
-    );
-  }, [createdCircles, promotedMoments, starterMomentId]);
-  const starterCircle = useMemo(() => {
-    if (!starterCircleId) {
-      return null;
-    }
-
-    return allPublicCircles.find((circle) => circle.id === starterCircleId) ?? null;
-  }, [allPublicCircles, starterCircleId]);
   const selectedEditionReason = useMemo(() => {
     if (!selectedEdition) {
       return null;
@@ -601,351 +533,28 @@ export default function ImportPage() {
   }
 
   return (
-    <AppShell eyebrow="Step 1" title="Import a book">
+    <AppShell eyebrow="Import" title="Bring in a book">
       <section className="overflow-hidden rounded-[1.75rem] border border-stone-200 bg-white shadow-sm">
         <div className="border-b border-stone-200 bg-[linear-gradient(135deg,#f7f0df_0%,#fffdf7_45%,#edf4ff_100%)] p-8">
-          <JourneyHero
-            eyebrow="Import flow"
-            title="Import your manuscript"
-            detail="Start with pasted text, a plain text file, or a private DRM-free audiobook file. Richer document connectors can layer onto this same flow later."
-            currentIndex={0}
-            steps={importJourney}
-            sectionClassName="border-0 bg-transparent p-0 shadow-none"
-            aside={
-              <div className="flex flex-wrap gap-2 text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
-                <span className="rounded-full border border-white/80 bg-white/80 px-3 py-2 backdrop-blur">
-                  Guided intake
-                </span>
-                <span className="rounded-full border border-white/80 bg-white/80 px-3 py-2 backdrop-blur">
-                  Private import
-                </span>
-              </div>
-            }
-          />
+          <div className="max-w-3xl">
+            <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
+              Start with one source
+            </p>
+            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-950">
+              Import text or personal audio, then move straight into listening
+            </h2>
+            <p className="mt-3 text-base leading-7 text-stone-600">
+              The simplest path is: choose a source, name the book, preview the
+              chapters, then continue to setup. Community and roadmap details can wait.
+            </p>
+          </div>
         </div>
 
         <div className="p-8">
-          {!selectedEdition && (socialSeedEdition || socialSeedCircle) ? (
-            <div className="mb-5 rounded-[1.6rem] border border-amber-200 bg-[linear-gradient(135deg,#fff8e8_0%,#ffffff_100%)] px-5 py-5 shadow-sm">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="max-w-3xl">
-                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-amber-700">
-                    Synced social memory
-                  </p>
-                  <h3 className="mt-2 text-lg font-semibold text-stone-950">
-                    Pick up from a saved edition or joined circle
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-stone-600">
-                    Your social shelf now syncs with the workspace. Start this import from
-                    something you already saved instead of beginning from a blank state.
-                  </p>
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    {socialSeedEdition ? (
-                      <Link
-                        className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
-                        href={`/import?edition=${socialSeedEdition.id}`}
-                      >
-                        Use saved edition
-                      </Link>
-                    ) : null}
-                    {socialSeedCircle ? (
-                      <Link
-                        className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
-                        href={`/import?edition=${socialSeedCircle.editionId}`}
-                      >
-                        Start with joined circle
-                      </Link>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="grid min-w-[250px] gap-3">
-                  {socialSeedEdition ? (
-                    <div className="rounded-[1.2rem] border border-white/70 bg-white/90 px-4 py-4 shadow-sm">
-                      <p className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-stone-500">
-                        Latest saved edition
-                      </p>
-                      <p className="mt-2 text-sm font-semibold text-stone-950">
-                        {socialSeedEdition.title}
-                      </p>
-                      <p className="mt-2 text-sm leading-6 text-stone-600">
-                        {socialSeedEdition.narratorName} in{" "}
-                        <span className="capitalize">{socialSeedEdition.mode}</span>
-                      </p>
-                    </div>
-                  ) : null}
-                  {socialSeedCircle ? (
-                    <div className="rounded-[1.2rem] border border-white/70 bg-white/90 px-4 py-4 shadow-sm">
-                      <p className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-stone-500">
-                        Latest joined circle
-                      </p>
-                      <p className="mt-2 text-sm font-semibold text-stone-950">
-                        {socialSeedCircle.title}
-                      </p>
-                      <p className="mt-2 text-sm leading-6 text-stone-600">
-                        {socialSeedCircle.checkpoint}
-                      </p>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          {highlightedFuturePath ? (
-            <div className="mb-5 rounded-[1.5rem] border border-sky-200 bg-[linear-gradient(135deg,#eff6ff_0%,#ffffff_100%)] px-5 py-5 shadow-sm">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="max-w-3xl">
-                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
-                    {highlightedFuturePath.eyebrow}
-                  </p>
-                  <h3 className="mt-2 text-lg font-semibold text-stone-950">
-                    {highlightedFuturePath.title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-stone-600">
-                    {highlightedFuturePath.detail}
-                  </p>
-                </div>
-                <button
-                  className="rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-medium text-sky-900 transition hover:bg-sky-50"
-                  type="button"
-                  onClick={() => openHighlightedFuturePath(highlightedFuturePath.target)}
-                >
-                  {highlightedFuturePath.actionLabel}
-                </button>
-                <button
-                  className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
-                  type="button"
-                  onClick={() => {
-                    const id =
-                      highlightedFuturePath.target === "audio-plan"
-                        ? "private-audio-files"
-                        : "richer-document-imports";
-                    togglePinnedDiscoverySignal({
-                      kind: "feature",
-                      id,
-                    });
-                  }}
-                >
-                  {pinnedDiscoverySignal?.kind === "feature" &&
-                  ((highlightedFuturePath.target === "audio-plan" &&
-                    pinnedDiscoverySignal.id === "private-audio-files") ||
-                    (highlightedFuturePath.target === "import-roadmap" &&
-                      pinnedDiscoverySignal.id === "richer-document-imports"))
-                    ? "Unpin path"
-                    : "Pin path"}
-                </button>
-              </div>
-            </div>
-          ) : null}
-
-          <div
-            className={`rounded-[1.6rem] border p-5 shadow-sm ${importState.accent}`}
-          >
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <span
-                    className={`rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.22em] ${importState.badge}`}
-                  >
-                    Current state
-                  </span>
-                  <span
-                    className={`rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] ${importState.badge}`}
-                  >
-                    {importState.label}
-                  </span>
-                </div>
-                <p className="mt-3 max-w-2xl text-sm leading-6">
-                  {importState.detail}
-                </p>
-                <p className="mt-3 text-sm font-medium">
-                  Next move: {importState.action}
-                </p>
-              </div>
-              <div className="grid min-w-[240px] gap-3 sm:grid-cols-3 sm:gap-2">
-                <div className="rounded-[1.2rem] border border-white/70 bg-white/80 px-4 py-3 shadow-sm">
-                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-current/60">
-                    Source
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-current">
-                    {fileLabel !== "Paste text or upload a file"
-                      ? fileLabel
-                      : trimmedSourceText
-                        ? "Pasted text"
-                        : "Waiting for source"}
-                  </p>
-                </div>
-                <div className="rounded-[1.2rem] border border-white/70 bg-white/80 px-4 py-3 shadow-sm">
-                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-current/60">
-                    Shelf size
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-current">
-                    {libraryTotals.totalBooks} imported title
-                    {libraryTotals.totalBooks === 1 ? "" : "s"}
-                  </p>
-                </div>
-                <div className="rounded-[1.2rem] border border-white/70 bg-white/80 px-4 py-3 shadow-sm">
-                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-current/60">
-                    Starting taste
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-current">
-                    {defaultListeningProfile
-                      ? `${defaultListeningProfile.narratorName} · ${defaultListeningProfile.mode}`
-                      : "Latest taste fallback"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {defaultListeningProfile && startingTasteSource === "default" ? (
-            <div className="mt-5 rounded-2xl border border-violet-200 bg-[linear-gradient(135deg,#f6f0ff_0%,#fbf8ff_100%)] px-4 py-4 text-sm text-violet-900 shadow-sm">
-              New books will start from your default taste:{" "}
-              {defaultListeningProfile.narratorName} in{" "}
-              <span className="capitalize">{defaultListeningProfile.mode}</span>. Existing
-              books keep their own saved taste.
-            </div>
-          ) : defaultListeningProfile && startingTasteSource === "recent" ? (
-            <div className="mt-5 rounded-2xl border border-sky-200 bg-[linear-gradient(135deg,#eff6ff_0%,#f8fbff_100%)] px-4 py-4 text-sm text-sky-900 shadow-sm">
-              No default taste is saved yet, so new books will start from your latest
-              synced taste: {defaultListeningProfile.narratorName} in{" "}
-              <span className="capitalize">{defaultListeningProfile.mode}</span>.
-            </div>
-          ) : null}
-
-          {selectedEdition ? (
-            <div className="mt-5 rounded-[1.6rem] border border-stone-200 bg-[linear-gradient(135deg,#fffdf7_0%,#ffffff_52%,#eef4ff_100%)] px-5 py-5 shadow-sm">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="max-w-3xl">
-                  <div className="flex flex-wrap items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
-                    <span className="rounded-full bg-stone-100 px-2.5 py-1">
-                      Selected edition
-                    </span>
-                    <span className="rounded-full bg-stone-100 px-2.5 py-1 capitalize">
-                      {selectedEdition.mode}
-                    </span>
-                    <span className="rounded-full bg-stone-100 px-2.5 py-1">
-                      {selectedEdition.genreLabel}
-                    </span>
-                    {selectedEditionEntry === "trending-edition" ? (
-                      <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
-                        Trending now
-                      </span>
-                    ) : null}
-                    {selectedEditionEntry === "moment-circle-starter" ? (
-                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">
-                        Fresh circle starter
-                      </span>
-                    ) : null}
-                  </div>
-                  <h3 className="mt-3 text-lg font-semibold text-stone-950">
-                    Start this import with {selectedEdition.title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-stone-600">
-                    {selectedEdition.creator} recommends {selectedEdition.narratorName} for{" "}
-                    {selectedEdition.bookTitle}. It is best for {selectedEdition.bestFor}.
-                  </p>
-                  {selectedEditionEntry === "trending-edition" ? (
-                    <div className="mt-4 rounded-[1.1rem] border border-amber-200 bg-amber-50/80 px-4 py-3 text-left">
-                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-amber-700">
-                        Focused from trending now
-                      </p>
-                      <p className="mt-2 text-sm leading-6 text-amber-900">
-                        This edition was chosen from the live home trend strip, so import is
-                        keeping the most active listening style front and center while you
-                        bring in the book.
-                      </p>
-                    </div>
-                  ) : null}
-                  {selectedEditionEntry === "moment-circle-starter" && starterMoment ? (
-                    <div className="mt-4 rounded-[1.1rem] border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-left">
-                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-                        Focused from a public moment
-                      </p>
-                      <p className="mt-2 text-sm italic leading-6 text-emerald-950">
-                        “{starterMoment.quote}”
-                      </p>
-                      <p className="mt-2 text-sm leading-6 text-emerald-900">
-                        This import is being framed as a fresh circle starter, so the selected edition stays in front as the quickest way to turn that moment into a new shared listening thread.
-                      </p>
-                      {starterCircle ? (
-                        <Link
-                          className="mt-3 inline-flex rounded-full border border-emerald-300 bg-white px-4 py-2 text-sm font-medium text-emerald-900 transition hover:border-emerald-400 hover:bg-emerald-100/60"
-                          href={`/social/circles/${starterCircle.id}`}
-                        >
-                          Open {starterCircle.title}
-                        </Link>
-                      ) : null}
-                    </div>
-                  ) : null}
-                  {selectedEditionReason ? (
-                    <div className="mt-4 rounded-[1.1rem] border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-left">
-                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-                        {selectedEditionReason.label}
-                      </p>
-                      <p className="mt-2 text-sm leading-6 text-emerald-900">
-                        {selectedEditionReason.detail}
-                      </p>
-                    </div>
-                  ) : null}
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    <button
-                      className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
-                      type="button"
-                      onClick={() => {
-                        writeDefaultListeningProfile({
-                          bookId: `featured-${selectedEdition.id}`,
-                          narratorId: selectedEdition.narratorName
-                            .toLowerCase()
-                            .replace(/\s+/g, "-"),
-                          narratorName: selectedEdition.narratorName,
-                          mode: selectedEdition.mode,
-                        });
-                        setDefaultListeningProfile({
-                          bookId: `featured-${selectedEdition.id}`,
-                          narratorId: selectedEdition.narratorName
-                            .toLowerCase()
-                            .replace(/\s+/g, "-"),
-                          narratorName: selectedEdition.narratorName,
-                          mode: selectedEdition.mode,
-                        });
-                        setStartingTasteSource("default");
-                        setSelectedEditionFeedback(true);
-                        window.setTimeout(() => setSelectedEditionFeedback(false), 1800);
-                      }}
-                    >
-                      Use this edition as my starting taste
-                    </button>
-                    <button
-                      className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
-                      type="button"
-                      onClick={() => sourceTextRef.current?.focus()}
-                    >
-                      Paste text now
-                    </button>
-                  </div>
-                  {selectedEditionFeedback ? (
-                    <p className="mt-3 text-sm text-emerald-700">
-                      This edition is now the default starting taste for new imports.
-                    </p>
-                  ) : null}
-                </div>
-                <div className="rounded-[1.2rem] border border-stone-200 bg-white px-4 py-4 text-right shadow-sm">
-                  <p className="text-[0.65rem] font-medium uppercase tracking-[0.22em] text-stone-500">
-                    Best next move
-                  </p>
-                  <p className="mt-2 text-sm font-semibold text-stone-950">
-                    Paste the text and keep this edition in mind during setup
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-3">
             <article className="rounded-[1.4rem] border border-emerald-200 bg-[linear-gradient(180deg,#f0fdf4_0%,#ffffff_100%)] p-5 shadow-sm">
               <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-                Best today
+                Fastest path
               </p>
               <h3 className="mt-3 text-lg font-semibold text-stone-950">Paste the book text</h3>
               <p className="mt-2 text-sm leading-6 text-stone-600">
@@ -991,163 +600,7 @@ export default function ImportPage() {
                 Choose MP3 or M4B
               </button>
             </article>
-            <article className="rounded-[1.4rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm">
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
-                Planned next
-              </p>
-              <h3 className="mt-3 text-lg font-semibold text-stone-950">
-                EPUB, PDF, DOCX, and richer library connectors
-              </h3>
-              <p className="mt-2 text-sm leading-6 text-stone-600">
-                Richer document imports and cloud-style connectors can layer on without changing the simple intake path that already works today.
-              </p>
-              <button
-                className="mt-4 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
-                type="button"
-                onClick={() =>
-                  audioPlanRef.current?.scrollIntoView({
-                    behavior: "smooth",
-                    block: "center",
-                  })
-                }
-              >
-                See audiobook file plans
-              </button>
-            </article>
           </div>
-
-          <section
-            ref={importRoadmapRef}
-            className="mt-4 overflow-hidden rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(135deg,#fffefb_0%,#ffffff_100%)] shadow-sm"
-          >
-            <div className="border-b border-stone-200 bg-white/80 px-5 py-4">
-              <div className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
-                    Import roadmap
-                  </p>
-                  <h3 className="mt-2 text-lg font-semibold text-stone-950">
-                    What works today, what comes next, and what comes later
-                  </h3>
-                  <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
-                    The app is being shaped around private-use imports. It starts with the
-                    simplest reliable path first, then adds richer formats without turning
-                    import into a confusing setup wall.
-                  </p>
-                </div>
-                <div className="rounded-full border border-stone-200 bg-stone-50 px-4 py-2 text-sm text-stone-600">
-                  Private library first
-                </div>
-              </div>
-            </div>
-            <div className="grid gap-4 px-5 py-5 md:grid-cols-3">
-              <article className="rounded-[1.4rem] border border-emerald-200 bg-[linear-gradient(180deg,#f0fdf4_0%,#ffffff_100%)] p-5 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-                    Today
-                  </span>
-                  <span className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-                    Live now
-                  </span>
-                </div>
-                <h4 className="mt-3 text-lg font-semibold text-stone-950">
-                  Paste text or upload `.txt`
-                </h4>
-                <p className="mt-2 text-sm leading-6 text-stone-600">
-                  This is the fastest path into chapter parsing, narrator setup, and the
-                  first listening sample.
-                </p>
-              </article>
-              <article className="rounded-[1.4rem] border border-sky-200 bg-[linear-gradient(180deg,#eff6ff_0%,#ffffff_100%)] p-5 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full border border-sky-200 bg-white px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
-                    Today
-                  </span>
-                  <span className="rounded-full border border-sky-200 bg-white px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
-                    Private audio
-                  </span>
-                </div>
-                <h4 className="mt-3 text-lg font-semibold text-stone-950">
-                  MP3 and M4B audiobook files
-                </h4>
-                <p className="mt-2 text-sm leading-6 text-stone-600">
-                  Bring in DRM-free or already-converted personal audiobook files and open them directly in the player.
-                </p>
-              </article>
-              <article className="rounded-[1.4rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full border border-stone-200 bg-white px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
-                    Later
-                  </span>
-                  <span className="rounded-full border border-stone-200 bg-white px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
-                    Richer connectors
-                  </span>
-                </div>
-                <h4 className="mt-3 text-lg font-semibold text-stone-950">
-                  Document imports and library connectors
-                </h4>
-                <p className="mt-2 text-sm leading-6 text-stone-600">
-                  EPUB, PDF, DOCX, and cloud-style library connections can layer onto this
-                  same intake flow later without changing the core product shape.
-                </p>
-              </article>
-            </div>
-          </section>
-
-          <section
-            ref={audioPlanRef}
-            className="mt-4 rounded-[1.5rem] border border-sky-200 bg-[linear-gradient(135deg,#eff6ff_0%,#ffffff_100%)] p-5 shadow-sm"
-          >
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="max-w-3xl">
-                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
-                  Private audiobook files
-                </p>
-                <h3 className="mt-2 text-lg font-semibold text-stone-950">
-                  Private audiobook import works locally in this browser
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-stone-600">
-                  This intake is for private-use audiobook files you already control, such
-                  as DRM-free purchases or already-converted personal files. The app treats
-                  them like a clean listening intake, not a DRM-removal tool.
-                </p>
-              </div>
-              <div className="rounded-[1.2rem] border border-sky-200 bg-white px-4 py-4 text-right shadow-sm">
-                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
-                  Planned support
-                </p>
-                <p className="mt-2 text-sm font-semibold text-stone-950">
-                  M4B and MP3 first
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <article className="rounded-2xl border border-sky-200 bg-white/85 px-4 py-3 shadow-sm">
-                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
-                  Step 1
-                </p>
-                <p className="mt-2 text-sm leading-6 text-stone-600">
-                  Bring in a personal audiobook file you already control.
-                </p>
-              </article>
-              <article className="rounded-2xl border border-sky-200 bg-white/85 px-4 py-3 shadow-sm">
-                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
-                  Step 2
-                </p>
-                <p className="mt-2 text-sm leading-6 text-stone-600">
-                  Keep the source file local to this browser and open it in the player immediately.
-                </p>
-              </article>
-              <article className="rounded-2xl border border-sky-200 bg-white/85 px-4 py-3 shadow-sm">
-                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
-                  Step 3
-                </p>
-                <p className="mt-2 text-sm leading-6 text-stone-600">
-                  Layer circles, discovery, and shelf memory onto that imported audiobook next.
-                </p>
-              </article>
-            </div>
-          </section>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
             <div className="space-y-6">
@@ -1429,10 +882,214 @@ export default function ImportPage() {
 
           <div className="mt-6">
             <StudioDisclosure
-              detail="Open this when you want deeper library context before importing, including synced shelf totals, saved taste counts, and removed-book recovery state."
-              title="Library context and recovery tools"
+              detail="Open this when you want suggestions, saved listening versions, future import plans, or deeper library context. None of it is required for the first import."
+              title="Suggestions, roadmap, and library context"
             >
               <div className="space-y-5">
+                {selectedEdition ? (
+                  <div className="rounded-[1.6rem] border border-stone-200 bg-[linear-gradient(135deg,#fffdf7_0%,#ffffff_52%,#eef4ff_100%)] px-5 py-5 shadow-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="max-w-3xl">
+                        <div className="flex flex-wrap items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                          <span className="rounded-full bg-stone-100 px-2.5 py-1">
+                            Selected listening version
+                          </span>
+                          <span className="rounded-full bg-stone-100 px-2.5 py-1 capitalize">
+                            {selectedEdition.mode}
+                          </span>
+                          {selectedEditionEntry === "trending-edition" ? (
+                            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
+                              Trending now
+                            </span>
+                          ) : null}
+                        </div>
+                        <h3 className="mt-3 text-lg font-semibold text-stone-950">
+                          Start with {selectedEdition.title}
+                        </h3>
+                        <p className="mt-2 text-sm leading-6 text-stone-600">
+                          {selectedEdition.creator} recommends {selectedEdition.narratorName} for{" "}
+                          {selectedEdition.bookTitle}. Use it as a default starting taste if
+                          you want help choosing the sound.
+                        </p>
+                        {selectedEditionReason ? (
+                          <div className="mt-4 rounded-[1.1rem] border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-left">
+                            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                              {selectedEditionReason.label}
+                            </p>
+                            <p className="mt-2 text-sm leading-6 text-emerald-900">
+                              {selectedEditionReason.detail}
+                            </p>
+                          </div>
+                        ) : null}
+                        <div className="mt-4 flex flex-wrap gap-3">
+                          <button
+                            className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
+                            type="button"
+                            onClick={() => {
+                              writeDefaultListeningProfile({
+                                bookId: `featured-${selectedEdition.id}`,
+                                narratorId: selectedEdition.narratorName
+                                  .toLowerCase()
+                                  .replace(/\s+/g, "-"),
+                                narratorName: selectedEdition.narratorName,
+                                mode: selectedEdition.mode,
+                              });
+                              setDefaultListeningProfile({
+                                bookId: `featured-${selectedEdition.id}`,
+                                narratorId: selectedEdition.narratorName
+                                  .toLowerCase()
+                                  .replace(/\s+/g, "-"),
+                                narratorName: selectedEdition.narratorName,
+                                mode: selectedEdition.mode,
+                              });
+                              setStartingTasteSource("default");
+                              setSelectedEditionFeedback(true);
+                              window.setTimeout(() => setSelectedEditionFeedback(false), 1800);
+                            }}
+                          >
+                            Use as starting taste
+                          </button>
+                          <button
+                            className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                            type="button"
+                            onClick={() => sourceTextRef.current?.focus()}
+                          >
+                            Go back to import
+                          </button>
+                        </div>
+                        {selectedEditionFeedback ? (
+                          <p className="mt-3 text-sm text-emerald-700">
+                            This listening version is now the default starting taste for new imports.
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {!selectedEdition && (socialSeedEdition || socialSeedCircle) ? (
+                  <div className="rounded-[1.6rem] border border-amber-200 bg-[linear-gradient(135deg,#fff8e8_0%,#ffffff_100%)] px-5 py-5 shadow-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="max-w-3xl">
+                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-amber-700">
+                          Synced social memory
+                        </p>
+                        <h3 className="mt-2 text-lg font-semibold text-stone-950">
+                          Start from something you already saved
+                        </h3>
+                        <p className="mt-2 text-sm leading-6 text-stone-600">
+                          Your saved listening versions and joined groups can seed this import,
+                          but they are optional.
+                        </p>
+                        <div className="mt-4 flex flex-wrap gap-3">
+                          {socialSeedEdition ? (
+                            <Link
+                              className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
+                              href={`/import?edition=${socialSeedEdition.id}`}
+                            >
+                              Use saved listening version
+                            </Link>
+                          ) : null}
+                          {socialSeedCircle ? (
+                            <Link
+                              className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                              href={`/import?edition=${socialSeedCircle.editionId}`}
+                            >
+                              Start from joined group
+                            </Link>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                {highlightedFuturePath ? (
+                  <div className="rounded-[1.5rem] border border-sky-200 bg-[linear-gradient(135deg,#eff6ff_0%,#ffffff_100%)] px-5 py-5 shadow-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="max-w-3xl">
+                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
+                          {highlightedFuturePath.eyebrow}
+                        </p>
+                        <h3 className="mt-2 text-lg font-semibold text-stone-950">
+                          {highlightedFuturePath.title}
+                        </h3>
+                        <p className="mt-2 text-sm leading-6 text-stone-600">
+                          {highlightedFuturePath.detail}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-3">
+                        <button
+                          className="rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-medium text-sky-900 transition hover:bg-sky-50"
+                          type="button"
+                          onClick={() => openHighlightedFuturePath(highlightedFuturePath.target)}
+                        >
+                          {highlightedFuturePath.actionLabel}
+                        </button>
+                        <button
+                          className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                          type="button"
+                          onClick={() => {
+                            const id =
+                              highlightedFuturePath.target === "audio-plan"
+                                ? "private-audio-files"
+                                : "richer-document-imports";
+                            togglePinnedDiscoverySignal({
+                              kind: "feature",
+                              id,
+                            });
+                          }}
+                        >
+                          {pinnedDiscoverySignal?.kind === "feature" &&
+                          ((highlightedFuturePath.target === "audio-plan" &&
+                            pinnedDiscoverySignal.id === "private-audio-files") ||
+                            (highlightedFuturePath.target === "import-roadmap" &&
+                              pinnedDiscoverySignal.id === "richer-document-imports"))
+                            ? "Unpin path"
+                            : "Pin path"}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+
+                <section
+                  ref={importRoadmapRef}
+                  className="overflow-hidden rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(135deg,#fffefb_0%,#ffffff_100%)] shadow-sm"
+                >
+                  <div className="border-b border-stone-200 bg-white/80 px-5 py-4">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
+                      Import roadmap
+                    </p>
+                    <h3 className="mt-2 text-lg font-semibold text-stone-950">
+                      What works now and what comes later
+                    </h3>
+                  </div>
+                  <div className="grid gap-4 px-5 py-5 md:grid-cols-3">
+                    <article className="rounded-[1.4rem] border border-emerald-200 bg-[linear-gradient(180deg,#f0fdf4_0%,#ffffff_100%)] p-5 shadow-sm">
+                      <h4 className="text-lg font-semibold text-stone-950">Today: text</h4>
+                      <p className="mt-2 text-sm leading-6 text-stone-600">
+                        Paste text or upload `.txt` and move into setup.
+                      </p>
+                    </article>
+                    <article
+                      ref={audioPlanRef}
+                      className="rounded-[1.4rem] border border-sky-200 bg-[linear-gradient(180deg,#eff6ff_0%,#ffffff_100%)] p-5 shadow-sm"
+                    >
+                      <h4 className="text-lg font-semibold text-stone-950">Today: personal audio</h4>
+                      <p className="mt-2 text-sm leading-6 text-stone-600">
+                        MP3 and M4B files work locally in this browser for private listening.
+                      </p>
+                    </article>
+                    <article className="rounded-[1.4rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm">
+                      <h4 className="text-lg font-semibold text-stone-950">Later: richer imports</h4>
+                      <p className="mt-2 text-sm leading-6 text-stone-600">
+                        EPUB, PDF, DOCX, and library connectors can layer onto the same intake flow.
+                      </p>
+                    </article>
+                  </div>
+                </section>
+
                 <div className="grid gap-4 md:grid-cols-3">
                   <article className="rounded-2xl border border-stone-200 bg-[linear-gradient(180deg,#faf7f0_0%,#ffffff_100%)] p-4 shadow-sm">
                     <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
@@ -1478,6 +1135,66 @@ export default function ImportPage() {
                     </p>
                   </div>
                 ) : null}
+
+                <div
+                  className={`rounded-[1.6rem] border p-5 shadow-sm ${importState.accent}`}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span
+                          className={`rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.22em] ${importState.badge}`}
+                        >
+                          Current state
+                        </span>
+                        <span
+                          className={`rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] ${importState.badge}`}
+                        >
+                          {importState.label}
+                        </span>
+                      </div>
+                      <p className="mt-3 max-w-2xl text-sm leading-6">
+                        {importState.detail}
+                      </p>
+                      <p className="mt-3 text-sm font-medium">
+                        Next move: {importState.action}
+                      </p>
+                    </div>
+                    <div className="grid min-w-[240px] gap-3 sm:grid-cols-3 sm:gap-2">
+                      <div className="rounded-[1.2rem] border border-white/70 bg-white/80 px-4 py-3 shadow-sm">
+                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-current/60">
+                          Source
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-current">
+                          {fileLabel !== "Paste text or upload a file"
+                            ? fileLabel
+                            : trimmedSourceText
+                              ? "Pasted text"
+                              : "Waiting for source"}
+                        </p>
+                      </div>
+                      <div className="rounded-[1.2rem] border border-white/70 bg-white/80 px-4 py-3 shadow-sm">
+                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-current/60">
+                          Shelf size
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-current">
+                          {libraryTotals.totalBooks} imported title
+                          {libraryTotals.totalBooks === 1 ? "" : "s"}
+                        </p>
+                      </div>
+                      <div className="rounded-[1.2rem] border border-white/70 bg-white/80 px-4 py-3 shadow-sm">
+                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-current/60">
+                          Starting taste
+                        </p>
+                        <p className="mt-2 text-sm font-semibold text-current">
+                          {defaultListeningProfile
+                            ? `${defaultListeningProfile.narratorName} · ${defaultListeningProfile.mode}`
+                            : "Latest taste fallback"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </StudioDisclosure>
           </div>
