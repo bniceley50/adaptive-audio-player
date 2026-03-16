@@ -255,7 +255,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
     : preferredAudioKind === "full-book-generation"
     ? {
         eyebrow: "Recommended next move",
-        label: "Stay with the current full-book render",
+        label: "Stay with the current full book",
         detail:
           "This is the best listening path for this title right now, so the next useful move is to keep going or resume from your current chapter.",
         href: `/player/${bookId}?artifact=full&renderState=current`,
@@ -264,20 +264,20 @@ export default function PlayerPage({ params }: PlayerPageProps) {
     : preferredAudioKind === "sample-generation"
       ? {
           eyebrow: "Recommended next move",
-          label: "Judge the taste from the sample",
+          label: "Judge the sound from the sample",
           detail:
-            "Use this preview to decide whether to keep listening here or move back into setup for a full-book render.",
+            "Use this preview to decide whether to keep listening here or move back into setup for a full book.",
           href: `/player/${bookId}?artifact=sample&renderState=${renderState ?? "current"}${hasQueryOverride ? `&narrator=${narratorId}&mode=${mode}` : ""}`,
           cta: "Stay with the sample",
         }
       : {
           eyebrow: "Recommended next move",
-          label: "Return to setup and generate audio",
-          detail:
-            "Playback is blocked until setup creates a sample or full-book render for this narrator and mode.",
-          href: `/books/${bookId}?from=player`,
-          cta: "Back to setup",
-        };
+        label: "Return to setup and generate audio",
+        detail:
+          "Playback is blocked until setup creates a sample or full book for this narrator and mode.",
+        href: `/books/${bookId}?from=player`,
+        cta: "Back to setup",
+      };
   const playerFollowUp = preferredAudioKind === "imported-audio"
     ? {
         eyebrow: "After that",
@@ -290,17 +290,17 @@ export default function PlayerPage({ params }: PlayerPageProps) {
     : fullBookIsReady || sampleIsReady
     ? {
         eyebrow: "After that",
-        label: "Review the render timeline",
+        label: "Review audio history",
         detail:
-          "Compare the current approved render with preserved historical versions when you want to understand how this title evolved.",
+          "Compare the current approved version with preserved older versions when you want to understand how this title evolved.",
         href: `/books/${bookId}#render-history`,
-        cta: "Open render timeline",
+        cta: "Open audio history",
       }
     : {
         eyebrow: "After that",
-        label: "Keep the taste aligned",
+        label: "Keep the sound aligned",
         detail:
-          "Once you like this voice direction, save it from setup so future imports can start from the same default taste.",
+          "Once you like this voice direction, save it from setup so future imports can start from the same default sound.",
         href: `/books/${bookId}?from=player`,
         cta: "Review setup",
       };
@@ -313,7 +313,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
     detail:
       preferredAudioKind === "imported-audio"
         ? "Jump back home to see this audiobook alongside your other imports, circles, and listening memory."
-        : "When this listening session is on track, jump back to import and bring the next book through the same taste-first workflow.",
+        : "When this listening session is on track, jump back to import and bring the next book through the same voice-first workflow.",
     href: preferredAudioKind === "imported-audio" ? "/" : "/import",
     cta: preferredAudioKind === "imported-audio" ? "Back to home" : "Import another draft",
   };
@@ -741,7 +741,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
           detail={
             preferredAudioKind
               ? `You are on the listening screen for ${bookTitle}. Keep listening here, or return to setup only if you want to change how the book sounds.`
-              : "This book needs a generated sample, a full-book render, or an imported audio file before playback can start."
+              : "This book needs a generated sample, a full book, or an imported audio file before playback can start."
           }
           action={
             preferredAudioKind
@@ -767,7 +767,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
             </p>
             <p className="mt-2 text-lg font-semibold text-stone-950">
               {historicalArtifactId && renderState === "archived"
-                ? "Archived render"
+                ? "Older version"
                 : preferredAudioKind === "imported-audio"
                   ? "Imported audiobook"
                 : preferredAudioKind === "full-book-generation"
@@ -779,7 +779,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
           </article>
           <article className="rounded-[1.5rem] border border-stone-200/80 bg-white/85 p-4 shadow-sm">
             <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
-              Active taste
+              Current sound
             </p>
             <p className="mt-2 text-lg font-semibold text-stone-950">
               {displayNarratorName} in {displayMode}
@@ -791,10 +791,10 @@ export default function PlayerPage({ params }: PlayerPageProps) {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-2xl">
               <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
-                Quick taste presets
+                Quick presets
               </p>
               <p className="mt-2 text-sm leading-6 text-stone-600">
-                Switch the player into a known listening personality without going back
+                Switch the player into a known listening style without going back
                 to setup.
               </p>
             </div>
@@ -860,8 +860,8 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                 Hear the same book in two different modes
               </h2>
               <p className="mt-2 text-sm leading-6 text-stone-300">
-                This is the clearest product moment in the app: a lighter sample render
-                for taste validation, and a polished full-book render for long-form
+                This is the clearest product moment in the app: a lighter sample
+                for sound validation, and a polished full book for long-form
                 listening. Switch between them to hear the adaptive workflow in action.
               </p>
             </div>
@@ -888,7 +888,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
             >
               <div className="flex items-center justify-between gap-3">
                 <span className="rounded-full bg-amber-300 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-950">
-                  Sample render
+                  Sample version
                 </span>
                 {preferredAudioKind === "sample-generation" ? (
                   <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white">
@@ -897,11 +897,11 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                 ) : null}
               </div>
               <p className="mt-4 text-lg font-semibold text-white">
-                Fast taste check
+                Fast sound check
               </p>
               <p className="mt-2 text-sm leading-6 text-stone-300">
                 Use the sample when you want to judge the voice, mode, and feel of the
-                book before committing to the long-form render.
+                book before committing to the full book.
               </p>
               <div className="mt-4">
                 <Link
@@ -921,7 +921,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
             >
               <div className="flex items-center justify-between gap-3">
                 <span className="rounded-full bg-emerald-300 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-950">
-                  Full-book render
+                  Full-book version
                 </span>
                 {preferredAudioKind === "full-book-generation" ? (
                   <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white">
@@ -933,7 +933,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                 Main listening path
               </p>
               <p className="mt-2 text-sm leading-6 text-stone-300">
-                Use the full-book render when you are ready for the polished, current
+                Use the full book when you are ready for the polished, current
                 version that carries the title through longer listening sessions.
               </p>
               <div className="mt-4">
@@ -967,14 +967,14 @@ export default function PlayerPage({ params }: PlayerPageProps) {
         {experienceMode === "studio" ? (
           <>
             <div className="mb-5 rounded-2xl border border-stone-200 bg-stone-50 p-4 text-sm text-stone-700">
-              <span className="font-semibold text-stone-900">Generated audio:</span>{" "}
+              <span className="font-semibold text-stone-900">Available audio:</span>{" "}
               {historicalArtifactId && preferredAudioKind === "full-book-generation"
-                ? "A preserved historical full-book render is ready in this player."
+                ? "A preserved older full-book version is ready in this player."
                 : historicalArtifactId && preferredAudioKind === "sample-generation"
-                  ? "A preserved historical sample render is ready in this player."
-                : preferredAudioKind === "full-book-generation"
-                  ? "Full-book audio is ready in this player."
-                  : sampleIsReady
+                  ? "A preserved older sample is ready in this player."
+                  : preferredAudioKind === "full-book-generation"
+                    ? "Full-book audio is ready in this player."
+                    : sampleIsReady
                     ? "Sample audio is ready in this player."
                     : "No generated audio matches this narrator and mode yet."}
             </div>
@@ -998,21 +998,21 @@ export default function PlayerPage({ params }: PlayerPageProps) {
                   }`}
                   href={`/player/${bookId}?narrator=${narratorId}&mode=${mode}&artifact=full&renderState=current`}
                 >
-                  Use full-book audio
+                  Use full-book version
                 </Link>
               </div>
             ) : null}
             {renderState === "current" ? (
               <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
                 <p className="font-medium">
-                  You are listening to the current approved render for this book.
+                  You are listening to the current approved version for this book.
                 </p>
                 <div className="mt-3">
                   <Link
                     className="rounded-full border border-emerald-300 bg-white px-4 py-2 text-sm font-medium text-emerald-900"
                     href={`/books/${bookId}#render-history`}
                   >
-                    Review render timeline
+                    Review audio history
                   </Link>
                 </div>
               </div>
@@ -1020,29 +1020,29 @@ export default function PlayerPage({ params }: PlayerPageProps) {
             {renderState === "archived" ? (
               <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
                 <p className="font-medium">
-                  You are listening to a preserved archived render for this book.
+                  You are listening to a preserved older version for this book.
                 </p>
                 <p className="mt-2">
-                  The current approved version may differ from this historical playback.
+                  The current approved version may differ from this older playback.
                 </p>
                 <div className="mt-3">
                   <Link
                     className="rounded-full border border-amber-300 bg-white px-4 py-2 text-sm font-medium text-amber-900"
                     href={`/books/${bookId}#render-history`}
                   >
-                    Review render timeline
+                    Review audio history
                   </Link>
                 </div>
               </div>
             ) : null}
             {hasQueryOverride ? (
               <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                This player session is using a link-specific taste override.
+                This player session is using a link-specific sound override.
               </div>
             ) : resolvedTaste.source === "saved" && resolvedTaste.profile ? (
               <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
                 <p className="font-medium">
-                  This player is using this book&apos;s saved taste:{" "}
+                  This player is using this book&apos;s saved setup:{" "}
                   {resolvedTaste.profile.narratorName} in{" "}
                   <span className="capitalize">{resolvedTaste.profile.mode}</span>.
                 </p>
@@ -1051,7 +1051,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
             ) : resolvedTaste.source === "default" && resolvedTaste.profile ? (
               <div className="mb-5 rounded-2xl border border-violet-200 bg-violet-50 p-4 text-sm text-violet-900">
                 <p className="font-medium">
-                  This player is using your default taste:{" "}
+                  This player is using your default setup:{" "}
                   {resolvedTaste.profile.narratorName} in{" "}
                   <span className="capitalize">{resolvedTaste.profile.mode}</span>.
                 </p>
@@ -1060,7 +1060,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
             ) : resolvedTaste.source === "recent" && resolvedTaste.profile ? (
               <div className="mb-5 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
                 <p className="font-medium">
-                  No default is saved, so this player is using your latest taste:{" "}
+                  No default is saved, so this player is using your latest setup:{" "}
                   {resolvedTaste.profile.narratorName} in{" "}
                   <span className="capitalize">{resolvedTaste.profile.mode}</span>.
                 </p>
@@ -1090,7 +1090,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
               className={secondaryActionClass}
               href="/#default-taste"
             >
-              Manage default taste
+              Manage default sound
             </Link>
           ) : null}
         </div>

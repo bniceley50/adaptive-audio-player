@@ -191,23 +191,23 @@ export default function BookPage({ params }: BookPageProps) {
   }, [artifactHistory, fullBookOutput?.generatedAt, sampleOutput?.generatedAt]);
   const setupStage = sampleJobIsActive
     ? {
-        label: "Rendering sample",
+        label: "Generating sample",
         detail:
           "The backend is generating a preview for this narrator and mode. You can review chapters while it finishes.",
-        action: "Watch generation status below",
+        action: "Watch the sample status below",
       }
     : sampleIsCurrent && fullBookJobIsActive
       ? {
-          label: "Rendering full book",
+          label: "Generating full book",
           detail:
-            "The sample is approved for this setup and the full-book render is running in the backend.",
-          action: "Track full-book generation below",
+            "The sample is approved for this setup and the full book is now being generated in the backend.",
+          action: "Track full-book progress below",
         }
       : fullBookOutput?.bookId === bookId
         ? {
             label: "Ready to listen",
             detail:
-              "This setup already has a current full-book render, so the next move is listening or reviewing historical renders.",
+              "This setup already has a current full book, so the next move is listening or reviewing older audio versions.",
             action: "Open the current full-book player",
           }
         : sampleIsCurrent
@@ -218,7 +218,7 @@ export default function BookPage({ params }: BookPageProps) {
               action: "Listen to the current sample or render the full book",
             }
           : {
-              label: "Choose the taste",
+              label: "Choose the sound",
               detail:
                 "Lock the narrator and listening mode first. Once that feels right, generate a sample and move into playback.",
               action: "Generate the first sample from this setup",
@@ -228,65 +228,65 @@ export default function BookPage({ params }: BookPageProps) {
       ? {
           label: "Listen to the current full book",
           detail:
-            "The polished render is ready. Open the player and review the exact version listeners would hear.",
+            "The polished full book is ready. Open the player and review the exact version listeners would hear.",
           href: `/player/${bookId}?artifact=full&renderState=current`,
         }
       : fullBookJobIsActive
         ? {
-            label: "Track the full-book render",
+            label: "Track the full book",
             detail:
-              "Your approved sample is already promoting into a full-book render. Keep an eye on the queue while it finishes.",
+              "Your approved sample is already turning into a full book. Keep an eye on the queue while it finishes.",
             href: "/jobs",
           }
         : {
             label: "Listen to the sample first",
             detail:
-              "Validate the generated sample before committing more generation time to the full-book render.",
+              "Validate the generated sample before committing more generation time to the full book.",
             href: `/player/${bookId}?narrator=${selectedNarrator}&mode=${selectedMode}&artifact=sample&renderState=current`,
           }
     : sampleJobIsActive
       ? {
-          label: "Watch the sample render finish",
+          label: "Watch the sample finish",
           detail:
-            "The worker is already building this taste. The next useful move is to track status until the preview is ready.",
+            "The worker is already building this sample. The next useful move is to track status until the preview is ready.",
           href: "/jobs",
         }
       : {
           label: "Generate the first sample",
           detail:
-            "Lock this narrator and mode into a concrete listening preview before you move into playback or full-book rendering.",
+            "Lock this narrator and mode into a concrete listening preview before you move into playback or a full-book version.",
           action: "generate-sample" as const,
         };
   const followUpAction = sampleIsCurrent
     ? fullBookOutput?.bookId === bookId
       ? {
-          label: "Review the render timeline",
+          label: "Review audio history",
           detail:
-            "Current and archived renders stay separated below so you can compare what is live versus what is preserved.",
+            "Current and older audio versions stay separated below so you can compare what is live versus what is preserved.",
           href: "#render-history",
         }
       : fullBookJobIsActive
         ? {
-            label: "Keep the render history tidy",
-            detail:
-              "Once the full book finishes, this book screen becomes the best place to compare current versus archived renders.",
-            href: "#render-history",
-          }
-        : {
-            label: "Promote the sample into a full book",
-            detail:
-              "Once the sample feels right, queue the full-book render so listening can move beyond the preview.",
-            action: "generate-full-book" as const,
-          }
+            label: "Keep the audio history tidy",
+          detail:
+            "Once the full book finishes, this book screen becomes the best place to compare the current version with older ones.",
+          href: "#render-history",
+        }
+      : {
+          label: "Promote the sample into a full book",
+          detail:
+            "Once the sample feels right, queue the full book so listening can move beyond the preview.",
+          action: "generate-full-book" as const,
+        }
     : sampleJobIsActive
       ? {
-          label: "Prepare the default taste",
+          label: "Prepare the default sound",
           detail:
             "If this setup feels like your long-term default, save it now so future imports start from the same voice direction.",
           action: "save-default" as const,
         }
       : {
-          label: "Save this as your default taste",
+          label: "Save this as your default sound",
           detail:
             "If this narrator and mode feel right for your library, make them the default before you import the next book.",
           action: "save-default" as const,
@@ -294,7 +294,7 @@ export default function BookPage({ params }: BookPageProps) {
   const supportAction = {
     label: "Keep the story moving",
     detail:
-      "This page is your control tower: generate, listen, compare renders, and then jump back to import whenever you are ready for the next title.",
+      "This page is your control tower: generate, listen, compare audio versions, and then jump back to import whenever you are ready for the next title.",
     href: "/import",
   };
   const loadBookJobs = useCallback(async () => {
@@ -977,7 +977,7 @@ export default function BookPage({ params }: BookPageProps) {
   return (
     <AppShell eyebrow="Setup" title="Choose the voice, then hear a sample">
       <ExperienceModeToggle
-        detail="Everyday keeps this page focused on one job: pick the voice and mood, then hear a sample. Studio reveals render history and deeper system context."
+        detail="Everyday keeps this page focused on one job: pick the voice and mood, then hear a sample. Studio reveals audio history and deeper system context."
         mode={experienceMode}
         onModeChange={setExperienceMode}
         title="Keep setup simple or open advanced controls"
@@ -1009,15 +1009,15 @@ export default function BookPage({ params }: BookPageProps) {
           />
           <article className="rounded-[1.5rem] border border-stone-200/80 bg-white/85 p-4 shadow-sm">
             <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
-              Taste source
+              Starting point
             </p>
             <p className="mt-2 text-lg font-semibold text-stone-950">
               {resolvedTaste.source === "saved"
-                ? "Saved taste"
+                ? "Saved setup"
                 : resolvedTaste.source === "default"
-                  ? "Default taste"
+                  ? "Default setup"
                   : resolvedTaste.source === "recent"
-                    ? "Latest taste"
+                    ? "Latest setup"
                     : "New setup"}
             </p>
           </article>
@@ -1069,7 +1069,7 @@ export default function BookPage({ params }: BookPageProps) {
                     Quick starts
                   </p>
                   <h3 className="mt-2 text-lg font-semibold text-stone-950">
-                    Pick a taste preset
+                    Pick a quick preset
                   </h3>
                   <p className="mt-2 text-sm leading-6 text-stone-600">
                     Start from a ready-made listening personality, then fine-tune the
@@ -1134,18 +1134,18 @@ export default function BookPage({ params }: BookPageProps) {
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="rounded-full bg-stone-900 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-white">
                     {resolvedTaste.source === "saved"
-                      ? "Saved taste"
+                      ? "Saved setup"
                       : resolvedTaste.source === "default"
-                        ? "Default taste"
-                        : "Latest taste"}
+                        ? "Default setup"
+                        : "Latest setup"}
                   </span>
                   <p className="font-medium text-stone-950">
                     {resolvedTaste.source === "saved" && savedListeningProfile
-                      ? `This book is using its saved taste: ${savedListeningProfile.narratorName} in ${savedListeningProfile.mode}.`
+                      ? `This book is using its saved setup: ${savedListeningProfile.narratorName} in ${savedListeningProfile.mode}.`
                       : resolvedTaste.source === "default" && defaultListeningProfile
-                        ? `This new book is starting from your default taste: ${defaultListeningProfile.narratorName} in ${defaultListeningProfile.mode}.`
+                        ? `This new book is starting from your default setup: ${defaultListeningProfile.narratorName} in ${defaultListeningProfile.mode}.`
                         : resolvedTaste.source === "recent" && initialListeningProfile
-                          ? `No default is saved, so this book is starting from your latest taste: ${initialListeningProfile.narratorName} in ${initialListeningProfile.mode}.`
+                          ? `No default is saved, so this book is starting from your latest setup: ${initialListeningProfile.narratorName} in ${initialListeningProfile.mode}.`
                           : ""}
                   </p>
                 </div>
@@ -1159,7 +1159,7 @@ export default function BookPage({ params }: BookPageProps) {
                     Setup pending
                   </span>
                   <p className="font-medium text-stone-950">
-                    No listening taste is attached to this book yet.
+                    No saved setup is attached to this book yet.
                   </p>
                 </div>
                 <p className="mt-3">{initialTasteMeta.detail}</p>
@@ -1222,7 +1222,7 @@ export default function BookPage({ params }: BookPageProps) {
                   Choose the listening mode
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-stone-600">
-                  Decide how polished or atmospheric the sample should feel before you render it.
+                  Decide how polished or atmospheric the sample should feel before you generate it.
                 </p>
               </div>
               <div className="min-w-[10rem] rounded-[1.4rem] border border-white/80 bg-white/80 px-4 py-3 shadow-sm backdrop-blur">
@@ -1351,10 +1351,10 @@ export default function BookPage({ params }: BookPageProps) {
                     ? fullBookOutput?.bookId === bookId
                       ? "Open the full book player"
                       : fullBookJobIsActive
-                        ? "Track the full-book render"
+                        ? "Track the full book"
                         : "Listen to the sample or queue the full book"
                     : sampleJobIsActive
-                      ? "Wait for the sample render"
+                      ? "Wait for the sample"
                       : "Generate the sample first"}
                 </p>
               </div>
@@ -1370,10 +1370,10 @@ export default function BookPage({ params }: BookPageProps) {
               </article>
               <article className="rounded-[1.25rem] border border-white/10 bg-white/6 px-4 py-3">
                 <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-300">
-                  2. Promote the render
+                  2. Expand to the full book
                 </p>
                 <p className="mt-2 text-sm leading-6 text-stone-200">
-                  Queue the full-book pass only when this sample feels like the right taste.
+                  Queue the full-book pass only when this sample feels like the right sound.
                 </p>
               </article>
               <article className="rounded-[1.25rem] border border-white/10 bg-white/6 px-4 py-3">
@@ -1381,7 +1381,7 @@ export default function BookPage({ params }: BookPageProps) {
                   3. Keep the history
                 </p>
                 <p className="mt-2 text-sm leading-6 text-stone-200">
-                  Every sample and full-book render stays reviewable in the render timeline below.
+                  Every sample and full-book version stays reviewable in the audio history below.
                 </p>
               </article>
             </div>
@@ -1445,7 +1445,7 @@ export default function BookPage({ params }: BookPageProps) {
               type="button"
               onClick={saveAsDefaultTaste}
             >
-              Save as default taste
+              Save as default sound
             </button>
             {sampleIsCurrent || fullBookJobIsActive ? (
               <button
@@ -1460,7 +1460,7 @@ export default function BookPage({ params }: BookPageProps) {
                   ? "Generating full book…"
                   : fullBookJob?.status === "queued"
                     ? "Full book queued…"
-                    : "Queue full-book generation"}
+                    : "Generate full book"}
               </button>
             ) : null}
             {sampleIsCurrent ? (
@@ -1512,7 +1512,7 @@ export default function BookPage({ params }: BookPageProps) {
                 className={secondaryActionClass}
                 href="/#default-taste"
               >
-                Review default taste
+                Review default sound
               </Link>
             ) : null}
           </div>
