@@ -13,7 +13,6 @@ import {
 import { AppShell } from "@/components/shared/app-shell";
 import { BookIdentityCard } from "@/components/shared/book-identity-card";
 import { ExperienceModeToggle } from "@/components/shared/experience-mode-toggle";
-import { JourneyHero } from "@/components/shared/journey-hero";
 import { RenderArtifactCard } from "@/components/shared/render-artifact-card";
 import { RenderHistorySummary } from "@/components/shared/render-history-summary";
 import { StateSummaryPanel } from "@/components/shared/state-summary-panel";
@@ -293,38 +292,6 @@ export default function BookPage({ params }: BookPageProps) {
       "This page is your control tower: generate, listen, compare renders, and then jump back to import whenever you are ready for the next title.",
     href: "/import",
   };
-  const setupJourneyIndex = fullBookOutput?.bookId === bookId || fullBookJobIsActive
-    ? 3
-    : sampleIsCurrent || sampleJobIsActive
-      ? 2
-      : 1;
-  const setupJourney = [
-    {
-      id: "import",
-      label: "01",
-      title: "Import",
-      detail: "Bring in the manuscript",
-    },
-    {
-      id: "taste",
-      label: "02",
-      title: "Taste",
-      detail: "Choose narrator and mode",
-    },
-    {
-      id: "sample",
-      label: "03",
-      title: "Sample",
-      detail: "Render and judge the preview",
-    },
-    {
-      id: "full",
-      label: "04",
-      title: "Full book",
-      detail: "Promote the approved version",
-    },
-  ] as const;
-
   const loadBookJobs = useCallback(async () => {
     const response = await fetch(`/api/jobs/book/${bookId}`).catch(() => null);
     const payload = response
@@ -1003,25 +970,27 @@ export default function BookPage({ params }: BookPageProps) {
   }
 
   return (
-    <AppShell eyebrow="Book setup" title={bookTitle}>
-      <JourneyHero
-        eyebrow="Journey"
-        title="Import, shape, preview, then promote"
-        detail="This setup screen is the middle of the audiobook workflow: lock the taste, validate it with a sample, then promote it into the full-book render when it feels right."
-        currentIndex={setupJourneyIndex}
-        currentTitle={setupJourney[setupJourneyIndex]?.title}
-        steps={setupJourney}
-      />
+    <AppShell eyebrow="Setup" title="Choose the voice, then hear a sample">
       <ExperienceModeToggle
-        detail="Everyday keeps setup focused on choosing a voice, generating a sample, and moving toward playback. Studio reveals render history and deeper generation context when you want to inspect the system."
+        detail="Everyday keeps this page focused on one job: pick the voice and mood, then hear a sample. Studio reveals render history and deeper system context."
         mode={experienceMode}
         onModeChange={setExperienceMode}
-        title="Choose a simpler setup view or open Studio"
+        title="Keep setup simple or open advanced controls"
       />
       <StateSummaryPanel
-        label={setupStage.label}
-        detail={setupStage.detail}
-        action={setupStage.action}
+        label="This page turns your book into a listening preview"
+        detail="Choose a narrator, choose the sound style, then generate one sample before you do anything more advanced."
+        action={
+          sampleIsCurrent
+            ? fullBookOutput?.bookId === bookId
+              ? "Open the full book player"
+              : "Open the sample or queue the full book"
+            : sampleJobIsActive
+              ? "Wait for the sample render"
+              : "Generate the first sample"
+        }
+        actionLabel="Best next step"
+        sectionLabel="Start here"
         statsClassName="mt-5 grid gap-3 md:grid-cols-[1.15fr_0.85fr_0.85fr]"
       >
           <BookIdentityCard
@@ -1056,21 +1025,22 @@ export default function BookPage({ params }: BookPageProps) {
             </p>
           </article>
       </StateSummaryPanel>
-      <AuthorSpotlightCard spotlight={authorSpotlight} />
+      {experienceMode === "studio" ? (
+        <AuthorSpotlightCard spotlight={authorSpotlight} />
+      ) : null}
       <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <article className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(180deg,#fffefb_0%,#ffffff_100%)] shadow-[0_22px_60px_-42px_rgba(28,25,23,0.45)]">
           <div className="border-b border-stone-200/80 bg-[linear-gradient(135deg,#f7ecd8_0%,#fffdf7_48%,#eef4ff_100%)] p-6">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="max-w-2xl">
                 <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-                  Voice design
+                  Voice
                 </p>
                 <h2 className="mt-2 text-xl font-semibold text-stone-950">
                   Choose narrator
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-stone-600">
-                  Shape the book&apos;s identity first. A strong narrator choice makes
-                  the sample feel deliberate before deeper controls exist.
+                  Pick the voice you want to hear first. You can change it later, but a clear first choice makes the sample easier to judge.
                 </p>
               </div>
               <div className="min-w-[12rem] rounded-[1.4rem] border border-white/80 bg-white/80 px-4 py-3 shadow-sm backdrop-blur">
@@ -1241,14 +1211,13 @@ export default function BookPage({ params }: BookPageProps) {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="max-w-xl">
                 <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-                  Playback mood
+                  Sound style
                 </p>
                 <h2 className="mt-2 text-xl font-semibold text-stone-950">
-                  Listening mode
+                  Choose the listening mode
                 </h2>
                 <p className="mt-2 text-sm leading-6 text-stone-600">
-                  Decide whether this book should feel pristine, atmospheric, or
-                  cinematic before you render the first sample.
+                  Decide how polished or atmospheric the sample should feel before you render it.
                 </p>
               </div>
               <div className="min-w-[10rem] rounded-[1.4rem] border border-white/80 bg-white/80 px-4 py-3 shadow-sm backdrop-blur">
@@ -1448,7 +1417,9 @@ export default function BookPage({ params }: BookPageProps) {
               </div>
             </div>
           ) : null}
-          <ActionLaunchpad className="mt-6 grid gap-4 lg:grid-cols-3" items={setupLaunchpad} />
+          {experienceMode === "studio" ? (
+            <ActionLaunchpad className="mt-6 grid gap-4 lg:grid-cols-3" items={setupLaunchpad} />
+          ) : null}
           <div className="mt-6 flex flex-wrap gap-3">
             <button
               className="rounded-full bg-amber-300 px-5 py-3 text-sm font-semibold text-stone-950 shadow-[0_20px_40px_-30px_rgba(252,211,77,0.85)] disabled:bg-amber-200 disabled:text-stone-500"
@@ -1471,20 +1442,22 @@ export default function BookPage({ params }: BookPageProps) {
             >
               Save as default taste
             </button>
-            <button
-              className="rounded-full border border-white/20 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10 disabled:border-white/10 disabled:bg-transparent disabled:text-stone-400"
-              type="button"
-              disabled={!sampleIsCurrent || chapters.length === 0 || fullBookJobIsActive}
-              onClick={() => {
-                void queueFullBookGeneration();
-              }}
-            >
-              {fullBookJob?.status === "running"
-                ? "Generating full book…"
-                : fullBookJob?.status === "queued"
-                  ? "Full book queued…"
-                  : "Queue full-book generation"}
-            </button>
+            {sampleIsCurrent || fullBookJobIsActive ? (
+              <button
+                className="rounded-full border border-white/20 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10 disabled:border-white/10 disabled:bg-transparent disabled:text-stone-400"
+                type="button"
+                disabled={!sampleIsCurrent || chapters.length === 0 || fullBookJobIsActive}
+                onClick={() => {
+                  void queueFullBookGeneration();
+                }}
+              >
+                {fullBookJob?.status === "running"
+                  ? "Generating full book…"
+                  : fullBookJob?.status === "queued"
+                    ? "Full book queued…"
+                    : "Queue full-book generation"}
+              </button>
+            ) : null}
             {sampleIsCurrent ? (
               <Link
                 className="rounded-full border border-white/20 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
@@ -1529,12 +1502,14 @@ export default function BookPage({ params }: BookPageProps) {
             >
               Back to import
             </Link>
-            <Link
-              className="rounded-full border border-white/20 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
-              href="/#default-taste"
-            >
-              Review default taste
-            </Link>
+            {experienceMode === "studio" ? (
+              <Link
+                className="rounded-full border border-white/20 bg-white/5 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/10"
+                href="/#default-taste"
+              >
+                Review default taste
+              </Link>
+            ) : null}
           </div>
           {generationJob?.status === "failed" ? (
             <div className="mt-6 rounded-[1.5rem] border border-rose-300 bg-rose-50 px-5 py-4 text-sm text-rose-950">
