@@ -163,6 +163,11 @@ export function SocialCircleDetailCard({
                   Joined
                 </span>
               ) : null}
+              {circle.moderationStatus === "review" ? (
+                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
+                  Under review
+                </span>
+              ) : null}
             </div>
             <h2 className="mt-4 text-3xl font-semibold tracking-tight text-stone-950">
               {circle.bookTitle}
@@ -187,6 +192,16 @@ export function SocialCircleDetailCard({
             <p className="mt-3 text-sm leading-6 text-stone-600">
               {circle.vibe}. Hosted by {circle.host}.
             </p>
+            {circle.moderationStatus === "review" ? (
+              <div className="mt-4 rounded-[1.2rem] border border-amber-200 bg-amber-50/80 px-4 py-4">
+                <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-amber-700">
+                  Review state
+                </p>
+                <p className="mt-2 text-sm leading-6 text-amber-900">
+                  This circle has {circle.reportCount ?? 0} report{(circle.reportCount ?? 0) === 1 ? "" : "s"} and is being de-emphasized in public discovery until it is reviewed.
+                </p>
+              </div>
+            ) : null}
             {membership ? (
               <div className="mt-4 rounded-[1.2rem] border border-amber-200 bg-amber-50/80 px-4 py-4">
                 <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-amber-700">

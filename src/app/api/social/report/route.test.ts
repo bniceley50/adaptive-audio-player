@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { POST } from "@/app/api/social/report/route";
 import {
+  listPublicSocialCircles,
   resetDatabaseForTests,
   syncWorkspaceLibrarySnapshot,
 } from "@/lib/backend/sqlite";
@@ -37,6 +38,40 @@ describe("social report route", () => {
     });
 
     return `adaptive-audio-player.workspace=${createSignedWorkspaceCookieValue(workspaceId)}`;
+  }
+
+  function seedPersistentCircle(workspaceId: string, circleId: string) {
+    syncWorkspaceLibrarySnapshot(workspaceId, {
+      libraryBooks: [],
+      draftTexts: [],
+      listeningProfiles: [],
+      defaultListeningProfile: null,
+      sampleRequest: null,
+      playbackStates: [],
+      playbackDefaults: null,
+      discoveryPreferences: null,
+      socialState: {
+        savedEditions: [],
+        circleMemberships: [],
+        createdCircles: [
+          {
+            id: circleId,
+            title: "Seeded Review Circle",
+            editionId: "cinematic-harbor",
+            host: "Moderator Seed",
+            bookTitle: "Storm Harbor",
+            memberCount: 3,
+            checkpoint: "Chapters 1-2",
+            vibe: "Seeded for moderation flow",
+            summary: "A durable public circle used to verify moderation state.",
+            sourceMomentId: null,
+            createdAt: "2026-03-15T13:05:00.000Z",
+          },
+        ],
+        promotedMoments: [],
+      },
+      syncedAt: "2026-03-15T13:06:00.000Z",
+    });
   }
 
   it("reports a public circle for review", async () => {
@@ -102,6 +137,59 @@ describe("social report route", () => {
       contentKind: "moment",
       contentId: "storm-harbor-first-reveal",
       reportCount: 1,
+    });
+  });
+
+  it("moves public content into review after reports from multiple workspaces", async () => {
+    const tempDir = mkdtempSync(path.join(tmpdir(), "adaptive-audio-player-"));
+    createdDirs.push(tempDir);
+    process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
+
+    seedPersistentCircle("workspace-seed", "reviewable-circle");
+    const firstCookie = createWorkspaceCookie("workspace-report-a");
+    const secondCookie = createWorkspaceCookie("workspace-report-b");
+
+    const firstResponse = await POST(
+      new Request("http://127.0.0.1:3100/api/social/report", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          host: "127.0.0.1:3100",
+          origin: "http://127.0.0.1:3100",
+          cookie: firstCookie,
+        },
+        body: JSON.stringify({
+          contentKind: "circle",
+          contentId: "reviewable-circle",
+          reason: "needs-review",
+        }),
+      }),
+    );
+
+    const secondResponse = await POST(
+      new Request("http://127.0.0.1:3100/api/social/report", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          host: "127.0.0.1:3100",
+          origin: "http://127.0.0.1:3100",
+          cookie: secondCookie,
+        },
+        body: JSON.stringify({
+          contentKind: "circle",
+          contentId: "reviewable-circle",
+          reason: "needs-review",
+        }),
+      }),
+    );
+
+    expect(firstResponse.status).toBe(200);
+    expect(secondResponse.status).toBe(200);
+    expect(
+      listPublicSocialCircles().find((circle) => circle.id === "reviewable-circle"),
+    ).toMatchObject({
+      moderationStatus: "review",
+      reportCount: 2,
     });
   });
 

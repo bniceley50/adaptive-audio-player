@@ -291,7 +291,8 @@ export function getPublicCircleDetail(
         (entrySummary?.joins ?? 0) * 10 +
         (entrySummary?.shares ?? 0) +
         (entrySummary?.reopens ?? 0) * 3 +
-        (entryHeat?.score ?? 0);
+        (entryHeat?.score ?? 0) -
+        (entry.moderationStatus === "review" ? 1000 : 0);
 
       return {
         circle: entry,

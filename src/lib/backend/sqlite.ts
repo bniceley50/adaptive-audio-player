@@ -14,6 +14,7 @@ import type {
   GenerationJobKind,
   LibrarySyncSnapshot,
   PublicSocialCircleRecord,
+  PublicSocialModerationStatus,
   PublicSocialMomentRecord,
   PublicSocialReportContentKind,
   SocialActivityEventKind,
@@ -216,6 +217,9 @@ function ensureDbSchema(db: DatabaseSync) {
       vibe text not null,
       summary text not null,
       source_moment_id text,
+      moderation_status text not null default 'active',
+      report_count integer not null default 0,
+      last_reported_at text,
       created_at text not null,
       updated_at text not null,
       foreign key (owner_workspace_id) references workspaces(id) on delete cascade
@@ -232,6 +236,9 @@ function ensureDbSchema(db: DatabaseSync) {
       chapter_label text not null,
       progress_seconds real not null,
       quote_text text not null,
+      moderation_status text not null default 'active',
+      report_count integer not null default 0,
+      last_reported_at text,
       promoted_at text not null,
       updated_at text not null,
       foreign key (owner_workspace_id) references workspaces(id) on delete cascade
@@ -369,6 +376,40 @@ function ensureDbSchema(db: DatabaseSync) {
     db.exec(
       "alter table workspace_defaults add column discovery_preferences_json text",
     );
+  }
+
+  const publicCircleColumns = db
+    .prepare("pragma table_info(public_social_circles)")
+    .all() as Array<{ name: string }>;
+  if (!publicCircleColumns.some((column) => column.name === "moderation_status")) {
+    db.exec(
+      "alter table public_social_circles add column moderation_status text not null default 'active'",
+    );
+  }
+  if (!publicCircleColumns.some((column) => column.name === "report_count")) {
+    db.exec(
+      "alter table public_social_circles add column report_count integer not null default 0",
+    );
+  }
+  if (!publicCircleColumns.some((column) => column.name === "last_reported_at")) {
+    db.exec("alter table public_social_circles add column last_reported_at text");
+  }
+
+  const publicMomentColumns = db
+    .prepare("pragma table_info(public_social_moments)")
+    .all() as Array<{ name: string }>;
+  if (!publicMomentColumns.some((column) => column.name === "moderation_status")) {
+    db.exec(
+      "alter table public_social_moments add column moderation_status text not null default 'active'",
+    );
+  }
+  if (!publicMomentColumns.some((column) => column.name === "report_count")) {
+    db.exec(
+      "alter table public_social_moments add column report_count integer not null default 0",
+    );
+  }
+  if (!publicMomentColumns.some((column) => column.name === "last_reported_at")) {
+    db.exec("alter table public_social_moments add column last_reported_at text");
   }
 
   const hasSocialStateJson = workspaceDefaultsColumns.some(
@@ -1429,10 +1470,13 @@ function syncPublicSocialCircles(
           vibe,
           summary,
           source_moment_id,
+          moderation_status,
+          report_count,
+          last_reported_at,
           created_at,
           updated_at
         )
-        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 0, null, ?, ?)
         on conflict(id) do update set
           owner_workspace_id = excluded.owner_workspace_id,
           edition_id = excluded.edition_id,
@@ -1498,10 +1542,13 @@ function syncPublicSocialMoments(
           chapter_label,
           progress_seconds,
           quote_text,
+          moderation_status,
+          report_count,
+          last_reported_at,
           promoted_at,
           updated_at
         )
-        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', 0, null, ?, ?)
         on conflict(id) do update set
           owner_workspace_id = excluded.owner_workspace_id,
           book_id = excluded.book_id,
@@ -2274,6 +2321,9 @@ export function listPublicSocialCircles(): PublicSocialCircleRecord[] {
                public_social_circles.owner_workspace_id,
                users.id as owner_user_id,
                users.display_name as owner_display_name,
+               public_social_circles.moderation_status,
+               public_social_circles.report_count,
+               public_social_circles.last_reported_at,
                public_social_circles.edition_id,
                public_social_circles.title,
                public_social_circles.host,
@@ -2288,6 +2338,7 @@ export function listPublicSocialCircles(): PublicSocialCircleRecord[] {
         from public_social_circles
         left join workspaces on workspaces.id = public_social_circles.owner_workspace_id
         left join users on users.id = workspaces.user_id
+        where public_social_circles.moderation_status != 'hidden'
         order by public_social_circles.updated_at desc, public_social_circles.created_at desc
       `,
     )
@@ -2296,6 +2347,9 @@ export function listPublicSocialCircles(): PublicSocialCircleRecord[] {
     owner_workspace_id: string;
     owner_user_id: string | null;
     owner_display_name: string | null;
+    moderation_status: PublicSocialModerationStatus;
+    report_count: number;
+    last_reported_at: string | null;
     edition_id: string;
     title: string;
     host: string;
@@ -2314,6 +2368,9 @@ export function listPublicSocialCircles(): PublicSocialCircleRecord[] {
     ownerWorkspaceId: row.owner_workspace_id,
     ownerUserId: row.owner_user_id,
     ownerDisplayName: row.owner_display_name,
+    moderationStatus: row.moderation_status,
+    reportCount: row.report_count,
+    lastReportedAt: row.last_reported_at,
     editionId: row.edition_id,
     title: row.title,
     host: row.host,
@@ -2337,6 +2394,9 @@ export function listPublicSocialMoments(): PublicSocialMomentRecord[] {
                public_social_moments.owner_workspace_id,
                users.id as owner_user_id,
                users.display_name as owner_display_name,
+               public_social_moments.moderation_status,
+               public_social_moments.report_count,
+               public_social_moments.last_reported_at,
                public_social_moments.book_id,
                public_social_moments.edition_id,
                public_social_moments.circle_id,
@@ -2350,6 +2410,7 @@ export function listPublicSocialMoments(): PublicSocialMomentRecord[] {
         from public_social_moments
         left join workspaces on workspaces.id = public_social_moments.owner_workspace_id
         left join users on users.id = workspaces.user_id
+        where public_social_moments.moderation_status != 'hidden'
         order by public_social_moments.updated_at desc, public_social_moments.promoted_at desc
       `,
     )
@@ -2358,6 +2419,9 @@ export function listPublicSocialMoments(): PublicSocialMomentRecord[] {
     owner_workspace_id: string;
     owner_user_id: string | null;
     owner_display_name: string | null;
+    moderation_status: PublicSocialModerationStatus;
+    report_count: number;
+    last_reported_at: string | null;
     book_id: string;
     edition_id: string | null;
     circle_id: string | null;
@@ -2375,6 +2439,9 @@ export function listPublicSocialMoments(): PublicSocialMomentRecord[] {
     ownerWorkspaceId: row.owner_workspace_id,
     ownerUserId: row.owner_user_id,
     ownerDisplayName: row.owner_display_name,
+    moderationStatus: row.moderation_status,
+    reportCount: row.report_count,
+    lastReportedAt: row.last_reported_at,
     bookId: row.book_id,
     editionId: row.edition_id,
     circleId: row.circle_id,
@@ -2405,6 +2472,47 @@ export function getPublicSocialReportCount(
     .get(contentKind, contentId) as { total: number } | undefined;
 
   return Number(row?.total ?? 0);
+}
+
+function syncPublicContentModerationState(
+  db: DatabaseSync,
+  contentKind: PublicSocialReportContentKind,
+  contentId: string,
+  reportCount: number,
+  reportedAt: string,
+) {
+  const tableName =
+    contentKind === "circle" ? "public_social_circles" : "public_social_moments";
+  const current = db
+    .prepare(
+      `
+        select moderation_status
+        from ${tableName}
+        where id = ?
+      `,
+    )
+    .get(contentId) as { moderation_status: PublicSocialModerationStatus } | undefined;
+
+  if (!current) {
+    return;
+  }
+
+  const nextStatus =
+    current.moderation_status === "hidden"
+      ? "hidden"
+      : reportCount >= 2
+        ? "review"
+        : "active";
+
+  db.prepare(
+    `
+      update ${tableName}
+      set moderation_status = ?,
+          report_count = ?,
+          last_reported_at = ?
+      where id = ?
+    `,
+  ).run(nextStatus, reportCount, reportedAt, contentId);
 }
 
 export function reportPublicSocialContent(input: {
@@ -2442,8 +2550,17 @@ export function reportPublicSocialContent(input: {
     timestamp,
   );
 
+  const reportCount = getPublicSocialReportCount(input.contentKind, input.contentId);
+  syncPublicContentModerationState(
+    db,
+    input.contentKind,
+    input.contentId,
+    reportCount,
+    timestamp,
+  );
+
   return {
-    reportCount: getPublicSocialReportCount(input.contentKind, input.contentId),
+    reportCount,
     reportedAt: timestamp,
   };
 }

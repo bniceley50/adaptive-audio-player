@@ -23,6 +23,8 @@ export type PublicSocialMoment = {
   curatorNote: string;
   moodLabel: string;
   ownerLabel?: string | null;
+  moderationStatus?: "active" | "review" | "hidden";
+  reportCount?: number;
   source: "curated" | "promoted";
 };
 
@@ -40,6 +42,8 @@ export function mapPublicSocialMomentRecord(
       "Promoted from a saved quote in a real player session so it can live inside the public social layer.",
     moodLabel: "Shared moment",
     ownerLabel: record.ownerDisplayName?.trim() || null,
+    moderationStatus: record.moderationStatus,
+    reportCount: record.reportCount,
     source: "promoted",
   };
 }
@@ -127,6 +131,8 @@ function buildPromotedPublicMoment(record: PromotedSocialMomentRecord): PublicSo
       "Promoted from a saved quote in your player so it can live inside the social layer.",
     moodLabel: "Your moment",
     ownerLabel: null,
+    moderationStatus: "active",
+    reportCount: 0,
     source: "promoted",
   };
 }
@@ -157,6 +163,8 @@ function buildPromotedMomentFromEvent(
       "Promoted from a saved quote in a real player session so it can live inside the public social layer.",
     moodLabel: "Shared moment",
     ownerLabel: null,
+    moderationStatus: "active",
+    reportCount: 0,
     source: "promoted",
   };
 }
@@ -172,10 +180,6 @@ export function getAllPublicSocialMoments(
     byId.set(moment.id, moment);
   }
 
-  for (const moment of persistentMoments) {
-    byId.set(moment.id, moment);
-  }
-
   for (const event of events) {
     const promotedMoment = buildPromotedMomentFromEvent(event);
     if (promotedMoment) {
@@ -186,6 +190,10 @@ export function getAllPublicSocialMoments(
   for (const record of socialState?.promotedMoments ?? []) {
     const promotedMoment = buildPromotedPublicMoment(record);
     byId.set(promotedMoment.id, promotedMoment);
+  }
+
+  for (const moment of persistentMoments) {
+    byId.set(moment.id, moment);
   }
 
   return [...byId.values()];
@@ -223,7 +231,8 @@ export function getMomentActivityScore(
       (circleSummary?.shares ?? 0) * 3 +
       (momentHeat?.score ?? 0) +
       (editionHeat?.score ?? 0) +
-      (moment.source === "promoted" ? 12 : 0),
+      (moment.source === "promoted" ? 12 : 0) -
+      (moment.moderationStatus === "review" ? 1000 : 0),
   };
 }
 

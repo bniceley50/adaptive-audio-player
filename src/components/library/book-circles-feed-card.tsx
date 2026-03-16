@@ -94,6 +94,11 @@ export function BookCirclesFeedCard({
             featuredListeningEditions.find((edition) => edition.id === circle.editionId) ?? null,
         }))
         .sort((left, right) => {
+          const leftReview = left.moderationStatus === "review" ? 1 : 0;
+          const rightReview = right.moderationStatus === "review" ? 1 : 0;
+          if (leftReview !== rightReview) {
+            return leftReview - rightReview;
+          }
           const leftHighlighted = highlightedCircleId === left.id ? 1 : 0;
           const rightHighlighted = highlightedCircleId === right.id ? 1 : 0;
           if (leftHighlighted !== rightHighlighted) {
@@ -260,6 +265,16 @@ export function BookCirclesFeedCard({
                   </div>
                 ) : null;
               })()}
+              {circle.moderationStatus === "review" ? (
+                <div className="mb-4 rounded-[1.1rem] border border-amber-200 bg-amber-50/80 px-4 py-3">
+                  <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-amber-700">
+                    Under review
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-amber-900">
+                    Reports have flagged this circle for review, so it is ranked below healthy public circles for now.
+                  </p>
+                </div>
+              ) : null}
               {highlighted ? (
                 <div className="mb-4 rounded-[1.1rem] border border-amber-200 bg-amber-50/80 px-4 py-3">
                   <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-amber-700">
@@ -318,6 +333,11 @@ export function BookCirclesFeedCard({
                 {joined ? (
                   <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-emerald-700">
                     Joined
+                  </span>
+                ) : null}
+                {circle.moderationStatus === "review" ? (
+                  <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
+                    {circle.reportCount ?? 0} report{(circle.reportCount ?? 0) === 1 ? "" : "s"}
                   </span>
                 ) : null}
                 {membership?.shareCount ? (

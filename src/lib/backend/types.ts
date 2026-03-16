@@ -234,6 +234,9 @@ export interface PublicSocialCircleRecord {
   ownerWorkspaceId: string;
   ownerUserId: string | null;
   ownerDisplayName: string | null;
+  moderationStatus: PublicSocialModerationStatus;
+  reportCount: number;
+  lastReportedAt: string | null;
   editionId: string;
   title: string;
   host: string;
@@ -252,6 +255,9 @@ export interface PublicSocialMomentRecord {
   ownerWorkspaceId: string;
   ownerUserId: string | null;
   ownerDisplayName: string | null;
+  moderationStatus: PublicSocialModerationStatus;
+  reportCount: number;
+  lastReportedAt: string | null;
   bookId: string;
   editionId: string | null;
   circleId: string | null;
@@ -265,3 +271,4 @@ export interface PublicSocialMomentRecord {
 }
 
 export type PublicSocialReportContentKind = "circle" | "moment";
+export type PublicSocialModerationStatus = "active" | "review" | "hidden";

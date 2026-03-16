@@ -24,6 +24,11 @@ export function SocialMomentsFeedCard({
 }) {
   const moments = getPublicMomentsFeed(pulse, events, socialState, [], persistentMoments)
     .sort((left, right) => {
+      const leftReview = left.moment.moderationStatus === "review" ? 1 : 0;
+      const rightReview = right.moment.moderationStatus === "review" ? 1 : 0;
+      if (leftReview !== rightReview) {
+        return leftReview - rightReview;
+      }
       if (left.moment.id === focusedMomentId) {
         return -1;
       }
@@ -78,15 +83,30 @@ export function SocialMomentsFeedCard({
                   {activity.heatBadge}
                 </span>
               ) : null}
+              {moment.moderationStatus === "review" ? (
+                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
+                  Review
+                </span>
+              ) : null}
             </div>
             <p className="mt-4 text-base font-medium italic leading-7 text-stone-950">
               “{moment.quote}”
             </p>
             <p className="mt-3 text-sm leading-6 text-stone-600">{moment.curatorNote}</p>
+            {moment.moderationStatus === "review" ? (
+              <p className="mt-3 text-sm leading-6 text-amber-800">
+                Community reports have flagged this moment for review, so it is shown lower than healthy public moments.
+              </p>
+            ) : null}
             <div className="mt-4 flex flex-wrap gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
               <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
                 {activity.momentSummary?.promotions ?? 0} promotions
               </span>
+              {moment.moderationStatus === "review" ? (
+                <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
+                  {moment.reportCount ?? 0} report{(moment.reportCount ?? 0) === 1 ? "" : "s"}
+                </span>
+              ) : null}
               <span className="rounded-full bg-sky-50 px-2.5 py-1 text-sky-700">
                 {activity.editionSummary?.saves ?? 0} saves
               </span>

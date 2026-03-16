@@ -6,6 +6,8 @@ export type FeaturedBookCircle = {
   title: string;
   editionId: string;
   host: string;
+  moderationStatus?: "active" | "review" | "hidden";
+  reportCount?: number;
   bookTitle: string;
   memberCount: number;
   checkpoint: string;
@@ -64,6 +66,8 @@ export function mapPublicSocialCircleRecord(
     title: circle.title,
     editionId: circle.editionId,
     host: circle.ownerDisplayName?.trim() || circle.host,
+    moderationStatus: circle.moderationStatus,
+    reportCount: circle.reportCount,
     bookTitle: circle.bookTitle,
     memberCount: circle.memberCount,
     checkpoint: circle.checkpoint,
@@ -108,10 +112,10 @@ export function getAllPublicBookCircles(
 
   const byId = new Map<string, FeaturedBookCircle>();
   for (const circle of [
-    ...persistentCircles,
+    ...featuredBookCircles,
     ...backendCreated,
     ...created,
-    ...featuredBookCircles,
+    ...persistentCircles,
   ]) {
     byId.set(circle.id, circle);
   }
