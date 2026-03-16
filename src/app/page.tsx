@@ -7,14 +7,12 @@ import { ComingNextCard } from "@/components/library/coming-next-card";
 import { ContinueListeningRow } from "@/components/library/continue-listening-row";
 import { DefaultPlaybackCard } from "@/components/library/default-playback-card";
 import { DefaultTasteCard } from "@/components/library/default-taste-card";
-import { DemoModeCard } from "@/components/library/demo-mode-card";
 import { DiscoveryQuickStartCard } from "@/components/library/discovery-quick-start-card";
 import { FavoritesHubCard } from "@/components/library/favorites-hub-card";
 import { ForYouCard } from "@/components/library/for-you-card";
-import { HomeNextStepCard } from "@/components/library/home-next-step-card";
+import { HomeStartHereCard } from "@/components/library/home-start-here-card";
 import { HomeSocialProofCard } from "@/components/library/home-social-proof-card";
 import { HomeTrendingNowCard } from "@/components/library/home-trending-now-card";
-import { LibraryHero } from "@/components/library/library-hero";
 import { ListeningEditionsFeedCard } from "@/components/library/listening-editions-feed-card";
 import { ListeningStatsCard } from "@/components/library/listening-stats-card";
 import { ManageDiscoveryPreferencesCard } from "@/components/library/manage-discovery-preferences-card";
@@ -240,83 +238,66 @@ export default async function HomePage() {
         listeningStreakDays: 0,
       };
   return (
-    <AppShell eyebrow="Adaptive audiobooks" title="Choose how your audiobook sounds">
-      <LibraryHero />
-      <DemoModeCard />
-      <HomeNextStepCard
-        hasSyncedBook={Boolean(latestSyncedBook)}
-        latestBookTitle={latestSyncedBook?.title ?? null}
-        latestBookHref={latestSyncedBook ? `/player/${latestSyncedBook.bookId}` : null}
-        isSignedIn={Boolean(currentUser)}
-        listeningStreakDays={listeningStats.listeningStreakDays}
-        recommendedEdition={authorSpotlight?.recommendedEdition ?? null}
-        spotlightName={authorSpotlight?.name ?? null}
-        pulse={socialCommunityPulse}
-        socialState={backendLibrarySnapshot?.socialState ?? null}
+    <AppShell eyebrow="Audiobook app prototype" title="Bring in a book and press play">
+      <HomeStartHereCard
+        latestBookTitle={currentLatestSession?.bookTitle ?? latestSyncedBook?.title ?? null}
+        latestBookHref={currentLatestSession?.href ?? null}
       />
-      <section className="space-y-6">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-              Everyday listening
-            </p>
-            <h2 className="mt-2 text-2xl font-semibold text-stone-950">
-              Start fast, then let the app get smarter around you
-            </h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
-              Discovery, playback, circles, and favorites stay up front. Account,
-              backend, and deeper system controls stay available without taking over the
-              first-run experience.
-            </p>
-          </div>
-          <div className="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm text-stone-600 shadow-sm">
-            Everyday mode stays focused on what to hear next
-          </div>
-        </div>
-
-        <DiscoveryQuickStartCard
-          spotlight={authorSpotlight}
-          pulse={socialCommunityPulse}
-        />
-        <ForYouCard
-          spotlight={authorSpotlight}
+      <ContinueListeningRow initialSnapshot={backendLibrarySnapshot} hideWhenEmpty />
+      <RecentQuotesCard />
+      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <HomeSocialProofCard pulse={socialCommunityPulse} />
+        <HomeTrendingNowCard
           pulse={socialCommunityPulse}
           socialState={backendLibrarySnapshot?.socialState ?? null}
         />
-      <HomeSocialProofCard pulse={socialCommunityPulse} />
-      <HomeTrendingNowCard
-        pulse={socialCommunityPulse}
-        socialState={backendLibrarySnapshot?.socialState ?? null}
-      />
-        <RecentPersonalizationCard />
-        <SocialMemoryCard />
-        <SocialShelfCard />
-        <ManageDiscoveryPreferencesCard />
-        <ListeningStatsCard initialStats={listeningStats} />
-        <FavoritesHubCard />
-        <ComingNextCard />
-        <ListeningEditionsFeedCard />
-        <ContinueListeningRow initialSnapshot={backendLibrarySnapshot} hideWhenEmpty />
-        <RecentQuotesCard />
-        {circleBook ? (
-          <BookCircleCard
-            bookId={circleBook.bookId}
-            bookTitle={circleBook.title}
-            coverGlyph={circleBook.coverGlyph ?? null}
-            coverLabel={circleBook.coverLabel ?? null}
-            coverTheme={circleBook.coverTheme ?? null}
-            genreLabel={circleBook.genreLabel ?? null}
-            href={
-              currentLatestSession && currentLatestSession.bookId === circleBook.bookId
-                ? currentLatestSession.href
-                : `/player/${circleBook.bookId}`
-            }
-            mode={circleProfile?.mode ?? null}
-            narratorName={circleProfile?.narratorName ?? null}
-          />
-        ) : null}
-        <BookCirclesFeedCard />
-        <AuthorSpotlightCard spotlight={authorSpotlight} title="Author spotlight" />
+      </section>
+
+      <section id="community-picks">
+        <StudioDisclosure
+          eyebrow="Community"
+          title="Community picks"
+          detail="Open this if you want listening versions, book clubs, highlights, and personalized discovery. You do not need this to start listening."
+          badgeLabel="Open optional discovery"
+        >
+          <div className="space-y-6">
+            <DiscoveryQuickStartCard
+              spotlight={authorSpotlight}
+              pulse={socialCommunityPulse}
+            />
+            <ForYouCard
+              spotlight={authorSpotlight}
+              pulse={socialCommunityPulse}
+              socialState={backendLibrarySnapshot?.socialState ?? null}
+            />
+            <RecentPersonalizationCard />
+            <SocialMemoryCard />
+            <SocialShelfCard />
+            <ManageDiscoveryPreferencesCard />
+            <FavoritesHubCard />
+            <ComingNextCard />
+            <ListeningEditionsFeedCard />
+            {circleBook ? (
+              <BookCircleCard
+                bookId={circleBook.bookId}
+                bookTitle={circleBook.title}
+                coverGlyph={circleBook.coverGlyph ?? null}
+                coverLabel={circleBook.coverLabel ?? null}
+                coverTheme={circleBook.coverTheme ?? null}
+                genreLabel={circleBook.genreLabel ?? null}
+                href={
+                  currentLatestSession && currentLatestSession.bookId === circleBook.bookId
+                    ? currentLatestSession.href
+                    : `/player/${circleBook.bookId}`
+                }
+                mode={circleProfile?.mode ?? null}
+                narratorName={circleProfile?.narratorName ?? null}
+              />
+            ) : null}
+            <BookCirclesFeedCard />
+            <AuthorSpotlightCard spotlight={authorSpotlight} title="Author spotlight" />
+          </div>
+        </StudioDisclosure>
       </section>
 
       <section id="account-context">
@@ -356,6 +337,7 @@ export default async function HomePage() {
                   initialDefaults={backendLibrarySnapshot?.playbackDefaults ?? null}
                 />
               </div>
+              <ListeningStatsCard initialStats={listeningStats} />
               <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-white shadow-[0_22px_60px_-42px_rgba(28,25,23,0.4)]">
                 <div className="border-b border-stone-200/80 bg-[linear-gradient(135deg,#fffdf7_0%,#f7f3ea_52%,#eef4ff_100%)] p-6">
                   <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
