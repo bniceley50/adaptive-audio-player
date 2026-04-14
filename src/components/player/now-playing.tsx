@@ -50,6 +50,7 @@ export function NowPlaying({
   mode,
   playbackIsReady,
   totalAudioDurationSeconds,
+  experienceMode = "everyday",
 }: {
   audioKind:
     | "sample-generation"
@@ -68,6 +69,7 @@ export function NowPlaying({
   mode: string;
   playbackIsReady: boolean;
   totalAudioDurationSeconds?: number | null;
+  experienceMode?: "everyday" | "studio";
 }) {
   function sortQuotes(quotes: SavedQuote[]) {
     return [...quotes].sort((left, right) => {
@@ -721,381 +723,218 @@ export function NowPlaying({
   }, []);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-      <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(145deg,#111827_0%,#1c1917_42%,#292524_100%)] p-6 text-white shadow-[0_30px_90px_-50px_rgba(15,23,42,0.95)]">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="max-w-xl">
-            <p className="text-sm uppercase tracking-[0.22em] text-stone-300">
-              Now playing
+    <div className="flex flex-col gap-6">
+      <section className="overflow-hidden rounded-[var(--radius-xl)] bg-[var(--player-bg-2)] p-6 text-[var(--player-text)] lg:p-8">
+        <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-start lg:gap-10">
+          <div className="w-44 shrink-0 overflow-hidden rounded-[var(--radius-lg)] bg-gradient-to-br from-[var(--player-bg-3)] to-[var(--player-bg-1)] shadow-[4px_4px_24px_rgba(0,0,0,0.45)] lg:w-52" style={{ aspectRatio: "2 / 3" }}>
+            <div className="relative flex h-full flex-col justify-between p-5">
+              <div className="absolute inset-y-0 left-0 w-2 bg-gradient-to-b from-black/30 via-black/10 to-black/30" />
+              <p className="font-[var(--font-display)] text-xl font-medium leading-tight text-[var(--player-accent)]">{bookTitle}</p>
+              <div>
+                <div className="mb-2 h-px w-8 bg-[var(--player-accent)] opacity-40" />
+                <p className="text-[0.65rem] uppercase tracking-[0.18em] text-[var(--player-text-soft)]">{narratorName}</p>
+              </div>
+            </div>
+          </div>
+          <div className="min-w-0 flex-1 text-center lg:text-left">
+            <h2 className="font-[var(--font-display)] text-3xl font-semibold text-white lg:text-4xl">{bookTitle}</h2>
+            <p className="mt-2 text-sm text-[var(--player-text-soft)]">
+              {narratorName} · <span className="capitalize">{mode}</span>
             </p>
-            <h2 className="mt-3 text-3xl font-semibold leading-tight">
+            <p className="mt-1 text-sm text-[var(--player-text-muted)]">
               {currentChapter?.title ?? "No chapter loaded"}
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-stone-300">
-              Book: {bookTitle}
-              <span className="ml-2 text-stone-400">({bookId})</span>
             </p>
-          </div>
-          <div className="min-w-[12rem] rounded-[1.5rem] border border-white/10 bg-white/8 px-4 py-4 shadow-sm backdrop-blur">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-300">
-              Playback state
-            </p>
-            <p className="mt-2 text-lg font-semibold text-white">
-              {playbackIsReady
-                ? isPlaying
-                  ? "Playing"
-                  : "Ready to resume"
-                : "Audio locked"}
-            </p>
-            <p className="mt-2 text-sm leading-6 text-stone-300">
-              {audioKind === "full-book-generation"
-                ? "Using full-book audio"
-                : audioKind === "sample-generation"
-                  ? "Using generated sample audio"
-                  : audioKind === "imported-audio"
-                    ? "Using imported audiobook audio"
-                  : "Generate audio to unlock playback"}
-            </p>
-          </div>
-        </div>
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-[1.5rem] border border-white/10 bg-white/8 p-5 shadow-sm">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-300">
-              Narrator
-            </p>
-            <p className="mt-2 text-lg font-semibold text-white">{narratorName}</p>
-          </div>
-          <div className="rounded-[1.5rem] border border-white/10 bg-white/8 p-5 shadow-sm">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-300">
-              Mode
-            </p>
-            <p className="mt-2 text-lg font-semibold capitalize text-white">{mode}</p>
-          </div>
-        </div>
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <div className="rounded-[1.5rem] border border-white/10 bg-white/8 p-5 shadow-sm">
-              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-300">
-              {isImportedAudio ? "Time left in section" : "Time left in chapter"}
-            </p>
-            <p className="mt-2 text-lg font-semibold text-white">{remainingLabel}</p>
-          </div>
-          <div className="rounded-[1.5rem] border border-white/10 bg-white/8 p-5 shadow-sm">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-300">
-              Time left in book
-            </p>
-            <p className="mt-2 text-lg font-semibold text-white">{remainingBookLabel}</p>
-          </div>
-        </div>
         <div className="mt-6">
-          <div className="h-2.5 rounded-full bg-white/10">
+          <div className="h-1.5 rounded-full bg-white/10">
             <div
-              className="h-2.5 rounded-full bg-[linear-gradient(90deg,#fcd34d_0%,#fde68a_100%)] transition-all"
+              className="h-1.5 rounded-full bg-[var(--player-accent)] transition-all"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-4 text-sm text-stone-300">
-            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-              {elapsedLabel}
-            </span>
-            <div className="flex flex-wrap items-center gap-3">
+          <div className="mt-2 flex items-center justify-between text-xs text-[var(--player-text-muted)]">
+            <span>{elapsedLabel}</span>
+            <span>-{remainingLabel} · {remainingBookLabel} left</span>
+          </div>
+        </div>
+        <div className="mt-5 flex items-center justify-center gap-5 lg:justify-start">
               <button
-                className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 transition hover:bg-white/10"
+                className="rounded-full border border-[var(--player-border)] bg-[var(--player-panel)] px-4 py-2 text-sm text-[var(--player-text-soft)] transition hover:bg-white/10"
                 type="button"
                 onClick={skipBackward}
               >
                 Back 15
               </button>
               <button
-                className={`rounded-full px-5 py-2.5 font-semibold shadow-sm transition ${
+                className={`rounded-full px-6 py-3 text-base font-semibold shadow-sm transition ${
                   playbackIsReady
-                    ? "bg-white text-stone-950 hover:bg-stone-100"
-                    : "bg-stone-700 text-stone-300"
+                    ? "bg-[var(--player-accent)] text-[var(--player-bg-1)] hover:opacity-90"
+                    : "bg-white/10 text-[var(--player-text-muted)]"
                 }`}
                 type="button"
                 onClick={togglePlayback}
               >
                 {playbackIsReady
                   ? isPlaying
-                    ? audioKind === "full-book-generation"
-                      ? "Pause full book"
-                      : audioKind === "imported-audio"
-                        ? "Pause audiobook"
-                      : "Pause sample"
-                    : audioKind === "full-book-generation"
-                      ? "Play full book"
-                      : audioKind === "imported-audio"
-                        ? "Play audiobook"
-                      : "Play sample"
+                    ? "Pause"
+                    : "Play"
                   : "Audio locked"}
               </button>
               <button
-                className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 transition hover:bg-white/10"
+                className="rounded-full border border-[var(--player-border)] bg-[var(--player-panel)] px-4 py-2 text-sm text-[var(--player-text-soft)] transition hover:bg-white/10"
                 type="button"
                 onClick={skipForward}
               >
                 Forward 30
               </button>
-            </div>
-            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5">
-              {remainingLabel}
-            </span>
-          </div>
         </div>
-        <div className="mt-6 flex flex-wrap gap-3 text-sm">
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-sm lg:justify-start">
           <button
-            className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-stone-200 transition hover:bg-white/10"
+            className="rounded-full border border-[var(--player-border)] bg-[var(--player-panel)] px-4 py-2 text-[var(--player-text-soft)] transition hover:bg-white/10"
             type="button"
             onClick={cycleSpeed}
           >
-            Speed: {speedLabel}
+            {speedLabel}
           </button>
           <button
             className={`rounded-full border px-4 py-2 transition ${
               isBookmarked
-                ? "border-amber-300 bg-amber-300 text-stone-950 shadow-[0_20px_40px_-32px_rgba(252,211,77,0.95)]"
-                : "border-white/15 bg-white/5 text-stone-200 hover:bg-white/10"
+                ? "border-[var(--player-accent)] bg-[var(--player-accent)] text-[var(--player-bg-1)]"
+                : "border-[var(--player-border)] bg-[var(--player-panel)] text-[var(--player-text-soft)] hover:bg-white/10"
             }`}
             type="button"
             onClick={toggleBookmark}
           >
-            {isBookmarked ? "Bookmarked" : "Add bookmark"}
+            {isBookmarked ? "Bookmarked" : "Bookmark"}
           </button>
           <button
-            className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-stone-200 transition hover:bg-white/10"
+            className="rounded-full border border-[var(--player-border)] bg-[var(--player-panel)] px-4 py-2 text-[var(--player-text-soft)] transition hover:bg-white/10"
             type="button"
             onClick={cycleSleepTimer}
           >
-            Sleep timer: {sleepTimerLabel}
+            Sleep: {sleepTimerLabel}
           </button>
+          {experienceMode === "studio" ? (
           <button
-            className="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-stone-200 transition hover:bg-white/10"
+            className="rounded-full border border-[var(--player-border)] bg-[var(--player-panel)] px-4 py-2 text-[var(--player-text-soft)] transition hover:bg-white/10"
             type="button"
             onClick={savePlaybackDefaults}
           >
-            Save playback defaults
+            Save defaults
           </button>
+          ) : null}
         </div>
-        <div className="mt-5 rounded-[1.4rem] border border-white/10 bg-white/5 p-4 shadow-sm">
-          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-300">
+          </div>
+        </div>
+        {audioUrl ? (
+          <audio ref={audioRef} className="hidden" preload="metadata" src={audioUrl} />
+        ) : null}
+        {experienceMode === "studio" ? (
+        <div className="mt-6 rounded-[var(--radius-lg)] border border-[var(--player-border)] bg-[var(--player-panel)] p-4">
+          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[var(--player-text-muted)]">
             Keyboard shortcuts
           </p>
-          <div className="mt-3 flex flex-wrap gap-2 text-xs font-medium text-stone-200">
+          <div className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--player-text-soft)]">
             {[
-              ["Space", "Play or pause"],
-              ["← / →", "Skip back or forward"],
-              ["B", "Toggle bookmark"],
-              ["S", "Cycle sleep timer"],
-              ["V", "Cycle speed"],
-              ["N / P", isImportedAudio ? "Next or previous section" : "Next or previous chapter"],
+              ["Space", "Play / pause"],
+              ["← / →", "Skip"],
+              ["B", "Bookmark"],
+              ["S", "Sleep"],
+              ["V", "Speed"],
+              ["N / P", "Chapter"],
             ].map(([shortcut, label]) => (
               <span
                 key={shortcut}
-                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/15 px-3 py-1.5"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--player-border)] bg-black/15 px-2.5 py-1"
               >
-                <span className="rounded-full bg-white/10 px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-white">
-                  {shortcut}
-                </span>
-                <span className="text-stone-200">{label}</span>
+                <span className="text-[0.6rem] font-semibold uppercase text-white">{shortcut}</span>
+                <span>{label}</span>
               </span>
             ))}
           </div>
         </div>
-        {audioKind !== "imported-audio" ? (
+        ) : null}
+        {experienceMode === "studio" && audioKind !== "imported-audio" ? (
         <>
-        <div className="mt-5 rounded-[1.4rem] border border-fuchsia-300/20 bg-[linear-gradient(135deg,rgba(217,70,239,0.12)_0%,rgba(255,255,255,0.06)_100%)] p-4 shadow-sm">
+        <div className="mt-4 rounded-[var(--radius-lg)] border border-[var(--player-border)] bg-[var(--player-panel)] p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="max-w-xl">
-              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-fuchsia-200">
+            <div>
+              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[var(--player-text-muted)]">
                 Share your taste
               </p>
-              <p className="mt-2 text-lg font-semibold text-white">
+              <p className="mt-2 text-sm text-[var(--player-text-soft)]">
                 {narratorName} in {mode}
-              </p>
-              <p className="mt-2 text-sm leading-6 text-stone-200">
-                Turn your current listening setup into a shareable card-worthy moment.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <button
-                className="rounded-full border border-white/20 bg-black/15 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-black/25"
+                className="rounded-full border border-[var(--player-border)] bg-[var(--player-panel)] px-3 py-1.5 text-sm text-[var(--player-text-soft)] transition hover:bg-white/10"
                 type="button"
                 onClick={saveAsDefaultTaste}
               >
-                Make this my default
+                Make default
               </button>
               <button
-                className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-stone-950 shadow-sm transition hover:bg-fuchsia-50"
+                className="rounded-full bg-[var(--player-accent)] px-3 py-1.5 text-sm font-medium text-[var(--player-bg-1)] transition hover:opacity-90"
                 type="button"
-                onClick={() => {
-                  void shareTasteCard();
-                }}
+                onClick={() => { void shareTasteCard(); }}
               >
-                {typeof navigator !== "undefined" && typeof navigator.share === "function"
-                  ? "Share taste"
-                  : "Copy taste"}
+                {typeof navigator !== "undefined" && typeof navigator.share === "function" ? "Share" : "Copy"}
               </button>
             </div>
           </div>
-          <div className="mt-4 flex flex-wrap gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-fuchsia-100">
-            <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5">
-              {bookTitle}
-            </span>
-            <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5">
-              {narratorName}
-            </span>
-            <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5 capitalize">
-              {mode}
-            </span>
-          </div>
-          <div className="mt-3 space-y-1 text-sm text-fuchsia-100">
-            {defaultTasteFeedback === "saved" ? (
-              <p>This listening taste is now your default for new imports.</p>
-            ) : null}
-            {shareFeedback !== "idle" ? (
-              <p>
-                {shareFeedback === "shared"
-                  ? "Taste shared."
-                  : "Taste copied to clipboard."}
-              </p>
-            ) : null}
-          </div>
+          {defaultTasteFeedback === "saved" ? (
+            <p className="mt-2 text-sm text-[var(--player-text-muted)]">Saved as default.</p>
+          ) : null}
+          {shareFeedback !== "idle" ? (
+            <p className="mt-2 text-sm text-[var(--player-text-muted)]">
+              {shareFeedback === "shared" ? "Shared." : "Copied."}
+            </p>
+          ) : null}
         </div>
-        <div className="mt-5 rounded-[1.4rem] border border-sky-300/20 bg-[linear-gradient(135deg,rgba(14,165,233,0.14)_0%,rgba(255,255,255,0.06)_100%)] p-4 shadow-sm">
+        <div className="mt-4 rounded-[var(--radius-lg)] border border-[var(--player-border)] bg-[var(--player-panel)] p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="max-w-xl">
-              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-sky-100">
+            <div>
+              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[var(--player-text-muted)]">
                 Book circle
               </p>
-              <p className="mt-2 text-lg font-semibold text-white">
+              <p className="mt-2 text-sm text-[var(--player-text-soft)]">
                 Invite friends into this edition
-              </p>
-              <p className="mt-2 text-sm leading-6 text-stone-200">
-                Share this title with the current narrator and mode so everyone starts
-                from the same listening setup.
               </p>
             </div>
             <button
-              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-stone-950 shadow-sm transition hover:bg-sky-50"
+              className="rounded-full bg-[var(--player-accent)] px-3 py-1.5 text-sm font-medium text-[var(--player-bg-1)] transition hover:opacity-90"
               type="button"
-              onClick={() => {
-                void shareBookCircleInvite();
-              }}
+              onClick={() => { void shareBookCircleInvite(); }}
             >
-              {typeof navigator !== "undefined" && typeof navigator.share === "function"
-                ? "Share book circle"
-                : "Copy circle invite"}
+              {typeof navigator !== "undefined" && typeof navigator.share === "function" ? "Share" : "Copy invite"}
             </button>
           </div>
-          <div className="mt-4 flex flex-wrap gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-100">
-            <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5">
-              {bookTitle}
-            </span>
-            <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5">
-              {narratorName}
-            </span>
-            <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5 capitalize">
-              {mode}
-            </span>
-            {latestQuote ? (
-              <span className="rounded-full border border-white/10 bg-black/15 px-3 py-1.5">
-                Includes a saved moment
-              </span>
-            ) : null}
-          </div>
-          <div className="mt-3 space-y-1 text-sm text-sky-100">
-            <p>
-              Start with this listening edition, then compare notes, saved moments,
-              and favorite scenes together.
+          {circleFeedback !== "idle" ? (
+            <p className="mt-2 text-sm text-[var(--player-text-muted)]">
+              {circleFeedback === "shared" ? "Shared." : "Copied."}
             </p>
-            {circleFeedback !== "idle" ? (
-              <p>
-                {circleFeedback === "shared"
-                  ? "Book circle invite shared."
-                  : "Book circle invite copied to clipboard."}
-              </p>
-            ) : null}
-          </div>
+          ) : null}
         </div>
         </>
         ) : null}
       </section>
 
-      <section className="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(180deg,#fffefb_0%,#ffffff_100%)] p-6 shadow-[0_22px_60px_-42px_rgba(28,25,23,0.4)]">
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-stone-200/80 pb-5">
-          <div className="max-w-xl">
-            <p className="text-sm uppercase tracking-[0.22em] text-stone-500">
-              {audioKind === "imported-audio"
-                ? "Imported audiobook"
-                : audioKind === "full-book-generation"
-                  ? "Full-book audio"
-                  : "Sample preview"}
-            </p>
-            <h3 className="mt-2 text-2xl font-semibold text-stone-950">
-              {audioKind === "imported-audio"
-                ? "Original audiobook playback"
-                : audioKind === "full-book-generation"
-                ? "Generated full-book playback"
-                : "Generated sample playback"}
-            </h3>
-            <p className="mt-2 text-sm leading-6 text-stone-600">
-              {audioKind === "imported-audio"
-                ? "Listen to the original file, keep your progress, and save moments from the book as you go."
-                : "Move between chapters, review the source text, and keep your listening preferences locked to this book."}
-            </p>
-          </div>
-          <div className="rounded-[1.4rem] border border-stone-200 bg-stone-50/80 px-4 py-3 shadow-sm">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
-              {isImportedAudio ? "Section status" : "Chapter status"}
-            </p>
-            <p className="mt-2 text-lg font-semibold text-stone-950">
-              {currentChapterIndex + 1} / {chapters.length}
-            </p>
-          </div>
+      <section className="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--paper)] p-6">
+        <div className="flex items-center justify-between gap-4 border-b border-[var(--line)] pb-4">
+          <h3 className="text-lg font-semibold text-[var(--ink)]">Chapters</h3>
+          <span className="rounded-full bg-[var(--paper-2)] px-3 py-1 text-xs font-medium text-[var(--ink-soft)]">
+            {currentChapterIndex + 1} / {chapters.length}
+          </span>
         </div>
-        {audioUrl ? (
-          <div className="mt-5 rounded-[1.6rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm">
-            <p className="text-sm font-medium text-stone-900">
-              {audioKind === "imported-audio"
-                ? "Imported audiobook file"
-                : audioKind === "full-book-generation"
-                ? "Generated full-book audio"
-                : "Generated sample audio"}
-            </p>
-            <p className="mt-1 text-sm text-stone-600">
-              {audioKind === "imported-audio"
-                ? "This is the original private audiobook file stored locally in this browser."
-                : audioKind === "full-book-generation"
-                ? "This is the backend-rendered full-book output from the worker queue."
-                : "This is the backend-rendered narration for the current sample setup."}
-            </p>
-            <audio
-              ref={audioRef}
-              className="mt-4 w-full"
-              controls
-              preload="metadata"
-              src={audioUrl}
-            />
-          </div>
-        ) : null}
-        <div className="mt-5 rounded-[1.4rem] border border-stone-200 bg-stone-50/80 p-4 shadow-sm">
+        <div className="mt-4 rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--paper-2)]/50 p-4">
           <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
-                {isImportedAudio ? "Quick section jump" : "Quick chapter jump"}
-              </p>
-              <p className="mt-2 text-sm text-stone-600">
-                {isImportedAudio
-                  ? "Jump between listening sections built from the audiobook runtime."
-                  : "Search by title or chapter number to move through longer books faster."}
-              </p>
-            </div>
-            <div className="min-w-[16rem] flex-1 max-w-sm">
-              <label className="block text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
-                {isImportedAudio ? "Find section" : "Find chapter"}
-              </label>
+            <p className="text-sm text-[var(--ink-soft)]">
+              {isImportedAudio ? "Jump between sections" : "Jump to a chapter"}
+            </p>
+            <div className="min-w-[14rem] flex-1 max-w-sm">
               <input
-                className="mt-2 w-full rounded-full border border-stone-300 bg-white px-4 py-2.5 text-sm text-stone-900 shadow-sm outline-none transition focus:border-stone-500"
-                placeholder={isImportedAudio ? "Search section title" : "Search chapter title"}
+                className="w-full rounded-full border border-[var(--line-strong)] bg-white px-4 py-2 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--accent)]"
+                placeholder={isImportedAudio ? "Search sections..." : "Search chapters..."}
                 type="text"
                 value={chapterQuery}
                 onChange={(event) => setChapterQuery(event.target.value)}
@@ -1108,8 +947,8 @@ export function NowPlaying({
               key={chapter.id}
               className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
                 currentChapterIndex === index
-                  ? "border-stone-950 bg-stone-950 text-white shadow-[0_18px_36px_-28px_rgba(28,25,23,0.65)]"
-                  : "border-stone-200 bg-stone-50 text-stone-700 hover:border-stone-300 hover:bg-white"
+                  ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+                  : "border-[var(--line)] bg-white text-[var(--ink-soft)] hover:border-[var(--line-strong)] hover:bg-[var(--paper-2)]"
               }`}
               type="button"
               onClick={() => selectChapter(index)}
@@ -1124,33 +963,24 @@ export function NowPlaying({
             ) : null}
           </div>
         </div>
-        <h3 className="mt-6 text-2xl font-semibold text-stone-950">
+        <h3 className="mt-5 text-xl font-semibold text-[var(--ink)]">
           {currentChapter?.title ?? "No chapter loaded"}
         </h3>
-        <p className="mt-4 rounded-[1.5rem] border border-stone-200 bg-stone-50/70 p-5 text-sm leading-7 text-stone-600">
+        <p className="mt-3 rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--paper-2)]/40 p-4 text-sm leading-7 text-[var(--ink-soft)]">
           {currentChapter?.text.slice(0, 280) ??
             "No imported draft found yet. Return to import and carry a chapter through setup first."}
         </p>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[1.4rem] border border-stone-200 bg-white px-4 py-3 shadow-sm">
-          <div>
-            <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-stone-500">
-              Save this moment
-            </p>
-            <p className="mt-1 text-sm text-stone-600">
-              {isImportedAudio
-                ? "Save memorable moments from this listening section for quick recall later."
-                : "Keep memorable lines from the current chapter for quick recall later."}
-            </p>
-          </div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-lg)] border border-[var(--line)] bg-white px-4 py-3">
+          <p className="text-sm text-[var(--ink-soft)]">Save a moment from this chapter</p>
           <button
-            className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+            className="rounded-full border border-[var(--line-strong)] px-4 py-2 text-sm font-medium text-[var(--ink-soft)] transition hover:bg-[var(--paper-2)]"
             type="button"
             onClick={saveQuote}
           >
             Save quote
           </button>
         </div>
-        <div className="mt-6 rounded-[1.6rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm">
+        <div className="mt-6 rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--paper)] p-5">
           <div className="flex items-center justify-between gap-4">
             <div>
               <h4 className="text-lg font-semibold text-stone-900">Saved quotes</h4>
@@ -1163,18 +993,18 @@ export function NowPlaying({
             </span>
           </div>
           {latestQuote ? (
-            <div className="mt-4 rounded-[1.4rem] border border-rose-200 bg-[linear-gradient(135deg,#fff1f2_0%,#ffffff_100%)] px-4 py-4 text-sm text-stone-700 shadow-sm">
+            <div className="mt-4 rounded-[var(--radius-lg)] border border-[var(--accent-soft)] bg-[var(--accent-soft)]/30 px-4 py-4 text-sm text-[var(--ink-soft)]">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="max-w-xl">
-                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-rose-700">
+                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
                     Favorite moment
                   </p>
                   {latestQuote.pinnedAt ? (
-                    <p className="mt-2 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-amber-700">
+                    <p className="mt-2 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">
                       Pinned quote
                     </p>
                   ) : null}
-                  <p className="mt-2 text-base font-medium italic text-stone-950">
+                  <p className="mt-2 text-base font-medium italic text-[var(--ink)]">
                     “{latestQuote.text}”
                   </p>
                   <p className="mt-2 leading-6 text-stone-600">
@@ -1186,14 +1016,14 @@ export function NowPlaying({
                 </div>
                 <div className="flex flex-wrap gap-3">
                   <button
-                    className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
+                    className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white transition hover:bg-[var(--accent-strong)]"
                     type="button"
                     onClick={() => jumpToQuote(latestQuote)}
                   >
                     Jump to quote
                   </button>
                   <button
-                    className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                    className="rounded-full border border-[var(--line-strong)] px-4 py-2 text-sm font-medium text-[var(--ink-soft)] transition hover:bg-[var(--paper-2)]"
                     type="button"
                     onClick={() => {
                       void copyQuote(latestQuote.text);
@@ -1202,14 +1032,14 @@ export function NowPlaying({
                     Copy quote
                   </button>
                   <button
-                    className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                    className="rounded-full border border-[var(--line-strong)] px-4 py-2 text-sm font-medium text-[var(--ink-soft)] transition hover:bg-[var(--paper-2)]"
                     type="button"
                     onClick={() => togglePinnedQuote(latestQuote.id)}
                   >
                     {latestQuote.pinnedAt ? "Unpin quote" : "Pin quote"}
                   </button>
                   <button
-                    className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                    className="rounded-full border border-[var(--line-strong)] px-4 py-2 text-sm font-medium text-[var(--ink-soft)] transition hover:bg-[var(--paper-2)]"
                     type="button"
                     onClick={() => toggleQuotePromotion(latestQuote)}
                   >
@@ -1229,7 +1059,7 @@ export function NowPlaying({
                 return (
                   <div
                     key={quote.id}
-                    className="rounded-[1.4rem] border border-stone-200 bg-white px-4 py-4 text-sm text-stone-700 shadow-sm"
+                    className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-white px-4 py-4 text-sm text-stone-700 shadow-sm"
                   >
                     <p className="text-base font-medium italic text-stone-950">“{quote.text}”</p>
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
@@ -1240,21 +1070,21 @@ export function NowPlaying({
                           {formatPlaybackTime(quote.progressSeconds)}
                         </p>
                         {quote.pinnedAt ? (
-                          <span className="rounded-full border border-amber-300 bg-amber-100 px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-amber-800">
+                          <span className="rounded-full border border-[var(--accent-soft)] bg-[var(--accent-soft)] px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[var(--accent-strong)]">
                             Pinned
                           </span>
                         ) : null}
                       </div>
                       <div className="flex flex-wrap gap-3">
                         <button
-                          className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
+                          className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white transition hover:bg-[var(--accent-strong)]"
                           type="button"
                           onClick={() => jumpToQuote(quote)}
                         >
                           Jump to quote
                         </button>
                         <button
-                          className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                          className="rounded-full border border-[var(--line-strong)] px-4 py-2 text-sm font-medium text-[var(--ink-soft)] transition hover:bg-[var(--paper-2)]"
                           type="button"
                           onClick={() => {
                             void copyQuote(quote.text);
@@ -1263,14 +1093,14 @@ export function NowPlaying({
                           Copy
                         </button>
                         <button
-                          className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                          className="rounded-full border border-[var(--line-strong)] px-4 py-2 text-sm font-medium text-[var(--ink-soft)] transition hover:bg-[var(--paper-2)]"
                           type="button"
                           onClick={() => togglePinnedQuote(quote.id)}
                         >
                           {quote.pinnedAt ? "Unpin" : "Pin"}
                         </button>
                         <button
-                          className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                          className="rounded-full border border-[var(--line-strong)] px-4 py-2 text-sm font-medium text-[var(--ink-soft)] transition hover:bg-[var(--paper-2)]"
                           type="button"
                           onClick={() => toggleQuotePromotion(quote)}
                         >
@@ -1279,7 +1109,7 @@ export function NowPlaying({
                             : "Promote"}
                         </button>
                         <button
-                          className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                          className="rounded-full border border-[var(--line-strong)] px-4 py-2 text-sm font-medium text-[var(--ink-soft)] transition hover:bg-[var(--paper-2)]"
                           type="button"
                           onClick={() => removeQuote(quote.id)}
                         >
@@ -1297,7 +1127,7 @@ export function NowPlaying({
             </p>
           )}
         </div>
-        <div className="mt-6 rounded-[1.6rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm">
+        <div className="mt-6 rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--paper)] p-5">
           <div className="flex items-center justify-between gap-4">
             <div>
               <h4 className="text-lg font-semibold text-stone-900">Bookmarks</h4>
@@ -1319,7 +1149,7 @@ export function NowPlaying({
                   : "timer off"}
               </p>
               <button
-                className="mt-3 rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                className="mt-3 rounded-full border border-[var(--line-strong)] px-4 py-2 text-sm font-medium text-[var(--ink-soft)] transition hover:bg-[var(--paper-2)]"
                 type="button"
                 onClick={resetPlaybackDefaults}
               >
@@ -1328,13 +1158,13 @@ export function NowPlaying({
             </div>
           ) : null}
           {latestBookmark ? (
-            <div className="mt-4 rounded-[1.4rem] border border-amber-200 bg-[linear-gradient(135deg,#fff7ed_0%,#ffffff_100%)] px-4 py-4 text-sm text-stone-700 shadow-sm">
+            <div className="mt-4 rounded-[var(--radius-lg)] border border-[var(--accent-soft)] bg-[var(--accent-soft)]/30 px-4 py-4 text-sm text-[var(--ink-soft)]">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="max-w-xl">
-                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-amber-700">
+                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
                     Jump back in
                   </p>
-                  <p className="mt-2 text-lg font-semibold text-stone-950">
+                  <p className="mt-2 text-lg font-semibold text-[var(--ink)]">
                     {formatBookmarkLabel(
                       chapters[latestBookmark.chapterIndex]?.title ??
                         `Chapter ${latestBookmark.chapterIndex + 1}`,
@@ -1346,7 +1176,7 @@ export function NowPlaying({
                   </p>
                 </div>
                 <button
-                  className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
+                  className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white transition hover:bg-[var(--accent-strong)]"
                   type="button"
                   onClick={() => jumpToBookmark(latestBookmark)}
                 >
@@ -1367,7 +1197,7 @@ export function NowPlaying({
                 return (
                   <div
                     key={bookmark.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-[1.4rem] border border-stone-200 bg-white px-4 py-3 text-sm text-stone-700 shadow-sm"
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-lg)] border border-[var(--line)] bg-white px-4 py-3 text-sm text-stone-700 shadow-sm"
                   >
                     <div>
                       <p className="font-medium text-stone-900">{bookmarkLabel}</p>
@@ -1380,14 +1210,14 @@ export function NowPlaying({
                     </div>
                     <div className="flex flex-wrap gap-3">
                       <button
-                        className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
+                        className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white transition hover:bg-[var(--accent-strong)]"
                         type="button"
                         onClick={() => jumpToBookmark(bookmark)}
                       >
                         Jump to bookmark
                       </button>
                       <button
-                        className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
+                        className="rounded-full border border-[var(--line-strong)] px-4 py-2 text-sm font-medium text-[var(--ink-soft)] transition hover:bg-[var(--paper-2)]"
                         type="button"
                         onClick={() => removeBookmark(bookmark.id)}
                       >

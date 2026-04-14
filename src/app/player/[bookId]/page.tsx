@@ -729,12 +729,29 @@ export default function PlayerPage({ params }: PlayerPageProps) {
 
   return (
     <AppShell variant="player" title={bookTitle}>
+      <NowPlaying
+        audioKind={preferredAudioKind}
+        audioUrl={audioUrl}
+        bookId={bookId}
+        bookTitle={bookTitle}
+        chapters={playerChapters}
+        chapterStartSeconds={importedAudioChapterStarts}
+        totalAudioDurationSeconds={hydratedBookMeta?.importedAudioDurationSeconds ?? null}
+        initialJumpTarget={initialJumpTarget}
+        initialPlaybackDefaults={hydratedPlaybackDefaults}
+        initialPlaybackState={hydratedPlaybackState}
+        mode={displayMode}
+        narratorName={displayNarratorName}
+        playbackIsReady={Boolean(audioUrl)}
+        experienceMode={experienceMode}
+      />
       <ExperienceModeToggle
         detail="Everyday keeps playback focused on the book, your place, and the next simple action. Studio reveals compare mode and deeper system context."
         mode={experienceMode}
         onModeChange={setExperienceMode}
         title="Keep playback simple or open advanced controls"
       />
+      {experienceMode === "studio" ? (
       <section className="rounded-[2rem] border border-stone-200/80 bg-[linear-gradient(135deg,#fffefb_0%,#ffffff_42%,#eef4ff_100%)] p-6 shadow-[0_24px_70px_-46px_rgba(28,25,23,0.42)]">
         <StateSummaryPanel
           label={preferredAudioKind ? "Playback is ready" : "Playback needs audio first"}
@@ -846,6 +863,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
         </div>
         ) : null}
       </section>
+      ) : null}
       {experienceMode === "studio" ? (
         <AuthorSpotlightCard spotlight={authorSpotlight} />
       ) : null}
@@ -948,21 +966,6 @@ export default function PlayerPage({ params }: PlayerPageProps) {
           </div>
         </section>
       ) : null}
-      <NowPlaying
-        audioKind={preferredAudioKind}
-        audioUrl={audioUrl}
-        bookId={bookId}
-        bookTitle={bookTitle}
-        chapters={playerChapters}
-        chapterStartSeconds={importedAudioChapterStarts}
-        totalAudioDurationSeconds={hydratedBookMeta?.importedAudioDurationSeconds ?? null}
-        initialJumpTarget={initialJumpTarget}
-        initialPlaybackDefaults={hydratedPlaybackDefaults}
-        initialPlaybackState={hydratedPlaybackState}
-        mode={displayMode}
-        narratorName={displayNarratorName}
-        playbackIsReady={Boolean(audioUrl)}
-      />
       <section className="rounded-[1.75rem] border border-stone-200 bg-white p-6 shadow-sm">
         {experienceMode === "studio" ? (
           <>
