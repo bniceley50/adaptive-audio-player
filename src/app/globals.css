@@ -1,8 +1,45 @@
 @import "tailwindcss";
 
 :root {
-  --background: #fcfaf5;
-  --foreground: #1f1a17;
+  /* Core surfaces */
+  --background: #fbf6ef;
+  --foreground: #211712;
+
+  /* Paper scale (light surfaces) */
+  --paper: #fffaf3;
+  --paper-2: #f2e7d8;
+  --paper-3: #e7d6c2;
+
+  /* Ink scale (text) */
+  --ink: #211712;
+  --ink-soft: #6d5648;
+  --ink-muted: #9c8577;
+
+  /* Borders */
+  --line: rgba(71, 47, 33, 0.12);
+  --line-strong: rgba(71, 47, 33, 0.22);
+
+  /* Accent (warm coral/terracotta) */
+  --accent: #cb6d3b;
+  --accent-strong: #a95227;
+  --accent-soft: #f6d7c4;
+
+  /* Player dark surface */
+  --player-bg-1: #120e0b;
+  --player-bg-2: #241914;
+  --player-bg-3: #3e2723;
+  --player-panel: rgba(255, 255, 255, 0.06);
+  --player-border: rgba(255, 255, 255, 0.08);
+  --player-text: #efebe9;
+  --player-text-soft: #bcaaa4;
+  --player-text-muted: #8d6e63;
+  --player-accent: #ffab91;
+
+  /* Radius scale */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
 }
 
 @theme inline {

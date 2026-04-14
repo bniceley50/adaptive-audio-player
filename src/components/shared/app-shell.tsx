@@ -8,10 +8,12 @@ export function AppShell({
   eyebrow,
   title,
   children,
+  variant = "default",
 }: {
   eyebrow?: string;
   title: string;
   children: ReactNode;
+  variant?: "default" | "player";
 }) {
   const pathname = usePathname();
   const navItems = [
@@ -20,6 +22,60 @@ export function AppShell({
     { href: "/social", label: "Community", description: "Versions, clubs, highlights" },
     { href: "/jobs", label: "Jobs", description: "Queue and backend activity" },
   ];
+
+  const playerNavItems = [
+    { href: "/", label: "Home" },
+    { href: "/import", label: "Import" },
+    { href: "/jobs", label: "Jobs" },
+  ];
+
+  if (variant === "player") {
+    return (
+      <main className="min-h-screen bg-[var(--player-bg-1)] text-[var(--player-text)]">
+        <div className="mx-auto w-full max-w-7xl px-4 py-3 lg:px-6">
+          <header className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-lg)] border border-[var(--player-border)] bg-[var(--player-panel)] px-4 py-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <Link
+                className="shrink-0 text-sm text-[var(--player-text-soft)] transition hover:text-[var(--player-text)]"
+                href="/"
+              >
+                ← Library
+              </Link>
+              <h1 className="truncate text-lg font-semibold text-white">
+                {title}
+              </h1>
+            </div>
+            <nav className="flex flex-wrap gap-2">
+              {playerNavItems.map((item) => {
+                const isActive =
+                  item.href === "/"
+                    ? pathname === item.href
+                    : pathname === item.href || pathname.startsWith(`${item.href}/`);
+
+                return (
+                  <Link
+                    key={item.href}
+                    className={`rounded-full px-3 py-1.5 text-sm font-medium transition ${
+                      isActive
+                        ? "bg-white/12 text-white"
+                        : "text-[var(--player-text-soft)] hover:bg-white/6 hover:text-[var(--player-text)]"
+                    }`}
+                    href={item.href}
+                    {...(isActive ? { "aria-current": "page" as const } : {})}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </header>
+          <div className="flex flex-col gap-6">
+            {children}
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,#f4e8cf_0%,#fbf8f2_24%,#ffffff_62%)] px-6 py-8 text-stone-900">
