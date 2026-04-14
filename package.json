@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "typecheck": "rm -rf .next && next typegen && tsc --noEmit",
+    "typecheck": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true})}catch(e){}\" && next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "env -u NO_COLOR playwright test",
