@@ -705,7 +705,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
 
   if (hydratedRemovedBook) {
     return (
-      <AppShell eyebrow="Player" title={`${hydratedRemovedBook.book.title} needs recovery`}>
+      <AppShell variant="player" title={hydratedRemovedBook.book.title}>
         <RemovedBookRecoveryCard removedBook={hydratedRemovedBook} returnHref="/" />
       </AppShell>
     );
@@ -713,7 +713,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
 
   if (!draftText && recoveryState === "recovering") {
     return (
-      <AppShell eyebrow="Player" title="Restoring player">
+      <AppShell variant="player" title="Restoring...">
         <section className="rounded-[1.75rem] border border-stone-200 bg-white p-6 shadow-sm">
           <h2 className="text-2xl font-semibold text-stone-950">
             Restoring this book from your synced library
@@ -728,7 +728,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
   }
 
   return (
-    <AppShell eyebrow="Player" title="Listen to your book">
+    <AppShell variant="player" title={bookTitle}>
       <ExperienceModeToggle
         detail="Everyday keeps playback focused on the book, your place, and the next simple action. Studio reveals compare mode and deeper system context."
         mode={experienceMode}
