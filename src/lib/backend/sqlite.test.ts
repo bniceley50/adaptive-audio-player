@@ -450,7 +450,7 @@ describe("backend sqlite library sync", () => {
     expect(getUserById(user.id)?.sessionVersion).toBe(2);
     const session = createAccountSession(
       user.id,
-      "2026-04-08T12:10:00.000Z",
+      new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
       "Safari on Mac",
     );
     expect(session?.userId).toBe(user.id);
