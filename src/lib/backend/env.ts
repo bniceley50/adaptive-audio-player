@@ -59,8 +59,40 @@ export function getSessionSecret() {
   return developmentSessionSecret;
 }
 
-export function getOpenAIApiKey() {
-  return readOptionalStringEnv("OPENAI_API_KEY");
+function isLoopbackTtsHost(hostname: string) {
+  const normalizedHostname = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  return (
+    normalizedHostname === "localhost" ||
+    normalizedHostname === "::1" ||
+    normalizedHostname.startsWith("127.")
+  );
+}
+
+export function getLocalTtsConfig() {
+  const rawUrl =
+    readOptionalStringEnv("ADAPTIVE_AUDIO_PLAYER_TTS_URL") ??
+    "http://127.0.0.1:8765";
+  let parsedUrl: URL;
+
+  try {
+    parsedUrl = new URL(rawUrl);
+  } catch {
+    throw new Error("ADAPTIVE_AUDIO_PLAYER_TTS_URL must be a valid URL.");
+  }
+
+  if (parsedUrl.protocol !== "http:" || !isLoopbackTtsHost(parsedUrl.hostname)) {
+    throw new Error(
+      "ADAPTIVE_AUDIO_PLAYER_TTS_URL must be an http:// localhost URL.",
+    );
+  }
+
+  return {
+    url: parsedUrl.origin,
+    timeoutMs: readPositiveNumberEnv(
+      "ADAPTIVE_AUDIO_PLAYER_TTS_TIMEOUT_MS",
+      180_000,
+    ),
+  };
 }
 
 export function getWorkerConfig() {

@@ -23,6 +23,7 @@ import {
   readAccountIdFromRequest,
   readWorkspaceIdFromRequest,
 } from "@/lib/backend/workspace-session";
+import type { GenerationOutputProvider } from "@/lib/backend/types";
 
 function describeJob(job: {
   kind: string;
@@ -60,8 +61,12 @@ function labelJobKind(kind: string) {
   return "Library sync";
 }
 
-function labelProvider(provider: "openai" | "mock") {
-  return provider === "openai" ? "OpenAI TTS" : "Local mock TTS";
+function labelProvider(provider: GenerationOutputProvider) {
+  if (provider === "kokoro-local") {
+    return "Local Kokoro TTS";
+  }
+
+  return provider === "openai" ? "Legacy OpenAI TTS" : "Demo mock audio";
 }
 
 function buildArtifactPlayerHref(input: {
@@ -147,7 +152,7 @@ export default async function JobsPage() {
         generatedAt: string;
         narratorId: string | null;
         mode: string | null;
-        provider: "openai" | "mock";
+        provider: GenerationOutputProvider;
         isCurrent: boolean;
         playerHref: string;
       }>;

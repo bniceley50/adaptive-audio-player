@@ -67,6 +67,14 @@ const narratorOptions = [
   },
 ];
 
+function labelGenerationProvider(provider: GenerationOutputSummary["provider"]) {
+  if (provider === "kokoro-local") {
+    return "Local Kokoro TTS";
+  }
+
+  return provider === "openai" ? "Legacy OpenAI TTS" : "Demo mock audio";
+}
+
 const primaryActionClass =
   "inline-flex rounded-full bg-[#274c5b] px-5 py-3 text-sm font-semibold text-stone-50 shadow-[0_14px_32px_-24px_rgba(39,76,91,0.8)] transition hover:bg-[#1f3d49] disabled:bg-stone-300 disabled:text-stone-500";
 const secondaryActionClass =
@@ -649,30 +657,6 @@ export default function BookPage({ params }: BookPageProps) {
         };
         writeLocalSampleRequest(request);
         setGeneratedSample(request);
-        setSampleOutput({
-          workspaceId: payload.job.workspaceId,
-          bookId,
-          kind: "sample-generation",
-          narratorId: selectedNarrator,
-          mode: selectedMode,
-          chapterCount: chapters.length,
-          assetPath: "",
-          mimeType: "audio/wav",
-          provider: "mock",
-          generatedAt: payload.job.completedAt ?? new Date().toISOString(),
-        });
-        writeLocalGenerationOutput({
-          workspaceId: payload.job.workspaceId,
-          bookId,
-          kind: "sample-generation",
-          narratorId: selectedNarrator,
-          mode: selectedMode,
-          chapterCount: chapters.length,
-          assetPath: "",
-          mimeType: "audio/wav",
-          provider: "mock",
-          generatedAt: payload.job.completedAt ?? new Date().toISOString(),
-        });
         await loadBookJobs();
       }
     }
@@ -718,30 +702,6 @@ export default function BookPage({ params }: BookPageProps) {
 
       setFullBookJob(payload.job);
       if (payload.job.status === "completed") {
-        setFullBookOutput({
-          workspaceId: payload.job.workspaceId,
-          bookId,
-          kind: "full-book-generation",
-          narratorId: payload.job.narratorId,
-          mode: payload.job.mode,
-          chapterCount: payload.job.chapterCount,
-          assetPath: "",
-          mimeType: "audio/wav",
-          provider: "mock",
-          generatedAt: payload.job.completedAt ?? new Date().toISOString(),
-        });
-        writeLocalGenerationOutput({
-          workspaceId: payload.job.workspaceId,
-          bookId,
-          kind: "full-book-generation",
-          narratorId: payload.job.narratorId,
-          mode: payload.job.mode,
-          chapterCount: payload.job.chapterCount,
-          assetPath: "",
-          mimeType: "audio/wav",
-          provider: "mock",
-          generatedAt: payload.job.completedAt ?? new Date().toISOString(),
-        });
         await loadBookJobs();
       }
     }
@@ -1561,8 +1521,7 @@ export default function BookPage({ params }: BookPageProps) {
                 >
                   <p className="text-sm font-medium text-white">Generated sample audio</p>
                   <p className="mt-2 text-sm text-stone-300">
-                    Provider:{" "}
-                    {sampleOutput.provider === "openai" ? "OpenAI TTS" : "Local mock TTS"}
+                    Provider: {labelGenerationProvider(sampleOutput.provider)}
                   </p>
                   <audio
                     className="mt-4 w-full"
@@ -1634,7 +1593,7 @@ export default function BookPage({ params }: BookPageProps) {
                         key={artifact.id}
                         className="rounded-[1.35rem] border border-amber-300/30 bg-[linear-gradient(180deg,rgba(252,211,77,0.14)_0%,rgba(255,255,255,0.06)_100%)] px-4 py-4"
                         generatedAt={artifact.generatedAt}
-                        meta={`${artifact.narratorId ? `Narrator ${artifact.narratorId} · ` : ""}${artifact.mode ? `Mode ${artifact.mode} · ` : ""}${artifact.provider === "openai" ? "OpenAI TTS" : "Local mock TTS"}`}
+                        meta={`${artifact.narratorId ? `Narrator ${artifact.narratorId} · ` : ""}${artifact.mode ? `Mode ${artifact.mode} · ` : ""}${labelGenerationProvider(artifact.provider)}`}
                         timestampClassName="rounded-full border border-amber-300/40 bg-amber-300/15 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-amber-100"
                         title={
                           artifact.kind === "full-book-generation"
@@ -1686,7 +1645,7 @@ export default function BookPage({ params }: BookPageProps) {
                       <RenderArtifactCard
                         key={artifact.id}
                         generatedAt={artifact.generatedAt}
-                        meta={`${artifact.narratorId ? `Narrator ${artifact.narratorId} · ` : ""}${artifact.mode ? `Mode ${artifact.mode} · ` : ""}${artifact.provider === "openai" ? "OpenAI TTS" : "Local mock TTS"}`}
+                        meta={`${artifact.narratorId ? `Narrator ${artifact.narratorId} · ` : ""}${artifact.mode ? `Mode ${artifact.mode} · ` : ""}${labelGenerationProvider(artifact.provider)}`}
                         title={
                           artifact.kind === "full-book-generation"
                             ? "Archived full-book render"

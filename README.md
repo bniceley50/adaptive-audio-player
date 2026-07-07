@@ -198,8 +198,8 @@ pnpm lint && pnpm typecheck && pnpm test
 
 ## TTS Generation
 
-- If `OPENAI_API_KEY` is set, the worker uses the OpenAI speech API for generated sample/full-book audio.
-- If the key is missing, the worker falls back to deterministic local mock audio so the app and tests still run.
+- The worker uses the localhost-only Kokoro sidecar at `ADAPTIVE_AUDIO_PLAYER_TTS_URL` for generated sample/full-book audio.
+- If the sidecar is missing, down, or unable to verify its pinned model weights, generation fails with a visible job error instead of returning substitute audio.
 - Generated audio is stored under `data/generated-audio/` and streamed through secured app routes.
 - Session signing now reads from `ADAPTIVE_AUDIO_PLAYER_SESSION_SECRET`; in production this must be set explicitly.
 

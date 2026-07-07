@@ -4,4 +4,4 @@ kokoro==0.9.4
 huggingface-hub==1.22.0
 numpy==2.5.1
 soundfile==0.14.0
-
+en-core-web-sm==3.8.0

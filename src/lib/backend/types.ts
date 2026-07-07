@@ -140,6 +140,7 @@ export interface SyncJobSummary {
 }
 
 export type GenerationJobKind = "sample-generation" | "full-book-generation";
+export type GenerationOutputProvider = "kokoro-local" | "openai" | "mock";
 
 export interface GenerationOutputSummary {
   workspaceId: string;
@@ -150,7 +151,7 @@ export interface GenerationOutputSummary {
   chapterCount: number | null;
   assetPath: string;
   mimeType: string;
-  provider: "openai" | "mock";
+  provider: GenerationOutputProvider;
   generatedAt: string;
 }
 

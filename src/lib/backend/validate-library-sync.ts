@@ -1,4 +1,4 @@
-import type { LibrarySyncSnapshot } from "./types.ts";
+import type { GenerationOutputProvider, LibrarySyncSnapshot } from "./types.ts";
 import type { PinnedDiscoverySignal } from "@/lib/types/discovery";
 import type { SyncedSocialState } from "@/lib/types/social";
 
@@ -44,6 +44,16 @@ function readStringRecord(value: unknown): Record<string, string> | null {
   }
 
   return Object.fromEntries(nextEntries);
+}
+
+function readGenerationOutputProvider(
+  value: unknown,
+): GenerationOutputProvider | null {
+  if (value === "kokoro-local" || value === "openai" || value === "mock") {
+    return value;
+  }
+
+  return null;
 }
 
 function readPinnedDiscoverySignal(value: unknown): PinnedDiscoverySignal {
@@ -325,6 +335,7 @@ export function parseLibrarySyncSnapshot(
                   const assetPath = readString(output.assetPath);
                   const mimeType = readString(output.mimeType);
                   const provider = readString(output.provider);
+                  const parsedProvider = readGenerationOutputProvider(provider);
                   const generatedAt = readString(output.generatedAt);
                   const narratorId = readString(output.narratorId);
                   const mode = readString(output.mode);
@@ -335,7 +346,7 @@ export function parseLibrarySyncSnapshot(
                     (kind !== "sample-generation" && kind !== "full-book-generation") ||
                     !assetPath ||
                     !mimeType ||
-                    (provider !== "openai" && provider !== "mock") ||
+                    !parsedProvider ||
                     !generatedAt
                   ) {
                     return null;
@@ -350,7 +361,7 @@ export function parseLibrarySyncSnapshot(
                     chapterCount: chapterCountValue,
                     assetPath,
                     mimeType,
-                    provider: provider as "openai" | "mock",
+                    provider: parsedProvider,
                     generatedAt,
                   };
                 })

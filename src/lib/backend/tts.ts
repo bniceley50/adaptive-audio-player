@@ -1,28 +1,22 @@
-import { getOpenAIApiKey } from "./env.ts";
-import { generateMockWav } from "./mock-audio.ts";
+import { readFile } from "node:fs/promises";
 
-function narratorToVoice(narratorId: string | null) {
-  switch (narratorId) {
-    case "sloane":
-      return "sage";
-    case "jules":
-      return "coral";
-    case "marlowe":
-    default:
-      return "ash";
-  }
+import { getLocalTtsConfig } from "./env.ts";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
-function buildInstructions(mode: string | null) {
-  if (mode === "immersive") {
-    return "Voice Affect: Cinematic and warm. Tone: Immersive. Pacing: Steady. Delivery: Clear long-form narration.";
+async function readPlainEnglishError(response: Response) {
+  const payload = (await response.json().catch(() => null)) as unknown;
+  if (isRecord(payload) && typeof payload.detail === "string") {
+    return payload.detail;
   }
 
-  if (mode === "classic") {
-    return "Voice Affect: Clean and neutral. Tone: Professional. Pacing: Steady. Delivery: Plain audiobook narration.";
+  if (isRecord(payload) && typeof payload.error === "string") {
+    return payload.error;
   }
 
-  return "Voice Affect: Calm and warm. Tone: Conversational. Pacing: Measured. Delivery: Clear accessibility narration.";
+  return `The local TTS sidecar returned HTTP ${response.status}.`;
 }
 
 export async function synthesizeAudio(input: {
@@ -32,48 +26,73 @@ export async function synthesizeAudio(input: {
 }) {
   const trimmedText = input.text.trim();
   if (!trimmedText) {
-    return {
-      data: generateMockWav("Empty narration"),
-      mimeType: "audio/wav",
-      extension: "wav",
-      provider: "mock" as const,
-    };
+    throw new Error("Text is required before local narration can run.");
   }
 
-  const apiKey = getOpenAIApiKey();
-  if (!apiKey) {
-    return {
-      data: generateMockWav(trimmedText),
-      mimeType: "audio/wav",
-      extension: "wav",
-      provider: "mock" as const,
-    };
-  }
+  const config = getLocalTtsConfig();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
+  const renderUrl = new URL("/render", config.url).toString();
 
-  const response = await fetch("https://api.openai.com/v1/audio/speech", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini-tts",
-      voice: narratorToVoice(input.narratorId),
-      input: trimmedText.slice(0, 4000),
-      format: "mp3",
-      instructions: buildInstructions(input.mode),
-    }),
-  });
+  let response: Response;
+  try {
+    response = await fetch(renderUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        text: trimmedText,
+        voice: input.narratorId ?? "marlowe",
+        speed: 1,
+      }),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(
+        "Local TTS sidecar timed out before it returned audio. Make sure Kokoro is running and try a shorter sample.",
+      );
+    }
+
+    throw new Error(
+      "Local TTS sidecar is not reachable. Start the Kokoro sidecar before generating audio.",
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
-    throw new Error(`OpenAI TTS failed with status ${response.status}.`);
+    throw new Error(`Local TTS sidecar failed: ${await readPlainEnglishError(response)}`);
   }
 
-  const arrayBuffer = await response.arrayBuffer();
+  const payload = (await response.json().catch(() => null)) as unknown;
+  if (!isRecord(payload)) {
+    throw new Error("Local TTS sidecar returned an invalid render response.");
+  }
+
+  if (payload.provider !== "kokoro-local") {
+    throw new Error("Local TTS sidecar returned an unexpected audio provider.");
+  }
+
+  const audioPath = typeof payload.audioPath === "string" ? payload.audioPath : "";
+  if (!audioPath.trim()) {
+    throw new Error("Local TTS sidecar did not report a generated audio file.");
+  }
+
+  let data: Buffer;
+  try {
+    data = await readFile(audioPath);
+  } catch {
+    throw new Error(
+      "Local TTS sidecar reported audio, but the app could not read the generated file.",
+    );
+  }
+
   return {
-    data: Buffer.from(arrayBuffer),
-    mimeType: "audio/mpeg",
-    extension: "mp3",
-    provider: "openai" as const,
+    data,
+    mimeType: "audio/wav",
+    extension: "wav",
+    provider: "kokoro-local" as const,
   };
 }

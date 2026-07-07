@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   getDatabasePath,
-  getOpenAIApiKey,
+  getLocalTtsConfig,
   getSessionSecret,
   getWorkerConfig,
 } from "@/lib/backend/env";
@@ -10,7 +10,8 @@ import {
 const originalNodeEnv = process.env.NODE_ENV;
 const originalDbPath = process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH;
 const originalSessionSecret = process.env.ADAPTIVE_AUDIO_PLAYER_SESSION_SECRET;
-const originalOpenAiKey = process.env.OPENAI_API_KEY;
+const originalTtsUrl = process.env.ADAPTIVE_AUDIO_PLAYER_TTS_URL;
+const originalTtsTimeoutMs = process.env.ADAPTIVE_AUDIO_PLAYER_TTS_TIMEOUT_MS;
 const originalPollMs = process.env.ADAPTIVE_AUDIO_PLAYER_WORKER_POLL_MS;
 const originalSampleDuration =
   process.env.ADAPTIVE_AUDIO_PLAYER_SAMPLE_JOB_DURATION_MS;
@@ -38,10 +39,16 @@ afterEach(() => {
     process.env.ADAPTIVE_AUDIO_PLAYER_SESSION_SECRET = originalSessionSecret;
   }
 
-  if (originalOpenAiKey === undefined) {
-    delete process.env.OPENAI_API_KEY;
+  if (originalTtsUrl === undefined) {
+    delete process.env.ADAPTIVE_AUDIO_PLAYER_TTS_URL;
   } else {
-    process.env.OPENAI_API_KEY = originalOpenAiKey;
+    process.env.ADAPTIVE_AUDIO_PLAYER_TTS_URL = originalTtsUrl;
+  }
+
+  if (originalTtsTimeoutMs === undefined) {
+    delete process.env.ADAPTIVE_AUDIO_PLAYER_TTS_TIMEOUT_MS;
+  } else {
+    process.env.ADAPTIVE_AUDIO_PLAYER_TTS_TIMEOUT_MS = originalTtsTimeoutMs;
   }
 
   if (originalPollMs === undefined) {
@@ -84,10 +91,30 @@ describe("backend env helpers", () => {
     );
   });
 
-  it("returns a trimmed OpenAI key when present", () => {
-    process.env.OPENAI_API_KEY = "  test-key  ";
+  it("defaults the local TTS sidecar to localhost", () => {
+    delete process.env.ADAPTIVE_AUDIO_PLAYER_TTS_URL;
+    delete process.env.ADAPTIVE_AUDIO_PLAYER_TTS_TIMEOUT_MS;
 
-    expect(getOpenAIApiKey()).toBe("test-key");
+    expect(getLocalTtsConfig()).toEqual({
+      url: "http://127.0.0.1:8765",
+      timeoutMs: 180_000,
+    });
+  });
+
+  it("accepts only localhost TTS sidecar URLs", () => {
+    process.env.ADAPTIVE_AUDIO_PLAYER_TTS_URL = " http://localhost:8766/custom ";
+    process.env.ADAPTIVE_AUDIO_PLAYER_TTS_TIMEOUT_MS = "2500";
+
+    expect(getLocalTtsConfig()).toEqual({
+      url: "http://localhost:8766",
+      timeoutMs: 2500,
+    });
+
+    process.env.ADAPTIVE_AUDIO_PLAYER_TTS_URL = "https://api.openai.com";
+
+    expect(() => getLocalTtsConfig()).toThrow(
+      "ADAPTIVE_AUDIO_PLAYER_TTS_URL must be an http:// localhost URL.",
+    );
   });
 
   it("validates positive worker durations", () => {

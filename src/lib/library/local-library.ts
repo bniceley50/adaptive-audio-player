@@ -4,6 +4,7 @@ import {
   writePersistedPlaybackState,
   type PersistedPlaybackState,
 } from "@/lib/playback/local-playback";
+import type { GenerationOutputProvider } from "@/lib/backend/types";
 
 export interface LocalLibraryBook {
   bookId: string;
@@ -61,7 +62,7 @@ export interface LocalGenerationOutput {
   chapterCount: number | null;
   assetPath: string;
   mimeType: string;
-  provider: "openai" | "mock";
+  provider: GenerationOutputProvider;
   generatedAt: string;
 }
 

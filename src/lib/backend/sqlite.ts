@@ -10,6 +10,7 @@ import type {
   BackendUser,
   EndedAccountSessionSummary,
   GenerationArtifactSummary,
+  GenerationOutputProvider,
   GenerationOutputSummary,
   GenerationJobKind,
   LibrarySyncSnapshot,
@@ -2942,7 +2943,7 @@ export function completeGenerationJob(
   outputAsset?: {
     assetPath: string;
     mimeType: string;
-    provider: "openai" | "mock";
+    provider: GenerationOutputProvider;
   } | null,
 ): SyncJobSummary | null {
   const job = getGenerationJob(jobId, workspaceId);
@@ -3195,6 +3196,10 @@ function mapGenerationOutputRows(
 ): GenerationOutputSummary[] {
   return rows.map((row) => {
     const output = JSON.parse(row.output_json) as Partial<GenerationOutputSummary>;
+    const provider =
+      output.provider === "kokoro-local" || output.provider === "openai"
+        ? output.provider
+        : "mock";
 
     return {
       workspaceId: row.workspace_id,
@@ -3205,7 +3210,7 @@ function mapGenerationOutputRows(
       chapterCount: output.chapterCount ?? null,
       assetPath: output.assetPath ?? "",
       mimeType: output.mimeType ?? "audio/wav",
-      provider: output.provider === "openai" ? "openai" : "mock",
+      provider,
       generatedAt: output.generatedAt ?? new Date(0).toISOString(),
     };
   });
@@ -3223,6 +3228,10 @@ function mapGenerationArtifactRows(
 ): GenerationArtifactSummary[] {
   return rows.map((row) => {
     const output = JSON.parse(row.output_json) as Partial<GenerationOutputSummary>;
+    const provider =
+      output.provider === "kokoro-local" || output.provider === "openai"
+        ? output.provider
+        : "mock";
 
     return {
       id: row.id,
@@ -3235,7 +3244,7 @@ function mapGenerationArtifactRows(
       chapterCount: output.chapterCount ?? null,
       assetPath: output.assetPath ?? "",
       mimeType: output.mimeType ?? "audio/wav",
-      provider: output.provider === "openai" ? "openai" : "mock",
+      provider,
       generatedAt: output.generatedAt ?? new Date(0).toISOString(),
     };
   });
