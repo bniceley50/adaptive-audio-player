@@ -26,6 +26,8 @@
 # misc
 .DS_Store
 *.pem
+__pycache__/
+*.py[cod]
 
 # debug
 npm-debug.log*
@@ -44,6 +46,7 @@ yarn-error.log*
 /data/*.sqlite-shm
 /data/*.sqlite-wal
 /data/generated-audio
+/data/local-tts
 /demo-assets/audiobooks
 
 # typescript
