@@ -174,16 +174,24 @@ export default function BookPage({ params }: BookPageProps) {
     generationJob?.status === "queued" || generationJob?.status === "running";
   const fullBookJobIsActive =
     fullBookJob?.status === "queued" || fullBookJob?.status === "running";
+  const fullBookRenderProgress = fullBookJob?.renderProgress ?? null;
+  const fullBookRenderProgressLabel = fullBookRenderProgress
+    ? `${fullBookRenderProgress.completedChapters} / ${fullBookRenderProgress.totalChapters} chapters`
+    : null;
   const renderGroups = useMemo(() => {
     const currentRenders: GenerationArtifactSummary[] = [];
     const archivedRenders: GenerationArtifactSummary[] = [];
 
     for (const artifact of artifactHistory) {
+      const isCurrentChapterArtifact =
+        artifact.isChapterArtifact &&
+        !!fullBookOutput?.chapterAssetPaths?.includes(artifact.assetPath);
       const isLatestForKind =
         (artifact.kind === "sample-generation" &&
           artifact.generatedAt === sampleOutput?.generatedAt) ||
         (artifact.kind === "full-book-generation" &&
-          artifact.generatedAt === fullBookOutput?.generatedAt);
+          (artifact.generatedAt === fullBookOutput?.generatedAt ||
+            isCurrentChapterArtifact));
 
       if (isLatestForKind) {
         currentRenders.push(artifact);
@@ -196,7 +204,12 @@ export default function BookPage({ params }: BookPageProps) {
       currentRenders,
       archivedRenders,
     };
-  }, [artifactHistory, fullBookOutput?.generatedAt, sampleOutput?.generatedAt]);
+  }, [
+    artifactHistory,
+    fullBookOutput?.chapterAssetPaths,
+    fullBookOutput?.generatedAt,
+    sampleOutput?.generatedAt,
+  ]);
   const setupStage = sampleJobIsActive
     ? {
         label: "Generating sample",
@@ -1380,6 +1393,14 @@ export default function BookPage({ params }: BookPageProps) {
                           : "Not queued yet"}
                 </span>
               </div>
+              {fullBookRenderProgress ? (
+                <div className="flex items-center justify-between gap-4 text-sm">
+                  <span className="text-stone-300">Full book chapters</span>
+                  <span className="font-medium text-white">
+                    {fullBookRenderProgressLabel}
+                  </span>
+                </div>
+              ) : null}
             </div>
           ) : null}
           {experienceMode === "studio" ? (
@@ -1476,6 +1497,17 @@ export default function BookPage({ params }: BookPageProps) {
               </Link>
             ) : null}
           </div>
+          {fullBookJobIsActive && fullBookRenderProgress ? (
+            <div className="mt-6 rounded-[1.5rem] border border-sky-200/35 bg-sky-50 px-5 py-4 text-sm text-sky-950">
+              <p className="font-medium">Full-book chapter render in progress</p>
+              <p className="mt-2 text-sky-800">
+                {fullBookRenderProgressLabel}
+                {fullBookRenderProgress.currentChapterTitle
+                  ? ` · Rendering ${fullBookRenderProgress.currentChapterTitle}`
+                  : ""}
+              </p>
+            </div>
+          ) : null}
           {generationJob?.status === "failed" ? (
             <div className="mt-6 rounded-[1.5rem] border border-rose-300 bg-rose-50 px-5 py-4 text-sm text-rose-950">
               <p className="font-medium">Sample generation failed</p>
@@ -1596,7 +1628,11 @@ export default function BookPage({ params }: BookPageProps) {
                         meta={`${artifact.narratorId ? `Narrator ${artifact.narratorId} · ` : ""}${artifact.mode ? `Mode ${artifact.mode} · ` : ""}${labelGenerationProvider(artifact.provider)}`}
                         timestampClassName="rounded-full border border-amber-300/40 bg-amber-300/15 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-amber-100"
                         title={
-                          artifact.kind === "full-book-generation"
+                          artifact.isChapterArtifact
+                            ? `Current chapter ${Number(artifact.chapterIndex ?? 0) + 1}: ${
+                                artifact.chapterTitle ?? "Untitled"
+                              }`
+                            : artifact.kind === "full-book-generation"
                             ? "Current full-book render"
                             : "Current sample render"
                         }
@@ -1608,7 +1644,9 @@ export default function BookPage({ params }: BookPageProps) {
                                 artifact.narratorId ? `&narrator=${artifact.narratorId}` : ""
                               }${artifact.mode ? `&mode=${artifact.mode}` : ""}`}
                             >
-                              {artifact.kind === "full-book-generation"
+                              {artifact.isChapterArtifact
+                                ? "Open current chapter"
+                                : artifact.kind === "full-book-generation"
                                 ? "Listen current full book"
                                 : "Open current sample"}
                             </Link>
@@ -1617,8 +1655,10 @@ export default function BookPage({ params }: BookPageProps) {
                                 className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
                                 href={`/api/audio/generated/artifacts/${artifact.id}`}
                                 target="_blank"
-                              >
-                                {artifact.kind === "full-book-generation"
+                            >
+                                {artifact.isChapterArtifact
+                                  ? "Download current chapter"
+                                  : artifact.kind === "full-book-generation"
                                   ? "Download current full book"
                                   : "Download current sample"}
                               </Link>
@@ -1647,7 +1687,11 @@ export default function BookPage({ params }: BookPageProps) {
                         generatedAt={artifact.generatedAt}
                         meta={`${artifact.narratorId ? `Narrator ${artifact.narratorId} · ` : ""}${artifact.mode ? `Mode ${artifact.mode} · ` : ""}${labelGenerationProvider(artifact.provider)}`}
                         title={
-                          artifact.kind === "full-book-generation"
+                          artifact.isChapterArtifact
+                            ? `Archived chapter ${Number(artifact.chapterIndex ?? 0) + 1}: ${
+                                artifact.chapterTitle ?? "Untitled"
+                              }`
+                            : artifact.kind === "full-book-generation"
                             ? "Archived full-book render"
                             : "Archived sample render"
                         }

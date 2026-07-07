@@ -37,6 +37,7 @@ import {
   rotateUserSessionVersion,
   retryGenerationJob,
   syncWorkspaceLibrarySnapshot,
+  updateGenerationJobProgress,
   upsertUserByEmail,
 } from "@/lib/backend/sqlite";
 
@@ -1011,6 +1012,19 @@ describe("backend sqlite library sync", () => {
       status: "running",
     });
     expect(runningFullBookJob?.id).toBe(queuedFullBookJob?.id);
+    expect(
+      updateGenerationJobProgress(queuedFullBookJob?.id ?? "", "workspace-jobs", {
+        totalChapters: 2,
+        completedChapters: 1,
+        currentChapterIndex: 0,
+        currentChapterTitle: "Chapter 1",
+      })?.renderProgress,
+    ).toEqual({
+      totalChapters: 2,
+      completedChapters: 1,
+      currentChapterIndex: 0,
+      currentChapterTitle: "Chapter 1",
+    });
 
     const completedFullBookJob = completeGenerationJob(
       queuedFullBookJob?.id ?? "",
@@ -1019,6 +1033,26 @@ describe("backend sqlite library sync", () => {
         assetPath: "generated/workspace-jobs/book-1-full.wav",
         mimeType: "audio/wav",
         provider: "mock",
+        chapterAssetPaths: [
+          "generated/workspace-jobs/book-1-chapter-1.wav",
+          "generated/workspace-jobs/book-1-chapter-2.wav",
+        ],
+        chapterArtifacts: [
+          {
+            assetPath: "generated/workspace-jobs/book-1-chapter-1.wav",
+            mimeType: "audio/wav",
+            provider: "mock",
+            chapterIndex: 0,
+            chapterTitle: "Chapter 1",
+          },
+          {
+            assetPath: "generated/workspace-jobs/book-1-chapter-2.wav",
+            mimeType: "audio/wav",
+            provider: "mock",
+            chapterIndex: 1,
+            chapterTitle: "Chapter 2",
+          },
+        ],
       },
     );
     expect(completedFullBookJob).toMatchObject({
@@ -1046,6 +1080,10 @@ describe("backend sqlite library sync", () => {
         bookId: "book-1",
         kind: "full-book-generation",
         chapterCount: 2,
+        chapterAssetPaths: [
+          "generated/workspace-jobs/book-1-chapter-1.wav",
+          "generated/workspace-jobs/book-1-chapter-2.wav",
+        ],
       }),
       expect.objectContaining({
         workspaceId: "workspace-jobs",
@@ -1060,12 +1098,27 @@ describe("backend sqlite library sync", () => {
       "book-1",
       10,
     );
-    expect(generationHistory).toHaveLength(3);
+    expect(generationHistory).toHaveLength(5);
     expect(generationHistory).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           jobId: queuedFullBookJob?.id,
           kind: "full-book-generation",
+          isChapterArtifact: false,
+        }),
+        expect.objectContaining({
+          jobId: queuedFullBookJob?.id,
+          kind: "full-book-generation",
+          chapterIndex: 0,
+          chapterTitle: "Chapter 1",
+          isChapterArtifact: true,
+        }),
+        expect.objectContaining({
+          jobId: queuedFullBookJob?.id,
+          kind: "full-book-generation",
+          chapterIndex: 1,
+          chapterTitle: "Chapter 2",
+          isChapterArtifact: true,
         }),
         expect.objectContaining({
           jobId: queuedSecondSampleJob?.id,
@@ -1081,6 +1134,15 @@ describe("backend sqlite library sync", () => {
         }),
       ]),
     );
+    expect(getGenerationArtifactForJob(queuedFullBookJob?.id ?? "", "workspace-jobs"))
+      .toEqual(
+        expect.objectContaining({
+          jobId: queuedFullBookJob?.id,
+          kind: "full-book-generation",
+          assetPath: "generated/workspace-jobs/book-1-full.wav",
+          isChapterArtifact: false,
+        }),
+      );
     expect(getGenerationArtifactForJob(queuedSecondSampleJob?.id ?? "", "workspace-jobs"))
       .toEqual(
         expect.objectContaining({

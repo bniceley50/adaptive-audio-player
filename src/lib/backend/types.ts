@@ -135,12 +135,20 @@ export interface SyncJobSummary {
   narratorId: string | null;
   mode: string | null;
   chapterCount: number | null;
+  renderProgress: GenerationJobProgressSummary | null;
   playableArtifactKind: GenerationJobKind | null;
   resumePath: string | null;
 }
 
 export type GenerationJobKind = "sample-generation" | "full-book-generation";
 export type GenerationOutputProvider = "kokoro-local" | "openai" | "mock";
+
+export interface GenerationJobProgressSummary {
+  totalChapters: number;
+  completedChapters: number;
+  currentChapterIndex: number | null;
+  currentChapterTitle: string | null;
+}
 
 export interface GenerationOutputSummary {
   workspaceId: string;
@@ -153,6 +161,10 @@ export interface GenerationOutputSummary {
   mimeType: string;
   provider: GenerationOutputProvider;
   generatedAt: string;
+  chapterIndex?: number | null;
+  chapterTitle?: string | null;
+  chapterAssetPaths?: string[];
+  isChapterArtifact?: boolean;
 }
 
 export interface GenerationArtifactSummary extends GenerationOutputSummary {

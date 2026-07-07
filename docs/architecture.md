@@ -55,6 +55,14 @@ The current direction is deliberate:
 - generated artifact metadata
 - route-level auth and ownership enforcement
 
+### Local generation pipeline
+
+- `tts_sidecar/**` runs a localhost-only Kokoro service with pinned package and verified model weights.
+- `scripts/job-worker.mjs` claims SQLite generation jobs in the background.
+- Sample jobs render one current sample artifact.
+- Full-book jobs render one chapter artifact at a time, update job progress after each chapter, and only complete after the chapter WAV files are stitched into the current full-book artifact.
+- If a local render fails or the sidecar disappears mid-job, the worker marks the job failed with a plain-English error and removes generated-audio files tracked during that attempt. Generated filenames include the job id so any crash-time orphan remains attributable rather than colliding with a later render.
+
 ### Library and playback responsibilities
 
 `src/lib/library/**` currently owns:

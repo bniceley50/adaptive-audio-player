@@ -658,6 +658,7 @@ function ensureDbSchemaWithRetry(db: DatabaseSync) {
 }
 
 export function resetDatabaseForTests() {
+  (globalThis.__adaptiveAudioPlayerDb as { close?: () => void } | undefined)?.close?.();
   globalThis.__adaptiveAudioPlayerDb = undefined;
 }
 
@@ -2673,8 +2674,37 @@ function mapSyncJobRows(rows: SyncJobRow[]): SyncJobSummary[] {
             narratorId?: string;
             mode?: string;
             chapterCount?: number;
+            totalChapters?: number;
+            completedChapters?: number;
+            currentChapterIndex?: number | null;
+            currentChapterTitle?: string | null;
           })
       : null;
+    const totalChapters =
+      typeof stats?.totalChapters === "number"
+        ? stats.totalChapters
+        : typeof stats?.chapterCount === "number"
+          ? stats.chapterCount
+          : null;
+    const completedChapters =
+      typeof stats?.completedChapters === "number" ? stats.completedChapters : null;
+    const renderProgress =
+      row.kind === "full-book-generation" &&
+      totalChapters !== null &&
+      completedChapters !== null
+        ? {
+            totalChapters,
+            completedChapters,
+            currentChapterIndex:
+              typeof stats?.currentChapterIndex === "number"
+                ? stats.currentChapterIndex
+                : null,
+            currentChapterTitle:
+              typeof stats?.currentChapterTitle === "string"
+                ? stats.currentChapterTitle
+                : null,
+          }
+        : null;
 
     const playableArtifactKind =
       row.playable_artifact_kind === "full-book-generation" ||
@@ -2706,6 +2736,7 @@ function mapSyncJobRows(rows: SyncJobRow[]): SyncJobSummary[] {
       narratorId: stats?.narratorId ?? null,
       mode: stats?.mode ?? null,
       chapterCount: stats?.chapterCount ?? null,
+      renderProgress,
       playableArtifactKind,
       resumePath,
     };
@@ -2897,6 +2928,66 @@ export function enqueueGenerationJob(input: {
   return getGenerationJob(jobId, input.workspaceId);
 }
 
+export function updateGenerationJobProgress(
+  jobId: string,
+  workspaceId: string,
+  progress: {
+    totalChapters: number;
+    completedChapters: number;
+    currentChapterIndex?: number | null;
+    currentChapterTitle?: string | null;
+  },
+) {
+  const db = getDatabase();
+  const row = db
+    .prepare(
+      `
+        select stats_json
+        from sync_jobs
+        where id = ?
+          and workspace_id = ?
+          and kind = 'full-book-generation'
+          and status = 'running'
+        limit 1
+      `,
+    )
+    .get(jobId, workspaceId) as { stats_json: string | null } | undefined;
+
+  if (!row) {
+    return getGenerationJob(jobId, workspaceId);
+  }
+
+  const stats = row.stats_json
+    ? (JSON.parse(row.stats_json) as Record<string, unknown>)
+    : {};
+
+  db.prepare(
+    `
+      update sync_jobs
+      set stats_json = ?
+      where id = ?
+        and workspace_id = ?
+        and kind = 'full-book-generation'
+        and status = 'running'
+    `,
+  ).run(
+    JSON.stringify({
+      ...stats,
+      totalChapters: Math.max(0, Math.floor(progress.totalChapters)),
+      completedChapters: Math.max(0, Math.floor(progress.completedChapters)),
+      currentChapterIndex:
+        typeof progress.currentChapterIndex === "number"
+          ? Math.max(0, Math.floor(progress.currentChapterIndex))
+          : null,
+      currentChapterTitle: progress.currentChapterTitle ?? null,
+    }),
+    jobId,
+    workspaceId,
+  );
+
+  return getGenerationJob(jobId, workspaceId);
+}
+
 export function claimNextGenerationJob(): SyncJobSummary | null {
   const db = getDatabase();
   db.exec("begin immediate");
@@ -2937,6 +3028,66 @@ export function claimNextGenerationJob(): SyncJobSummary | null {
   }
 }
 
+export function recordGenerationJobArtifact(input: {
+  jobId: string;
+  workspaceId?: string | null;
+  assetPath: string;
+  mimeType: string;
+  provider: GenerationOutputProvider;
+  chapterIndex?: number | null;
+  chapterTitle?: string | null;
+  isChapterArtifact?: boolean;
+}): GenerationArtifactSummary | null {
+  const job = getGenerationJob(input.jobId, input.workspaceId);
+  if (!job?.bookId) {
+    return null;
+  }
+
+  const createdAt = new Date().toISOString();
+  const artifactId = `artifact-${randomUUID()}`;
+  const output = {
+    workspaceId: job.workspaceId,
+    bookId: job.bookId,
+    kind: job.kind as GenerationJobKind,
+    narratorId: job.narratorId,
+    mode: job.mode,
+    chapterCount: job.chapterCount,
+    assetPath: input.assetPath,
+    mimeType: input.mimeType,
+    provider: input.provider,
+    generatedAt: createdAt,
+    chapterIndex: input.chapterIndex ?? null,
+    chapterTitle: input.chapterTitle ?? null,
+    isChapterArtifact: input.isChapterArtifact ?? false,
+  } satisfies GenerationOutputSummary;
+  const db = getDatabase();
+
+  db.prepare(
+    `
+      insert into generated_output_history (
+        id,
+        workspace_id,
+        book_id,
+        kind,
+        job_id,
+        output_json,
+        created_at
+      )
+      values (?, ?, ?, ?, ?, ?, ?)
+    `,
+  ).run(
+    artifactId,
+    job.workspaceId,
+    job.bookId,
+    job.kind,
+    job.id,
+    JSON.stringify(output),
+    createdAt,
+  );
+
+  return getGenerationArtifactById(job.workspaceId, artifactId);
+}
+
 export function completeGenerationJob(
   jobId: string,
   workspaceId?: string | null,
@@ -2944,6 +3095,17 @@ export function completeGenerationJob(
     assetPath: string;
     mimeType: string;
     provider: GenerationOutputProvider;
+    chapterAssetPaths?: string[];
+    chapterArtifacts?: Array<{
+      assetPath: string;
+      mimeType: string;
+      provider: GenerationOutputProvider;
+      chapterIndex: number;
+      chapterTitle: string;
+    }>;
+    chapterIndex?: number | null;
+    chapterTitle?: string | null;
+    isChapterArtifact?: boolean;
   } | null,
 ): SyncJobSummary | null {
   const job = getGenerationJob(jobId, workspaceId);
@@ -2965,7 +3127,52 @@ export function completeGenerationJob(
       mimeType: outputAsset?.mimeType ?? "audio/wav",
       provider: outputAsset?.provider ?? "mock",
       generatedAt: completedAt,
+      chapterAssetPaths: outputAsset?.chapterAssetPaths ?? [],
+      chapterIndex: outputAsset?.chapterIndex ?? null,
+      chapterTitle: outputAsset?.chapterTitle ?? null,
+      isChapterArtifact: outputAsset?.isChapterArtifact ?? false,
     } satisfies GenerationOutputSummary;
+
+    for (const chapterArtifact of outputAsset?.chapterArtifacts ?? []) {
+      const chapterOutput = {
+        workspaceId: job.workspaceId,
+        bookId: job.bookId,
+        kind: job.kind as GenerationJobKind,
+        narratorId: job.narratorId,
+        mode: job.mode,
+        chapterCount: job.chapterCount,
+        assetPath: chapterArtifact.assetPath,
+        mimeType: chapterArtifact.mimeType,
+        provider: chapterArtifact.provider,
+        generatedAt: completedAt,
+        chapterIndex: chapterArtifact.chapterIndex,
+        chapterTitle: chapterArtifact.chapterTitle,
+        isChapterArtifact: true,
+      } satisfies GenerationOutputSummary;
+
+      db.prepare(
+        `
+          insert into generated_output_history (
+            id,
+            workspace_id,
+            book_id,
+            kind,
+            job_id,
+            output_json,
+            created_at
+          )
+          values (?, ?, ?, ?, ?, ?, ?)
+        `,
+      ).run(
+        `artifact-${randomUUID()}`,
+        job.workspaceId,
+        job.bookId,
+        job.kind,
+        job.id,
+        JSON.stringify(chapterOutput),
+        completedAt,
+      );
+    }
 
     db.prepare(
       `
@@ -3212,6 +3419,14 @@ function mapGenerationOutputRows(
       mimeType: output.mimeType ?? "audio/wav",
       provider,
       generatedAt: output.generatedAt ?? new Date(0).toISOString(),
+      chapterIndex:
+        typeof output.chapterIndex === "number" ? output.chapterIndex : null,
+      chapterTitle:
+        typeof output.chapterTitle === "string" ? output.chapterTitle : null,
+      chapterAssetPaths: Array.isArray(output.chapterAssetPaths)
+        ? output.chapterAssetPaths.filter((assetPath) => typeof assetPath === "string")
+        : [],
+      isChapterArtifact: output.isChapterArtifact === true,
     };
   });
 }
@@ -3246,6 +3461,14 @@ function mapGenerationArtifactRows(
       mimeType: output.mimeType ?? "audio/wav",
       provider,
       generatedAt: output.generatedAt ?? new Date(0).toISOString(),
+      chapterIndex:
+        typeof output.chapterIndex === "number" ? output.chapterIndex : null,
+      chapterTitle:
+        typeof output.chapterTitle === "string" ? output.chapterTitle : null,
+      chapterAssetPaths: Array.isArray(output.chapterAssetPaths)
+        ? output.chapterAssetPaths.filter((assetPath) => typeof assetPath === "string")
+        : [],
+      isChapterArtifact: output.isChapterArtifact === true,
     };
   });
 }
@@ -3372,7 +3595,11 @@ export function getGenerationArtifactForJob(
         from generated_output_history
         where job_id = ?
         ${workspaceId ? "and workspace_id = ?" : ""}
-        order by created_at desc
+        order by case json_extract(output_json, '$.isChapterArtifact')
+          when 1 then 1
+          else 0
+        end asc,
+        created_at desc
         limit 1
       `,
     )

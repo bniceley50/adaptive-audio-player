@@ -1,7 +1,7 @@
 # Adaptive Audio Player
 [![CI](https://github.com/bniceley50/adaptive-audio-player/actions/workflows/ci.yml/badge.svg)](https://github.com/bniceley50/adaptive-audio-player/actions/workflows/ci.yml)
 
-Private AI audiobook player for your books and documents, with customizable voices, character-aware narration, and premium listening controls.
+Private audiobook player for your books and documents, with local customizable narration, render history, and premium listening controls. Character-aware casting is planned; it is not part of the current renderer.
 
 ## What This Is
 
@@ -86,9 +86,18 @@ This project intentionally combines:
 - signed account sessions with expiry and revocation
 - selective and bulk session revocation
 - worker-backed generation queue
+- localhost-only Kokoro sidecar for private local narration
+- pinned Kokoro package and SHA-verified `hexgrad/Kokoro-82M` v1.0 model weights
 - backend sync snapshot and restore flow
-- generated sample/full-book artifact history
+- generated sample, chapter, and stitched full-book artifact history
 - route-level ownership tests for protected APIs
+
+## Planned, Not Yet Real
+
+- character-aware voice assignment inside a chapter
+- public catalog ingestion and hosted audiobook catalog browsing
+- cloud-hosted TTS rendering
+- production object storage, hosted auth, and a durable cloud queue
 
 ## Prototype Boundaries
 
@@ -122,6 +131,19 @@ That seeds:
 - a setup-pending title
 - default taste and playback defaults
 - render history and backend activity
+
+## Website Demo Samples
+
+Short public-domain samples for the website/subdomain demo are rendered locally with the Kokoro sidecar and kept out of git under ignored `demo-assets/audiobooks/`.
+
+Current local sample names:
+
+- `alice-marlowe.wav` - Alice's Adventures in Wonderland, Marlowe voice
+- `pride-sloane.wav` - Pride and Prejudice, Sloane voice
+- `sherlock-jules.wav` - The Adventures of Sherlock Holmes, Jules voice
+- `moby-marlowe.wav` - Moby-Dick, Marlowe voice
+
+Use the disclosure: "Pre-rendered locally with the Adaptive Audio Player Kokoro sidecar from public-domain text."
 
 ## Try It In 60 Seconds
 
@@ -198,10 +220,30 @@ pnpm lint && pnpm typecheck && pnpm test
 
 ## TTS Generation
 
-- The worker uses the localhost-only Kokoro sidecar at `ADAPTIVE_AUDIO_PLAYER_TTS_URL` for generated sample/full-book audio.
-- If the sidecar is missing, down, or unable to verify its pinned model weights, generation fails with a visible job error instead of returning substitute audio.
-- Generated audio is stored under `data/generated-audio/` and streamed through secured app routes.
-- Session signing now reads from `ADAPTIVE_AUDIO_PLAYER_SESSION_SECRET`; in production this must be set explicitly.
+- The worker uses the localhost-only Kokoro sidecar at `ADAPTIVE_AUDIO_PLAYER_TTS_URL` for generated sample, chapter, and full-book audio.
+- Full-book generation renders one chapter artifact at a time, updates chapter progress on the job, then stitches the chapter WAV files into the current full-book artifact.
+- If the sidecar is missing, down, or unable to verify its pinned model weights, generation fails with a visible job error instead of returning substitute audio. Partial generated-audio files from handled render failures are removed, and generated filenames include the job id so crash orphans remain attributable.
+- Generated audio is stored under ignored `data/generated-audio/` and streamed through secured app routes.
+- Session signing reads from `ADAPTIVE_AUDIO_PLAYER_SESSION_SECRET`; in production this must be set explicitly.
+
+### Local Kokoro Sidecar Setup
+
+```powershell
+python -m venv data/local-tts/.venv
+.\data\local-tts\.venv\Scripts\python.exe -m pip install -r tts_sidecar/requirements.txt
+$env:ADAPTIVE_AUDIO_PLAYER_TTS_DEVICE="cpu"
+.\data\local-tts\.venv\Scripts\python.exe -m tts_sidecar.server
+```
+
+In another terminal:
+
+```powershell
+pnpm dev:all
+```
+
+Then open [http://127.0.0.1:3100](http://127.0.0.1:3100), import or load demo content, generate a sample, and queue a full-book render from `/books/[bookId]`.
+
+The sidecar binds only to loopback hosts. Its model cache lives under ignored `data/local-tts/`; rendered app artifacts live under ignored `data/generated-audio/`.
 
 ## Architecture Highlights
 
@@ -226,6 +268,8 @@ If you are reviewing this repo as an employer or client, the strongest things to
 
 - experimental `node:sqlite` warnings still appear during test/build
 - production auth, storage, and queue infrastructure are not yet swapped in
+- CUDA is not required for correctness; the currently verified local sidecar can run CPU-only
+- character-aware narration and catalog features remain roadmap work
 - real cloud deployment is the next major step after portfolio/demo readiness
 
 ## Next Production Steps

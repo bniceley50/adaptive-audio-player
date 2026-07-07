@@ -69,6 +69,25 @@ function labelProvider(provider: GenerationOutputProvider) {
   return provider === "openai" ? "Legacy OpenAI TTS" : "Demo mock audio";
 }
 
+function labelRenderProgress(job: {
+  renderProgress: {
+    totalChapters: number;
+    completedChapters: number;
+    currentChapterIndex: number | null;
+    currentChapterTitle: string | null;
+  } | null;
+}) {
+  if (!job.renderProgress) {
+    return null;
+  }
+
+  const currentChapter = job.renderProgress.currentChapterTitle
+    ? ` · ${job.renderProgress.currentChapterTitle}`
+    : "";
+
+  return `${job.renderProgress.completedChapters} / ${job.renderProgress.totalChapters} chapters${currentChapter}`;
+}
+
 function buildArtifactPlayerHref(input: {
   artifactId: string;
   artifactKind: "sample-generation" | "full-book-generation";
@@ -557,6 +576,7 @@ export default async function JobsPage() {
                   generationArtifact.assetPath === latestGenerationOutput.assetPath;
                 const isCurrentWorkspaceJob = job.workspaceId === workspaceId;
                 const hasArtifact = !!generationArtifact?.assetPath;
+                const renderProgressLabel = labelRenderProgress(job);
                 const artifactPlayerHref =
                   generationArtifact && job.bookId
                     ? buildArtifactPlayerHref({
@@ -605,6 +625,11 @@ export default async function JobsPage() {
                     {job.errorMessage ? (
                       <div className="mt-4 rounded-[1.4rem] border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
                         {job.errorMessage}
+                      </div>
+                    ) : null}
+                    {renderProgressLabel ? (
+                      <div className="mt-4 rounded-[1.4rem] border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                        Chapter progress: {renderProgressLabel}
                       </div>
                     ) : null}
                     <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
