@@ -303,3 +303,18 @@ Why:
 Alternatives rejected:
 - Letting the queue accept duplicate renders and relying on users not to click twice
 - Solving duplication only in the UI instead of at the backend boundary
+
+## 2026-07-06 - Local-only Kokoro TTS for private rendering
+
+Why:
+- Private local narration is now a product requirement, so generation must not call cloud TTS from the render path.
+- Kokoro is the v1 engine because it is small enough for fast chunk rendering, has many distinct built-in voices, runs locally through Python, and uses Apache-licensed model weights suitable for portfolio and SaaS exploration.
+- The render path must fail closed. If the local engine is missing, down, misconfigured, or returns invalid output, the job records a plain-English failure instead of silently producing mock audio.
+- The Python package is pinned to `kokoro==0.9.4`, matching the current upstream usage guidance.
+- The model payload is pinned to official `hexgrad/Kokoro-82M` v1.0 with published SHA256 `496dba118d1a58f5f3db2efc88dbdc216e0483fc89fe6e47ee1f2c53f18ad1e4`. The sidecar must verify downloaded weights against this hash before first use.
+- Model weights and rendered artifacts stay on local disk and out of git.
+
+Alternatives rejected:
+- OpenAI TTS: removed from the render path because cloud narration conflicts with the private/local product promise for this slice.
+- Piper: fast and local, but the original repo has moved development elsewhere and voice-model licensing is less uniform, which makes it a weaker foundation for a first SaaS-shaped local renderer.
+- XTTS-class engines: strong voice cloning and multilingual features, but Coqui XTTS-v2 uses CPML model licensing and has a less clean maintenance story for this portfolio/SaaS v1.
