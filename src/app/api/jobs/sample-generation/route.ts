@@ -1,16 +1,21 @@
 import { NextResponse } from "next/server";
 
+import { getWorkspaceBook } from "@/lib/backend/book-repository";
 import { verifySameOriginMutation } from "@/lib/backend/csrf";
+import { toPublicGenerationJob } from "@/lib/backend/public-generation";
+import { getNarrationEngineStatus } from "@/lib/backend/tts-engine-capabilities";
 import {
   enqueueGenerationJob,
-  linkWorkspaceToUser,
+  getActiveGenerationJobForBookKind,
 } from "@/lib/backend/sqlite";
 import {
-  accountCookieName,
+  COMPATIBILITY_NARRATION_MODE,
+  validateGenerationRequest,
+  type GenerationRequestValidationErrorCode,
+} from "@/lib/backend/validate-generation-request";
+import {
   ensureWorkspaceCookie,
-  readVerifiedAccountIdFromCookieValue,
   readWorkspaceIdFromCookieValue,
-  verifyWorkspaceAccess,
   workspaceCookieName,
 } from "@/lib/backend/workspace-session";
 
@@ -25,6 +30,18 @@ function parseCookieValue(request: Request, cookieName: string) {
   );
 }
 
+function validationErrorStatus(code: GenerationRequestValidationErrorCode) {
+  if (code === "book-not-found" || code === "book-access-denied") {
+    return 404;
+  }
+
+  if (code === "duplicate-active-job") {
+    return 409;
+  }
+
+  return 400;
+}
+
 export async function POST(request: Request) {
   const csrfError = verifySameOriginMutation(request);
   if (csrfError) {
@@ -32,48 +49,82 @@ export async function POST(request: Request) {
   }
 
   const body = (await request.json().catch(() => null)) as
-    | { bookId?: string; narratorId?: string; mode?: string }
+    | { bookId?: unknown; engineId?: unknown; narratorId?: unknown }
     | null;
-
-  const bookId = body?.bookId?.trim() ?? "";
-  const narratorId = body?.narratorId?.trim() ?? "";
-  const mode = body?.mode?.trim() ?? "";
-
-  if (!bookId || !narratorId || !mode) {
-    return NextResponse.json(
-      { error: "Book, narrator, and mode are required." },
-      { status: 400 },
-    );
-  }
 
   const existingWorkspaceId = readWorkspaceIdFromCookieValue(
     parseCookieValue(request, workspaceCookieName),
   );
-  const accountId = readVerifiedAccountIdFromCookieValue(
-    parseCookieValue(request, accountCookieName),
-  );
-  const workspaceAccess = verifyWorkspaceAccess(existingWorkspaceId, accountId);
-  if (workspaceAccess.error) {
-    return NextResponse.json({ error: workspaceAccess.error }, { status: 403 });
-  }
   const response = NextResponse.json({ ok: true });
-  const workspaceId = ensureWorkspaceCookie(response, workspaceAccess.workspaceId);
+  const workspaceId = ensureWorkspaceCookie(response, existingWorkspaceId);
 
-  if (accountId) {
-    linkWorkspaceToUser(workspaceId, accountId);
-  }
-
-  const job = enqueueGenerationJob({
+  const requestedBookId =
+    typeof body?.bookId === "string" ? body.bookId.trim().toLowerCase() : "";
+  const storedBook = requestedBookId
+    ? getWorkspaceBook(workspaceId, requestedBookId)
+    : null;
+  const activeJob = requestedBookId
+    ? getActiveGenerationJobForBookKind(
+        workspaceId,
+        requestedBookId,
+        "sample-generation",
+      )
+    : null;
+  const validation = validateGenerationRequest({
     workspaceId,
+    bookId: body?.bookId,
     kind: "sample-generation",
-    bookId,
-    narratorId,
-    mode,
+    narratorId: body?.narratorId,
+    engineId: body?.engineId,
+    mode: COMPATIBILITY_NARRATION_MODE,
+    book:
+      storedBook
+        ? {
+            workspaceId,
+            bookId: storedBook.bookId,
+            chapterCount: storedBook.chapterCount,
+            text: storedBook.manuscript,
+          }
+        : null,
+    existingJobs: activeJob ? [activeJob] : [],
   });
 
+  if (!validation.ok) {
+    return NextResponse.json(
+      { error: validation.error.message },
+      {
+        status: validationErrorStatus(validation.error.code),
+        headers: response.headers,
+      },
+    );
+  }
+
+  const engineStatus = (await getNarrationEngineStatus()).engines.find(
+    (engine) => engine.id === validation.value.engineId,
+  );
+  if (!engineStatus?.selectable) {
+    return NextResponse.json(
+      {
+        error:
+          engineStatus?.statusMessage ??
+          "The selected listening quality is unavailable. Use Fast / Compatible.",
+      },
+      { status: 503, headers: response.headers },
+    );
+  }
+
+  const job = enqueueGenerationJob(validation.value);
+  if (!job) {
+    return NextResponse.json(
+      { error: "Audio generation could not be started. Try again." },
+      { status: 500, headers: response.headers },
+    );
+  }
+
   return NextResponse.json(
-    { ok: true, workspaceId, job },
+    { ok: true, job: toPublicGenerationJob(job) },
     {
+      status: 201,
       headers: response.headers,
     },
   );

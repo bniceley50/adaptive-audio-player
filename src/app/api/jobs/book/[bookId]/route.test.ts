@@ -5,18 +5,35 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { GET } from "@/app/api/jobs/book/[bookId]/route";
 import {
+  claimNextGenerationJob,
   completeGenerationJob,
-  createAccountSession,
   enqueueGenerationJob,
-  linkWorkspaceToUser,
+  getDatabase,
   resetDatabaseForTests,
-  syncWorkspaceLibrarySnapshot,
-  upsertUserByEmail,
 } from "@/lib/backend/sqlite";
-import {
-  createSignedAccountSession,
-  createSignedWorkspaceCookieValue,
-} from "@/lib/backend/workspace-session";
+import { createSignedWorkspaceCookieValue } from "@/lib/backend/workspace-session";
+
+function seedStoredBook(workspaceId: string) {
+  const database = getDatabase();
+  const timestamp = "2026-03-08T12:00:00.000Z";
+  database
+    .prepare(
+      `
+        insert into workspaces (id, created_at, updated_at, last_synced_at)
+        values (?, ?, ?, null)
+      `,
+    )
+    .run(workspaceId, timestamp, timestamp);
+  database
+    .prepare(
+      `
+        insert into synced_books (
+          workspace_id, book_id, title, chapter_count, updated_at, draft_text
+        ) values (?, 'book-1', 'Storm Harbor', 2, ?, 'Chapter 1\nStorm Harbor')
+      `,
+    )
+    .run(workspaceId, timestamp);
+}
 
 describe("book jobs route", () => {
   const createdDirs: string[] = [];
@@ -36,23 +53,7 @@ describe("book jobs route", () => {
     createdDirs.push(tempDir);
     process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
 
-    syncWorkspaceLibrarySnapshot("workspace-jobs", {
-      libraryBooks: [
-        {
-          bookId: "book-1",
-          title: "Storm Harbor",
-          chapterCount: 2,
-          updatedAt: "2026-03-08T12:00:00.000Z",
-        },
-      ],
-      draftTexts: [{ bookId: "book-1", text: "Chapter 1\nStorm Harbor" }],
-      listeningProfiles: [],
-      defaultListeningProfile: null,
-      sampleRequest: null,
-      playbackStates: [],
-      playbackDefaults: null,
-      syncedAt: "2026-03-08T12:01:00.000Z",
-    });
+    seedStoredBook("workspace-jobs");
 
     const sampleJob = enqueueGenerationJob({
       workspaceId: "workspace-jobs",
@@ -62,6 +63,7 @@ describe("book jobs route", () => {
       mode: "immersive",
     });
 
+    expect(claimNextGenerationJob()?.id).toBe(sampleJob?.id);
     completeGenerationJob(sampleJob?.id ?? "", "workspace-jobs", {
       assetPath: "generated/workspace-jobs/book-1/sample.wav",
       mimeType: "audio/wav",
@@ -76,6 +78,7 @@ describe("book jobs route", () => {
       mode: "classic",
     });
 
+    expect(claimNextGenerationJob()?.id).toBe(rerenderedSampleJob?.id);
     completeGenerationJob(rerenderedSampleJob?.id ?? "", "workspace-jobs", {
       assetPath: "generated/workspace-jobs/book-1/sample-v2.wav",
       mimeType: "audio/wav",
@@ -115,85 +118,100 @@ describe("book jobs route", () => {
         }),
       ]),
     );
+    const publicJobKeys = [
+      "bookId",
+      "bookTitle",
+      "chapterCount",
+      "completedAt",
+      "createdAt",
+      "engineId",
+      "errorMessage",
+      "id",
+      "kind",
+      "mode",
+      "narratorId",
+      "playableArtifactKind",
+      "renderProgress",
+      "resumePath",
+      "status",
+    ].sort();
+    for (const job of payload.jobs) {
+      expect(Object.keys(job).sort()).toEqual(publicJobKeys);
+      expect(job).not.toHaveProperty("workspaceId");
+      expect(job).not.toHaveProperty("books");
+      expect(job).not.toHaveProperty("profiles");
+      expect(job).not.toHaveProperty("playbackStates");
+    }
     expect(payload.outputs).toEqual([
       expect.objectContaining({
+        artifactId: expect.any(String),
+        artifactUrl: expect.stringMatching(
+          /^\/api\/audio\/generated\/artifacts\//,
+        ),
         kind: "sample-generation",
         bookId: "book-1",
+        isCurrent: true,
         narratorId: "marlowe",
         mode: "classic",
       }),
     ]);
-    expect(payload.artifacts).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          jobId: rerenderedSampleJob?.id,
-          kind: "sample-generation",
-        }),
-        expect.objectContaining({
-          jobId: sampleJob?.id,
-          kind: "sample-generation",
-        }),
-      ]),
+    expect(payload.artifacts).toEqual([
+      expect.objectContaining({
+        artifactId: expect.any(String),
+        artifactUrl: expect.stringMatching(
+          /^\/api\/audio\/generated\/artifacts\//,
+        ),
+        isCurrent: true,
+        jobId: rerenderedSampleJob?.id,
+        kind: "sample-generation",
+      }),
+    ]);
+
+    const currentOutput = payload.outputs[0];
+    const currentArtifact = payload.artifacts.find(
+      (artifact) => artifact.jobId === rerenderedSampleJob?.id,
     );
+    expect(currentOutput?.artifactId).toBe(currentArtifact?.artifactId);
+    expect(currentOutput?.artifactUrl).toBe(currentArtifact?.artifactUrl);
+
+    const serializedGenerationData = JSON.stringify({
+      artifacts: payload.artifacts,
+      outputs: payload.outputs,
+    });
+    expect(serializedGenerationData).not.toContain("assetPath");
+    expect(serializedGenerationData).not.toContain("chapterAssetPaths");
+    expect(serializedGenerationData).not.toContain("sample.wav");
+    expect(serializedGenerationData).not.toContain("sample-v2.wav");
+    for (const generationRecord of [...payload.outputs, ...payload.artifacts]) {
+      expect(generationRecord).not.toHaveProperty("workspaceId");
+      expect(generationRecord).not.toHaveProperty("id");
+    }
   });
 
-  it("rejects access when the signed-in account does not own the linked workspace", async () => {
+  it("does not require a legacy account session for local job access", async () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), "adaptive-audio-player-"));
     createdDirs.push(tempDir);
     process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
 
-    syncWorkspaceLibrarySnapshot("workspace-jobs", {
-      libraryBooks: [
-        {
-          bookId: "book-1",
-          title: "Storm Harbor",
-          chapterCount: 2,
-          updatedAt: "2026-03-08T12:00:00.000Z",
-        },
-      ],
-      draftTexts: [{ bookId: "book-1", text: "Chapter 1\nStorm Harbor" }],
-      listeningProfiles: [],
-      defaultListeningProfile: null,
-      sampleRequest: null,
-      playbackStates: [],
-      playbackDefaults: null,
-      syncedAt: "2026-03-08T12:01:00.000Z",
-    });
-
-    const owner = upsertUserByEmail({
-      email: "owner@example.com",
-      displayName: "Owner",
-    });
-    const intruder = upsertUserByEmail({
-      email: "intruder@example.com",
-      displayName: "Intruder",
-    });
-    linkWorkspaceToUser("workspace-jobs", owner.id);
-
-    const intruderSession = createAccountSession(
-      intruder.id,
-      new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-      "Test browser",
-    );
+    seedStoredBook("workspace-jobs");
 
     const response = await GET(
       new Request("http://localhost/api/jobs/book/book-1", {
         headers: {
           cookie: [
             `adaptive-audio-player.workspace=${createSignedWorkspaceCookieValue("workspace-jobs")}`,
-            `adaptive-audio-player.account=${createSignedAccountSession(
-              intruder.id,
-              intruderSession?.id ?? "",
-            )}`,
+            "adaptive-audio-player.account=stale-legacy-session",
           ].join("; "),
         },
       }),
       { params: Promise.resolve({ bookId: "book-1" }) },
     );
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      error: "This workspace belongs to another account.",
+      jobs: [],
+      outputs: [],
+      artifacts: [],
     });
   });
 });

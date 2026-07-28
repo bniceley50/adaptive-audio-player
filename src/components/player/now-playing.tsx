@@ -1,153 +1,221 @@
 "use client";
 
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
-import {
-  readPromotedSocialMoments,
-  socialStateChangedEvent,
-  togglePromotedSocialMoment,
-} from "@/features/social/local-social";
-import {
-  resolveMatchingPublicCircle,
-  resolveMatchingPublicEdition,
-} from "@/features/social/public-moments";
+import { useMediaController } from "@/components/player/use-media-controller";
 import type { Chapter } from "@/lib/types/models";
 import {
-  chapterDurationSeconds,
   clearPlaybackDefaults,
+  createBookProgressWriter,
   formatBookmarkLabel,
   formatPlaybackTime,
-  getPlaybackPercent,
+  loadBookProgress,
   readPlaybackDefaults,
   readPersistedPlaybackState,
   resolvePreferredPlaybackState,
-  writePlaybackDefaults,
   writePersistedPlaybackState,
+  type BookProgressSnapshot,
+  type BookProgressWriter,
   type PlaybackDefaults,
   type PersistedBookmark,
   type PersistedPlaybackState,
 } from "@/lib/playback/local-playback";
 import {
-  touchLocalLibraryBook,
-  writeDefaultListeningProfile,
-} from "@/lib/library/local-library";
-import {
-  readSavedQuotes,
-  writeSavedQuotes,
-  type SavedQuote,
+  clearLegacySavedQuotes,
 } from "@/lib/library/local-quotes";
 
 export function NowPlaying({
+  artifactId = null,
   audioKind,
   audioUrl,
   bookId,
   bookTitle,
   chapters,
-  chapterStartSeconds,
   initialJumpTarget,
   initialPlaybackDefaults,
   initialPlaybackState,
   narratorName,
-  mode,
   playbackIsReady,
-  totalAudioDurationSeconds,
-  experienceMode = "everyday",
 }: {
+  artifactId?: string | null;
   audioKind:
     | "sample-generation"
     | "full-book-generation"
-    | "imported-audio"
     | null;
   audioUrl: string | null;
   bookId: string;
   bookTitle: string;
   chapters: Chapter[];
-  chapterStartSeconds?: number[] | null;
   initialJumpTarget?: { chapterIndex: number; progressSeconds: number } | null;
   initialPlaybackDefaults?: PlaybackDefaults | null;
   initialPlaybackState?: PersistedPlaybackState | null;
   narratorName: string;
-  mode: string;
   playbackIsReady: boolean;
-  totalAudioDurationSeconds?: number | null;
-  experienceMode?: "everyday" | "studio";
 }) {
-  function sortQuotes(quotes: SavedQuote[]) {
-    return [...quotes].sort((left, right) => {
-      const leftPinnedAt = left.pinnedAt ? new Date(left.pinnedAt).getTime() : 0;
-      const rightPinnedAt = right.pinnedAt ? new Date(right.pinnedAt).getTime() : 0;
-
-      if (leftPinnedAt !== rightPinnedAt) {
-        return rightPinnedAt - leftPinnedAt;
-      }
-
-      return new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
-    });
-  }
-
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const persistedState = useMemo(() => {
-    const localState = readPersistedPlaybackState(bookId);
-    return resolvePreferredPlaybackState(localState, initialPlaybackState ?? null);
-  }, [bookId, initialPlaybackState]);
+  const [persistedState, setPersistedState] =
+    useState<PersistedPlaybackState | null>(initialPlaybackState ?? null);
+  const progressWriterRef = useRef<BookProgressWriter | null>(null);
+  const userControlledResumeKeyRef = useRef<string | null>(null);
+  const [hasHydratedPersistedState, setHasHydratedPersistedState] =
+    useState(false);
+  const [appliedResumeKey, setAppliedResumeKey] = useState<string | null>(null);
   const playbackDefaults = useMemo(
     () => readPlaybackDefaults() ?? initialPlaybackDefaults ?? null,
     [initialPlaybackDefaults],
   );
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentChapterIndex, setCurrentChapterIndex] = useState(
-    Math.min(
-      initialJumpTarget?.chapterIndex ?? persistedState?.currentChapterIndex ?? 0,
-      Math.max(chapters.length - 1, 0),
-    ),
+  const initialChapterIndex = Math.min(
+    initialJumpTarget?.chapterIndex ?? persistedState?.currentChapterIndex ?? 0,
+    Math.max(chapters.length - 1, 0),
   );
-  const [progressSeconds, setProgressSeconds] = useState(
-    initialJumpTarget?.progressSeconds ?? persistedState?.progressSeconds ?? 43,
-  );
-  const [speed, setSpeed] = useState(
-    persistedState?.speed ?? playbackDefaults?.speed ?? 1,
-  );
+  const initialProgressSeconds =
+    initialJumpTarget?.progressSeconds ?? persistedState?.progressSeconds ?? 0;
+  const initialSpeed = persistedState?.speed ?? playbackDefaults?.speed ?? 1;
+  const initialSleepTimerMinutes =
+    persistedState?.sleepTimerMinutes ?? playbackDefaults?.sleepTimerMinutes ?? null;
+  const [currentChapterIndex, setCurrentChapterIndex] = useState(initialChapterIndex);
   const [bookmarks, setBookmarks] = useState<PersistedBookmark[]>(
     persistedState?.bookmarks ?? [],
   );
-  const [savedQuotes, setSavedQuotes] = useState<SavedQuote[]>(() => readSavedQuotes(bookId));
-  const [promotedMomentIds, setPromotedMomentIds] = useState<string[]>(() =>
-    readPromotedSocialMoments().map((entry) => entry.id),
-  );
   const [sleepTimerMinutes, setSleepTimerMinutes] = useState<number | null>(
-    persistedState?.sleepTimerMinutes ?? playbackDefaults?.sleepTimerMinutes ?? null,
+    initialSleepTimerMinutes,
   );
-  const [shareFeedback, setShareFeedback] = useState<"idle" | "shared" | "copied">(
-    "idle",
-  );
-  const [circleFeedback, setCircleFeedback] = useState<"idle" | "shared" | "copied">(
-    "idle",
-  );
-  const [defaultTasteFeedback, setDefaultTasteFeedback] = useState<"idle" | "saved">(
-    "idle",
+  const [sleepDeadline, setSleepDeadline] = useState<number | null>(() =>
+    initialSleepTimerMinutes
+      ? Date.now() + initialSleepTimerMinutes * 60 * 1_000
+      : null,
   );
   const [chapterQuery, setChapterQuery] = useState("");
-  const isImportedAudio = audioKind === "imported-audio";
-  const safeChapterStarts = useMemo(() => {
-    if (!chapterStartSeconds || chapterStartSeconds.length !== chapters.length) {
-      return chapters.map((_, index) => index * chapterDurationSeconds);
+
+  useEffect(() => {
+    clearLegacySavedQuotes();
+  }, []);
+
+  useEffect(() => {
+    const abortController = new AbortController();
+    progressWriterRef.current = null;
+    setHasHydratedPersistedState(false);
+    setAppliedResumeKey(null);
+
+    async function hydratePlaybackState() {
+      const localState = resolvePreferredPlaybackState(
+        readPersistedPlaybackState(bookId),
+        initialPlaybackState ?? null,
+      );
+      let serverProgress = null;
+
+      if (
+        artifactId &&
+        (audioKind === "sample-generation" ||
+          audioKind === "full-book-generation")
+      ) {
+        try {
+          serverProgress = await loadBookProgress(
+            bookId,
+            abortController.signal,
+          );
+        } catch {
+          if (abortController.signal.aborted) {
+            return;
+          }
+        }
+      }
+
+      if (abortController.signal.aborted) {
+        return;
+      }
+
+      if (artifactId) {
+        progressWriterRef.current = createBookProgressWriter({
+          artifactId,
+          bookId,
+          initialRevision: serverProgress?.revision ?? 0,
+        });
+      }
+
+      let nextPersistedState = localState;
+      if (serverProgress?.artifactId === artifactId) {
+        const serverChapterIndex = Math.min(
+          serverProgress.chapterIndex ?? 0,
+          Math.max(chapters.length - 1, 0),
+        );
+        const serverPlaybackState: PersistedPlaybackState = {
+          currentChapterIndex: serverChapterIndex,
+          progressSeconds: Math.max(serverProgress.positionSeconds, 0),
+          speed: serverProgress.speed,
+          isBookmarked: localState?.isBookmarked ?? false,
+          bookmarks: localState?.bookmarks ?? [],
+          sleepTimerMinutes:
+            localState?.sleepTimerMinutes ??
+            playbackDefaults?.sleepTimerMinutes ??
+            null,
+          playbackArtifactKind: audioKind,
+          updatedAt: serverProgress.updatedAt,
+        };
+        nextPersistedState = resolvePreferredPlaybackState(
+          localState,
+          serverPlaybackState,
+        );
+      }
+
+      const nextChapterIndex = Math.min(
+        initialJumpTarget?.chapterIndex ??
+          nextPersistedState?.currentChapterIndex ??
+          0,
+        Math.max(chapters.length - 1, 0),
+      );
+      const nextSleepTimerMinutes =
+        nextPersistedState?.sleepTimerMinutes ??
+        playbackDefaults?.sleepTimerMinutes ??
+        null;
+
+      if (nextPersistedState) {
+        writePersistedPlaybackState(bookId, nextPersistedState, {
+          notify: false,
+        });
+      }
+      setPersistedState(nextPersistedState);
+      setCurrentChapterIndex(nextChapterIndex);
+      setBookmarks(nextPersistedState?.bookmarks ?? []);
+      setSleepTimerMinutes(nextSleepTimerMinutes);
+      setSleepDeadline(
+        nextSleepTimerMinutes
+          ? Date.now() + nextSleepTimerMinutes * 60 * 1_000
+          : null,
+      );
+      setHasHydratedPersistedState(true);
     }
 
-    return chapterStartSeconds;
-  }, [chapterStartSeconds, chapters]);
-  const effectiveTotalAudioDuration = useMemo(() => {
-    if (isImportedAudio && totalAudioDurationSeconds && totalAudioDurationSeconds > 0) {
-      return totalAudioDurationSeconds;
-    }
+    void hydratePlaybackState();
 
-    return chapters.length * chapterDurationSeconds;
-  }, [chapters.length, isImportedAudio, totalAudioDurationSeconds]);
+    return () => {
+      abortController.abort();
+      progressWriterRef.current = null;
+    };
+  }, [
+    artifactId,
+    audioKind,
+    bookId,
+    chapters.length,
+    initialJumpTarget?.chapterIndex,
+    initialPlaybackState,
+    playbackDefaults?.sleepTimerMinutes,
+  ]);
+
+  const resumeSourceKey = audioUrl ? `${bookId}:${audioUrl}` : null;
+  const media = useMediaController({
+    initialPlaybackRate: initialSpeed,
+    initialTime: initialProgressSeconds,
+    onSleepDeadlineReached: () => {
+      setSleepTimerMinutes(null);
+      setSleepDeadline(null);
+    },
+    sleepDeadline,
+    sourceKey: audioUrl,
+  });
+  const pauseMedia = media.pause;
+  const seekMedia = media.seek;
   const currentChapter = chapters[currentChapterIndex];
-  const currentChapterStart = safeChapterStarts[currentChapterIndex] ?? 0;
-  const nextChapterStart =
-    safeChapterStarts[currentChapterIndex + 1] ?? effectiveTotalAudioDuration;
-  const totalSeconds = isImportedAudio
-    ? Math.max(nextChapterStart - currentChapterStart, 1)
-    : chapterDurationSeconds;
+  const totalSeconds = Math.max(media.duration, 0);
+  const progressSeconds = Math.max(Math.floor(media.currentTime), 0);
   const filteredChapters = useMemo(() => {
     const normalizedQuery = chapterQuery.trim().toLowerCase();
     if (!normalizedQuery) {
@@ -165,20 +233,49 @@ export function NowPlaying({
       });
   }, [chapterQuery, chapters]);
   const latestBookmark = bookmarks[0] ?? null;
-  const latestQuote = savedQuotes[0] ?? null;
-  const progressPercent = isImportedAudio
+  const progressPercent = totalSeconds
     ? Math.min(Math.round((progressSeconds / totalSeconds) * 100), 100)
-    : getPlaybackPercent(progressSeconds);
-  const remainingSeconds = Math.max(totalSeconds - progressSeconds, 0);
-  const remainingBookSeconds = isImportedAudio
-    ? Math.max(effectiveTotalAudioDuration - (currentChapterStart + progressSeconds), 0)
-    : remainingSeconds + Math.max(chapters.length - currentChapterIndex - 1, 0) * totalSeconds;
-  const speedLabel = `${speed.toFixed(2).replace(/\.00$/, "")}x`;
+    : 0;
+  const remainingSeconds = Math.max(
+    Math.floor(totalSeconds - progressSeconds),
+    0,
+  );
+  const remainingBookSeconds = Math.max(
+    Math.floor(media.duration - media.currentTime),
+    0,
+  );
+  const speedLabel = `${media.playbackRate.toFixed(2).replace(/\.00$/, "")}x`;
   const sleepTimerLabel = sleepTimerMinutes ? `${sleepTimerMinutes} min` : "Off";
   const isBookmarked = bookmarks.some(
     (bookmark) =>
       bookmark.chapterIndex === currentChapterIndex &&
       bookmark.progressSeconds === progressSeconds,
+  );
+
+  const readCurrentProgressSnapshot = useEffectEvent(
+    (
+      audio: HTMLAudioElement,
+      options: { ended?: boolean } = {},
+    ): BookProgressSnapshot | null => {
+      const duration =
+        Number.isFinite(audio.duration) && audio.duration > 0
+          ? audio.duration
+          : media.duration;
+      if (!Number.isFinite(duration) || duration <= 0) {
+        return null;
+      }
+
+      const rawPosition = options.ended ? duration : audio.currentTime;
+      const positionSeconds = Math.min(Math.max(rawPosition, 0), duration);
+      const chapterIndex = currentChapterIndex;
+
+      return {
+        positionSeconds,
+        durationSeconds: duration,
+        speed: audio.playbackRate,
+        chapterIndex,
+      };
+    },
   );
 
   const elapsedLabel = useMemo(
@@ -193,10 +290,99 @@ export function NowPlaying({
     () => formatPlaybackTime(remainingBookSeconds),
     [remainingBookSeconds],
   );
-  const excerptQuoteText = useMemo(
-    () => currentChapter?.text.slice(0, 180).trim() ?? "",
-    [currentChapter],
-  );
+  useEffect(() => {
+    if (
+      !hasHydratedPersistedState ||
+      !playbackIsReady ||
+      !resumeSourceKey ||
+      appliedResumeKey === resumeSourceKey
+    ) {
+      return;
+    }
+
+    const audio = media.audioRef.current;
+    if (!audio) {
+      return;
+    }
+
+    if (userControlledResumeKeyRef.current === resumeSourceKey) {
+      setAppliedResumeKey(resumeSourceKey);
+      return;
+    }
+
+    const applyResumePosition = () => {
+      if (
+        audio.readyState < 1 ||
+        audio.seekable.length === 0 ||
+        appliedResumeKey === resumeSourceKey
+      ) {
+        return;
+      }
+
+      const latestPersistedState = resolvePreferredPlaybackState(
+        readPersistedPlaybackState(bookId),
+        initialPlaybackState ?? null,
+      );
+      const resumeChapterIndex = Math.min(
+        initialJumpTarget?.chapterIndex ??
+          latestPersistedState?.currentChapterIndex ??
+          0,
+        Math.max(chapters.length - 1, 0),
+      );
+      const resumeProgressSeconds =
+        initialJumpTarget?.progressSeconds ??
+        latestPersistedState?.progressSeconds ??
+        0;
+      const duration = Number.isFinite(audio.duration) ? audio.duration : 0;
+      const requestedTime = resumeProgressSeconds;
+      const targetTime = duration
+        ? Math.min(requestedTime, duration)
+        : requestedTime;
+      setCurrentChapterIndex(resumeChapterIndex);
+
+      if (targetTime > 0) {
+        seekMedia(targetTime);
+      }
+      pauseMedia();
+
+      if (
+        targetTime === 0 ||
+        Math.abs(audio.currentTime - targetTime) <= 0.25
+      ) {
+        setAppliedResumeKey(resumeSourceKey);
+      }
+    };
+
+    applyResumePosition();
+    audio.addEventListener("canplay", applyResumePosition);
+    audio.addEventListener("durationchange", applyResumePosition);
+    audio.addEventListener("loadeddata", applyResumePosition);
+    audio.addEventListener("loadedmetadata", applyResumePosition);
+    audio.addEventListener("progress", applyResumePosition);
+    audio.addEventListener("seeked", applyResumePosition);
+
+    return () => {
+      audio.removeEventListener("canplay", applyResumePosition);
+      audio.removeEventListener("durationchange", applyResumePosition);
+      audio.removeEventListener("loadeddata", applyResumePosition);
+      audio.removeEventListener("loadedmetadata", applyResumePosition);
+      audio.removeEventListener("progress", applyResumePosition);
+      audio.removeEventListener("seeked", applyResumePosition);
+    };
+  }, [
+    appliedResumeKey,
+    bookId,
+    chapters.length,
+    hasHydratedPersistedState,
+    initialJumpTarget?.chapterIndex,
+    initialJumpTarget?.progressSeconds,
+    initialPlaybackState,
+    media.audioRef,
+    pauseMedia,
+    playbackIsReady,
+    resumeSourceKey,
+    seekMedia,
+  ]);
 
   useEffect(() => {
     if (!initialJumpTarget) {
@@ -206,250 +392,171 @@ export function NowPlaying({
     setCurrentChapterIndex(
       Math.min(initialJumpTarget.chapterIndex, Math.max(chapters.length - 1, 0)),
     );
-    setProgressSeconds(initialJumpTarget.progressSeconds);
-    setIsPlaying(false);
-  }, [chapters.length, initialJumpTarget]);
-
-  useEffect(() => {
-    if (!isImportedAudio) {
-      return;
-    }
-
-    const audio = audioRef.current;
-    if (!audio || !Number.isFinite(audio.currentTime)) {
-      return;
-    }
-
-    const targetTime = Math.min(
-      currentChapterStart + progressSeconds,
-      effectiveTotalAudioDuration || currentChapterStart + progressSeconds,
-    );
-
-    if (Math.abs(audio.currentTime - targetTime) > 1.25) {
-      audio.currentTime = targetTime;
-    }
+    seekMedia(initialJumpTarget.progressSeconds);
+    pauseMedia();
   }, [
-    currentChapterStart,
-    effectiveTotalAudioDuration,
-    isImportedAudio,
-    progressSeconds,
+    chapters.length,
+    initialJumpTarget,
+    pauseMedia,
+    seekMedia,
   ]);
 
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) {
-      return;
-    }
-
-    audio.playbackRate = speed;
-  }, [speed]);
-
-  useEffect(() => {
-    if (!isImportedAudio) {
-      return;
-    }
-
-    const audio = audioRef.current;
-    if (!audio) {
-      return;
-    }
-    const liveAudio = audio;
-
-    function syncTimeline() {
-      const absoluteProgress = liveAudio.currentTime;
-      const nextChapterIndex = Math.max(
-        0,
-        safeChapterStarts.findIndex((start, index) => {
-          const nextStart = safeChapterStarts[index + 1] ?? Number.POSITIVE_INFINITY;
-          return absoluteProgress >= start && absoluteProgress < nextStart;
-        }),
-      );
-      const resolvedChapterIndex =
-        nextChapterIndex === -1 ? Math.max(safeChapterStarts.length - 1, 0) : nextChapterIndex;
-      const chapterStart = safeChapterStarts[resolvedChapterIndex] ?? 0;
-
-      setCurrentChapterIndex((currentIndex) =>
-        currentIndex === resolvedChapterIndex ? currentIndex : resolvedChapterIndex,
-      );
-      setProgressSeconds(Math.max(Math.floor(absoluteProgress - chapterStart), 0));
-    }
-
-    function handlePlay() {
-      setIsPlaying(true);
-    }
-
-    function handlePause() {
-      setIsPlaying(false);
-      syncTimeline();
-    }
-
-    liveAudio.addEventListener("timeupdate", syncTimeline);
-    liveAudio.addEventListener("loadedmetadata", syncTimeline);
-    liveAudio.addEventListener("seeked", syncTimeline);
-    liveAudio.addEventListener("play", handlePlay);
-    liveAudio.addEventListener("pause", handlePause);
-
-    return () => {
-      liveAudio.removeEventListener("timeupdate", syncTimeline);
-      liveAudio.removeEventListener("loadedmetadata", syncTimeline);
-      liveAudio.removeEventListener("seeked", syncTimeline);
-      liveAudio.removeEventListener("play", handlePlay);
-      liveAudio.removeEventListener("pause", handlePause);
-    };
-  }, [isImportedAudio, safeChapterStarts]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
+    if (
+      typeof window === "undefined" ||
+      !hasHydratedPersistedState ||
+      !audioUrl ||
+      !playbackIsReady ||
+      (resumeSourceKey !== null && appliedResumeKey !== resumeSourceKey)
+    ) {
       return;
     }
 
     const payload: PersistedPlaybackState = {
       currentChapterIndex,
       progressSeconds,
-      speed,
+      speed: media.playbackRate,
       isBookmarked,
       bookmarks,
       sleepTimerMinutes,
       playbackArtifactKind: audioKind,
     };
 
-    writePersistedPlaybackState(bookId, payload);
-    touchLocalLibraryBook(bookId);
+    writePersistedPlaybackState(bookId, payload, { notify: false });
+
+    const audio = media.audioRef.current;
+    const progressSnapshot = audio
+      ? readCurrentProgressSnapshot(audio)
+      : null;
+    if (artifactId && progressSnapshot) {
+      void progressWriterRef.current?.record(progressSnapshot);
+    }
   }, [
+    artifactId,
     audioKind,
+    audioUrl,
+    appliedResumeKey,
     bookId,
     currentChapterIndex,
+    hasHydratedPersistedState,
     bookmarks,
     isBookmarked,
     progressSeconds,
     sleepTimerMinutes,
-    speed,
+    media.currentTime,
+    media.duration,
+    media.playbackRate,
+    playbackIsReady,
+    resumeSourceKey,
+    media.audioRef,
   ]);
 
   useEffect(() => {
-    writeSavedQuotes(bookId, savedQuotes);
-  }, [bookId, savedQuotes]);
-
-  useEffect(() => {
-    function refreshPromotedMoments() {
-      setPromotedMomentIds(readPromotedSocialMoments().map((entry) => entry.id));
+    if (
+      !artifactId ||
+      !hasHydratedPersistedState ||
+      !playbackIsReady ||
+      (resumeSourceKey !== null && appliedResumeKey !== resumeSourceKey)
+    ) {
+      return;
     }
 
-    refreshPromotedMoments();
-    window.addEventListener(socialStateChangedEvent, refreshPromotedMoments);
+    const audio = media.audioRef.current;
+    const writer = progressWriterRef.current;
+    if (!audio || !writer) {
+      return;
+    }
+    const liveAudio = audio;
+    const liveWriter = writer;
+
+    function flushProgress(options: { ended?: boolean; keepalive?: boolean } = {}) {
+      const snapshot = readCurrentProgressSnapshot(liveAudio, {
+        ended: options.ended,
+      });
+      if (snapshot) {
+        void liveWriter.flush(snapshot, { keepalive: options.keepalive });
+      }
+    }
+
+    function handlePause() {
+      flushProgress();
+    }
+
+    function handleSeeked() {
+      flushProgress();
+    }
+
+    function handleEnded() {
+      flushProgress({ ended: true });
+    }
+
+    function handleUnload() {
+      flushProgress({ keepalive: true });
+    }
+
+    liveAudio.addEventListener("pause", handlePause);
+    liveAudio.addEventListener("seeked", handleSeeked);
+    liveAudio.addEventListener("ended", handleEnded);
+    window.addEventListener("pagehide", handleUnload);
+    window.addEventListener("beforeunload", handleUnload);
+
     return () => {
-      window.removeEventListener(socialStateChangedEvent, refreshPromotedMoments);
+      liveAudio.removeEventListener("pause", handlePause);
+      liveAudio.removeEventListener("seeked", handleSeeked);
+      liveAudio.removeEventListener("ended", handleEnded);
+      window.removeEventListener("pagehide", handleUnload);
+      window.removeEventListener("beforeunload", handleUnload);
     };
-  }, []);
-
-  function toggleQuotePromotion(quote: SavedQuote) {
-    const matchingEdition = resolveMatchingPublicEdition({
-      bookTitle,
-      narratorName,
-      mode,
-    });
-    const matchingCircle = resolveMatchingPublicCircle(matchingEdition?.id ?? null);
-
-    togglePromotedSocialMoment({
-      id: `promoted-${quote.id}`,
-      bookId,
-      bookTitle,
-      chapterIndex: quote.chapterIndex,
-      chapterLabel: chapters[quote.chapterIndex]?.title ?? `Chapter ${quote.chapterIndex + 1}`,
-      progressSeconds: quote.progressSeconds,
-      quoteText: quote.text,
-      promotedAt: new Date().toISOString(),
-      editionId: matchingEdition?.id ?? null,
-      circleId: matchingCircle?.id ?? null,
-    });
-  }
+  }, [
+    appliedResumeKey,
+    artifactId,
+    hasHydratedPersistedState,
+    media.audioRef,
+    playbackIsReady,
+    resumeSourceKey,
+  ]);
 
   function togglePlayback() {
     if (!playbackIsReady) {
       return;
     }
 
-    if (isImportedAudio) {
-      const audio = audioRef.current;
-      if (!audio) {
-        return;
-      }
-
-      if (audio.paused) {
-        void audio.play();
-      } else {
-        audio.pause();
-      }
-      return;
-    }
-
-    setIsPlaying((value) => !value);
+    userControlledResumeKeyRef.current = resumeSourceKey;
+    void media.togglePlayback();
   }
 
   function skipBackward() {
-    if (isImportedAudio) {
-      const audio = audioRef.current;
-      if (!audio) {
-        return;
-      }
-
-      audio.currentTime = Math.max(audio.currentTime - 15, 0);
-      return;
-    }
-
-    setProgressSeconds((value) => Math.max(value - 15, 0));
+    userControlledResumeKeyRef.current = resumeSourceKey;
+    media.skip(-15);
   }
 
   function skipForward() {
-    if (isImportedAudio) {
-      const audio = audioRef.current;
-      if (!audio) {
-        return;
-      }
-
-      audio.currentTime = Math.min(audio.currentTime + 30, effectiveTotalAudioDuration);
-      return;
-    }
-
-    setProgressSeconds((value) => Math.min(value + 30, totalSeconds));
+    userControlledResumeKeyRef.current = resumeSourceKey;
+    media.skip(30);
   }
 
   function cycleSpeed() {
-    const nextSpeed = speed >= 1.5 ? 0.9 : Number((speed + 0.15).toFixed(2));
-    setSpeed(nextSpeed);
+    const nextSpeed =
+      media.playbackRate >= 1.5
+        ? 0.9
+        : Number((media.playbackRate + 0.15).toFixed(2));
+    media.setPlaybackRate(nextSpeed);
   }
 
   function cycleSleepTimer() {
-    setSleepTimerMinutes((value) => {
-      if (value === null) {
-        return 15;
-      }
-
-      if (value === 15) {
-        return 30;
-      }
-
-      return null;
-    });
+    const nextMinutes =
+      sleepTimerMinutes === null ? 15 : sleepTimerMinutes === 15 ? 30 : null;
+    setSleepTimerMinutes(nextMinutes);
+    setSleepDeadline(
+      nextMinutes ? Date.now() + nextMinutes * 60 * 1_000 : null,
+    );
   }
 
   function selectChapter(index: number) {
-    if (isImportedAudio) {
-      const audio = audioRef.current;
-      const start = safeChapterStarts[index] ?? 0;
-      if (audio) {
-        audio.currentTime = start;
-        audio.pause();
-      }
-      setCurrentChapterIndex(index);
-      setProgressSeconds(0);
-      setIsPlaying(false);
-      return;
-    }
-
+    userControlledResumeKeyRef.current = resumeSourceKey;
     setCurrentChapterIndex(index);
-    setProgressSeconds(0);
-    setIsPlaying(false);
+    media.seek(0);
+    media.pause();
   }
 
   function toggleBookmark() {
@@ -477,31 +584,10 @@ export function NowPlaying({
   }
 
   function jumpToBookmark(bookmark: PersistedBookmark) {
-    if (isImportedAudio) {
-      const audio = audioRef.current;
-      const start = safeChapterStarts[bookmark.chapterIndex] ?? 0;
-      if (audio) {
-        audio.currentTime = start + bookmark.progressSeconds;
-        audio.pause();
-      }
-    }
+    userControlledResumeKeyRef.current = resumeSourceKey;
     setCurrentChapterIndex(bookmark.chapterIndex);
-    setProgressSeconds(bookmark.progressSeconds);
-    setIsPlaying(false);
-  }
-
-  function jumpToQuote(quote: SavedQuote) {
-    if (isImportedAudio) {
-      const audio = audioRef.current;
-      const start = safeChapterStarts[quote.chapterIndex] ?? 0;
-      if (audio) {
-        audio.currentTime = start + quote.progressSeconds;
-        audio.pause();
-      }
-    }
-    setCurrentChapterIndex(quote.chapterIndex);
-    setProgressSeconds(quote.progressSeconds);
-    setIsPlaying(false);
+    media.seek(bookmark.progressSeconds);
+    media.pause();
   }
 
   function removeBookmark(bookmarkId: string) {
@@ -510,142 +596,8 @@ export function NowPlaying({
     );
   }
 
-  function saveQuote() {
-    if (!excerptQuoteText) {
-      return;
-    }
-
-    const duplicateQuote = savedQuotes.find(
-      (quote) =>
-        quote.chapterIndex === currentChapterIndex && quote.text === excerptQuoteText,
-    );
-
-    if (duplicateQuote) {
-      setSavedQuotes((currentQuotes) =>
-        sortQuotes([
-          duplicateQuote,
-          ...currentQuotes.filter((quote) => quote.id !== duplicateQuote.id),
-        ]),
-      );
-      return;
-    }
-
-    const nextQuote: SavedQuote = {
-      id: `${currentChapterIndex}-${progressSeconds}-${Date.now()}`,
-      bookId,
-      chapterIndex: currentChapterIndex,
-      progressSeconds,
-      text: excerptQuoteText,
-      createdAt: new Date().toISOString(),
-      pinnedAt: null,
-    };
-
-    setSavedQuotes((currentQuotes) =>
-      sortQuotes([nextQuote, ...currentQuotes]).slice(0, 12),
-    );
-  }
-
-  function removeQuote(quoteId: string) {
-    setSavedQuotes((currentQuotes) =>
-      currentQuotes.filter((quote) => quote.id !== quoteId),
-    );
-  }
-
-  function togglePinnedQuote(quoteId: string) {
-    setSavedQuotes((currentQuotes) =>
-      sortQuotes(
-        currentQuotes.map((quote) =>
-          quote.id === quoteId
-            ? {
-                ...quote,
-                pinnedAt: quote.pinnedAt ? null : new Date().toISOString(),
-              }
-            : quote,
-        ),
-      ),
-    );
-  }
-
-  async function copyQuote(quoteText: string) {
-    if (typeof navigator === "undefined" || !navigator.clipboard) {
-      return;
-    }
-
-    await navigator.clipboard.writeText(quoteText);
-  }
-
-  function savePlaybackDefaults() {
-    writePlaybackDefaults({
-      speed,
-      sleepTimerMinutes,
-    });
-  }
-
   function resetPlaybackDefaults() {
     clearPlaybackDefaults();
-  }
-
-  async function shareTasteCard() {
-    const shareText = `I’m listening to ${bookTitle} with ${narratorName} in ${mode} mode on Adaptive Audio Player.`;
-    const shareUrl =
-      typeof window !== "undefined" ? window.location.href : "https://github.com/bniceley50/adaptive-audio-player";
-
-    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-      try {
-        await navigator.share({
-          title: `${bookTitle} · ${narratorName} · ${mode}`,
-          text: shareText,
-          url: shareUrl,
-        });
-        setShareFeedback("shared");
-        return;
-      } catch {
-        // Fall through to clipboard copy when native share is dismissed or unavailable.
-      }
-    }
-
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      await navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
-      setShareFeedback("copied");
-    }
-  }
-
-  async function shareBookCircleInvite() {
-    const inviteText = latestQuote
-      ? `Join my book circle for ${bookTitle}. Start with ${narratorName} in ${mode} mode, then jump to this saved moment: “${latestQuote.text}”`
-      : `Join my book circle for ${bookTitle}. Start with ${narratorName} in ${mode} mode and listen together on Adaptive Audio Player.`;
-    const shareUrl =
-      typeof window !== "undefined" ? window.location.href : "https://github.com/bniceley50/adaptive-audio-player";
-
-    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
-      try {
-        await navigator.share({
-          title: `${bookTitle} · Book circle`,
-          text: inviteText,
-          url: shareUrl,
-        });
-        setCircleFeedback("shared");
-        return;
-      } catch {
-        // Fall through to clipboard copy when native share is dismissed or unavailable.
-      }
-    }
-
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
-      await navigator.clipboard.writeText(`${inviteText}\n${shareUrl}`);
-      setCircleFeedback("copied");
-    }
-  }
-
-  function saveAsDefaultTaste() {
-    writeDefaultListeningProfile({
-      bookId,
-      narratorId: narratorName.toLowerCase().replace(/\s+/g, "-"),
-      narratorName,
-      mode,
-    });
-    setDefaultTasteFeedback("saved");
-    window.setTimeout(() => setDefaultTasteFeedback("idle"), 1800);
   }
 
   const handleKeyboardShortcut = useEffectEvent((event: KeyboardEvent) => {
@@ -739,13 +691,21 @@ export function NowPlaying({
           <div className="min-w-0 flex-1 text-center lg:text-left">
             <h2 className="font-[var(--font-display)] text-3xl font-semibold text-white lg:text-4xl">{bookTitle}</h2>
             <p className="mt-2 text-sm text-[var(--player-text-soft)]">
-              {narratorName} · <span className="capitalize">{mode}</span>
+              Narrated by {narratorName}
             </p>
             <p className="mt-1 text-sm text-[var(--player-text-muted)]">
               {currentChapter?.title ?? "No chapter loaded"}
             </p>
         <div className="mt-6">
-          <div className="h-1.5 rounded-full bg-white/10">
+          <div
+            aria-busy={media.isSeeking}
+            aria-label="Playback progress"
+            aria-valuemax={100}
+            aria-valuemin={0}
+            aria-valuenow={progressPercent}
+            className="h-1.5 rounded-full bg-white/10"
+            role="progressbar"
+          >
             <div
               className="h-1.5 rounded-full bg-[var(--player-accent)] transition-all"
               style={{ width: `${progressPercent}%` }}
@@ -770,11 +730,12 @@ export function NowPlaying({
                     ? "bg-[var(--player-accent)] text-[var(--player-bg-1)] hover:opacity-90"
                     : "bg-white/10 text-[var(--player-text-muted)]"
                 }`}
+                disabled={!playbackIsReady}
                 type="button"
                 onClick={togglePlayback}
               >
                 {playbackIsReady
-                  ? isPlaying
+                  ? media.isPlaying
                     ? "Pause"
                     : "Play"
                   : "Audio locked"}
@@ -813,109 +774,24 @@ export function NowPlaying({
           >
             Sleep: {sleepTimerLabel}
           </button>
-          {experienceMode === "studio" ? (
-          <button
-            className="rounded-full border border-[var(--player-border)] bg-[var(--player-panel)] px-4 py-2 text-[var(--player-text-soft)] transition hover:bg-white/10"
-            type="button"
-            onClick={savePlaybackDefaults}
-          >
-            Save defaults
-          </button>
-          ) : null}
         </div>
+        {media.error ? (
+          <p
+            className="mt-4 text-sm text-red-200"
+            role="alert"
+          >
+            {media.error}
+          </p>
+        ) : null}
           </div>
         </div>
         {audioUrl ? (
-          <audio ref={audioRef} className="hidden" preload="metadata" src={audioUrl} />
-        ) : null}
-        {experienceMode === "studio" ? (
-        <div className="mt-6 rounded-[var(--radius-lg)] border border-[var(--player-border)] bg-[var(--player-panel)] p-4">
-          <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[var(--player-text-muted)]">
-            Keyboard shortcuts
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2 text-xs text-[var(--player-text-soft)]">
-            {[
-              ["Space", "Play / pause"],
-              ["← / →", "Skip"],
-              ["B", "Bookmark"],
-              ["S", "Sleep"],
-              ["V", "Speed"],
-              ["N / P", "Chapter"],
-            ].map(([shortcut, label]) => (
-              <span
-                key={shortcut}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--player-border)] bg-black/15 px-2.5 py-1"
-              >
-                <span className="text-[0.6rem] font-semibold uppercase text-white">{shortcut}</span>
-                <span>{label}</span>
-              </span>
-            ))}
-          </div>
-        </div>
-        ) : null}
-        {experienceMode === "studio" && audioKind !== "imported-audio" ? (
-        <>
-        <div className="mt-4 rounded-[var(--radius-lg)] border border-[var(--player-border)] bg-[var(--player-panel)] p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[var(--player-text-muted)]">
-                Share your taste
-              </p>
-              <p className="mt-2 text-sm text-[var(--player-text-soft)]">
-                {narratorName} in {mode}
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                className="rounded-full border border-[var(--player-border)] bg-[var(--player-panel)] px-3 py-1.5 text-sm text-[var(--player-text-soft)] transition hover:bg-white/10"
-                type="button"
-                onClick={saveAsDefaultTaste}
-              >
-                Make default
-              </button>
-              <button
-                className="rounded-full bg-[var(--player-accent)] px-3 py-1.5 text-sm font-medium text-[var(--player-bg-1)] transition hover:opacity-90"
-                type="button"
-                onClick={() => { void shareTasteCard(); }}
-              >
-                {typeof navigator !== "undefined" && typeof navigator.share === "function" ? "Share" : "Copy"}
-              </button>
-            </div>
-          </div>
-          {defaultTasteFeedback === "saved" ? (
-            <p className="mt-2 text-sm text-[var(--player-text-muted)]">Saved as default.</p>
-          ) : null}
-          {shareFeedback !== "idle" ? (
-            <p className="mt-2 text-sm text-[var(--player-text-muted)]">
-              {shareFeedback === "shared" ? "Shared." : "Copied."}
-            </p>
-          ) : null}
-        </div>
-        <div className="mt-4 rounded-[var(--radius-lg)] border border-[var(--player-border)] bg-[var(--player-panel)] p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[var(--player-text-muted)]">
-                Book circle
-              </p>
-              <p className="mt-2 text-sm text-[var(--player-text-soft)]">
-                Invite friends into this edition
-              </p>
-            </div>
-            <button
-              className="rounded-full bg-[var(--player-accent)] px-3 py-1.5 text-sm font-medium text-[var(--player-bg-1)] transition hover:opacity-90"
-              type="button"
-              onClick={() => { void shareBookCircleInvite(); }}
-            >
-              {typeof navigator !== "undefined" && typeof navigator.share === "function" ? "Share" : "Copy invite"}
-            </button>
-          </div>
-          {circleFeedback !== "idle" ? (
-            <p className="mt-2 text-sm text-[var(--player-text-muted)]">
-              {circleFeedback === "shared" ? "Shared." : "Copied."}
-            </p>
-          ) : null}
-        </div>
-        </>
+          <audio
+            ref={media.audioRef}
+            className="hidden"
+            preload="metadata"
+            src={audioUrl}
+          />
         ) : null}
       </section>
 
@@ -929,12 +805,12 @@ export function NowPlaying({
         <div className="mt-4 rounded-[var(--radius-lg)] border border-[var(--line)] bg-[var(--paper-2)]/50 p-4">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <p className="text-sm text-[var(--ink-soft)]">
-              {isImportedAudio ? "Jump between sections" : "Jump to a chapter"}
+              Jump to a chapter
             </p>
             <div className="min-w-[14rem] flex-1 max-w-sm">
               <input
                 className="w-full rounded-full border border-[var(--line-strong)] bg-white px-4 py-2 text-sm text-[var(--ink)] outline-none transition focus:border-[var(--accent)]"
-                placeholder={isImportedAudio ? "Search sections..." : "Search chapters..."}
+                placeholder="Search chapters..."
                 type="text"
                 value={chapterQuery}
                 onChange={(event) => setChapterQuery(event.target.value)}
@@ -970,163 +846,6 @@ export function NowPlaying({
           {currentChapter?.text.slice(0, 280) ??
             "No imported draft found yet. Return to import and carry a chapter through setup first."}
         </p>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-lg)] border border-[var(--line)] bg-white px-4 py-3">
-          <p className="text-sm text-[var(--ink-soft)]">Save a moment from this chapter</p>
-          <button
-            className="rounded-full border border-[var(--line-strong)] px-4 py-2 text-sm font-medium text-[var(--ink-soft)] transition hover:bg-[var(--paper-2)]"
-            type="button"
-            onClick={saveQuote}
-          >
-            Save quote
-          </button>
-        </div>
-        <div className="mt-6 rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--paper)] p-5">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h4 className="text-lg font-semibold text-stone-900">Saved quotes</h4>
-              <p className="mt-1 text-sm text-stone-600">
-                Keep standout lines and copy them later.
-              </p>
-            </div>
-            <span className="rounded-full bg-white px-3 py-2 text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
-              {savedQuotes.length}
-            </span>
-          </div>
-          {latestQuote ? (
-            <div className="mt-4 rounded-[var(--radius-lg)] border border-[var(--accent-soft)] bg-[var(--accent-soft)]/30 px-4 py-4 text-sm text-[var(--ink-soft)]">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="max-w-xl">
-                  <p className="text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-[var(--accent-strong)]">
-                    Favorite moment
-                  </p>
-                  {latestQuote.pinnedAt ? (
-                    <p className="mt-2 text-[0.65rem] font-semibold uppercase tracking-[0.22em] text-[var(--accent)]">
-                      Pinned quote
-                    </p>
-                  ) : null}
-                  <p className="mt-2 text-base font-medium italic text-[var(--ink)]">
-                    “{latestQuote.text}”
-                  </p>
-                  <p className="mt-2 leading-6 text-stone-600">
-                    {chapters[latestQuote.chapterIndex]?.title ??
-                      `Chapter ${latestQuote.chapterIndex + 1}`}
-                    {" · "}
-                    {formatPlaybackTime(latestQuote.progressSeconds)}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white transition hover:bg-[var(--accent-strong)]"
-                    type="button"
-                    onClick={() => jumpToQuote(latestQuote)}
-                  >
-                    Jump to quote
-                  </button>
-                  <button
-                    className="rounded-full border border-[var(--line-strong)] px-4 py-2 text-sm font-medium text-[var(--ink-soft)] transition hover:bg-[var(--paper-2)]"
-                    type="button"
-                    onClick={() => {
-                      void copyQuote(latestQuote.text);
-                    }}
-                  >
-                    Copy quote
-                  </button>
-                  <button
-                    className="rounded-full border border-[var(--line-strong)] px-4 py-2 text-sm font-medium text-[var(--ink-soft)] transition hover:bg-[var(--paper-2)]"
-                    type="button"
-                    onClick={() => togglePinnedQuote(latestQuote.id)}
-                  >
-                    {latestQuote.pinnedAt ? "Unpin quote" : "Pin quote"}
-                  </button>
-                  <button
-                    className="rounded-full border border-[var(--line-strong)] px-4 py-2 text-sm font-medium text-[var(--ink-soft)] transition hover:bg-[var(--paper-2)]"
-                    type="button"
-                    onClick={() => toggleQuotePromotion(latestQuote)}
-                  >
-                    {promotedMomentIds.includes(`promoted-${latestQuote.id}`)
-                      ? "Remove from social"
-                      : "Promote to social"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : null}
-          {savedQuotes.length > 0 ? (
-            <div className="mt-4 grid gap-3">
-              {savedQuotes.map((quote) => {
-                const quoteChapter = chapters[quote.chapterIndex];
-
-                return (
-                  <div
-                    key={quote.id}
-                    className="rounded-[var(--radius-lg)] border border-[var(--line)] bg-white px-4 py-4 text-sm text-stone-700 shadow-sm"
-                  >
-                    <p className="text-base font-medium italic text-stone-950">“{quote.text}”</p>
-                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex flex-wrap items-center gap-2 text-stone-500">
-                        <p>
-                          {quoteChapter?.title ?? `Chapter ${quote.chapterIndex + 1}`}
-                          {" · "}
-                          {formatPlaybackTime(quote.progressSeconds)}
-                        </p>
-                        {quote.pinnedAt ? (
-                          <span className="rounded-full border border-[var(--accent-soft)] bg-[var(--accent-soft)] px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-[var(--accent-strong)]">
-                            Pinned
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="flex flex-wrap gap-3">
-                        <button
-                          className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white transition hover:bg-[var(--accent-strong)]"
-                          type="button"
-                          onClick={() => jumpToQuote(quote)}
-                        >
-                          Jump to quote
-                        </button>
-                        <button
-                          className="rounded-full border border-[var(--line-strong)] px-4 py-2 text-sm font-medium text-[var(--ink-soft)] transition hover:bg-[var(--paper-2)]"
-                          type="button"
-                          onClick={() => {
-                            void copyQuote(quote.text);
-                          }}
-                        >
-                          Copy
-                        </button>
-                        <button
-                          className="rounded-full border border-[var(--line-strong)] px-4 py-2 text-sm font-medium text-[var(--ink-soft)] transition hover:bg-[var(--paper-2)]"
-                          type="button"
-                          onClick={() => togglePinnedQuote(quote.id)}
-                        >
-                          {quote.pinnedAt ? "Unpin" : "Pin"}
-                        </button>
-                        <button
-                          className="rounded-full border border-[var(--line-strong)] px-4 py-2 text-sm font-medium text-[var(--ink-soft)] transition hover:bg-[var(--paper-2)]"
-                          type="button"
-                          onClick={() => toggleQuotePromotion(quote)}
-                        >
-                          {promotedMomentIds.includes(`promoted-${quote.id}`)
-                            ? "Remove from social"
-                            : "Promote"}
-                        </button>
-                        <button
-                          className="rounded-full border border-[var(--line-strong)] px-4 py-2 text-sm font-medium text-[var(--ink-soft)] transition hover:bg-[var(--paper-2)]"
-                          type="button"
-                          onClick={() => removeQuote(quote.id)}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="mt-4 text-sm leading-6 text-stone-600">
-              No saved quotes yet for this book.
-            </p>
-          )}
-        </div>
         <div className="mt-6 rounded-[var(--radius-xl)] border border-[var(--line)] bg-[var(--paper)] p-5">
           <div className="flex items-center justify-between gap-4">
             <div>

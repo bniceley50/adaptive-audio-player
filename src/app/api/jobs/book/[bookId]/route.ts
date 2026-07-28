@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 
 import {
+  toPublicGenerationArtifact,
+  toPublicGenerationJob,
+  toPublicGenerationOutput,
+} from "@/lib/backend/public-generation";
+import {
   getGenerationOutputsForBook,
   listGenerationOutputHistoryForBook,
   listRecentGenerationJobsForBook,
 } from "@/lib/backend/sqlite";
 import {
-  accountCookieName,
   readWorkspaceIdFromCookieValue,
-  readVerifiedAccountIdFromCookieValue,
-  verifyWorkspaceAccess,
   workspaceCookieName,
 } from "@/lib/backend/workspace-session";
 
@@ -29,29 +31,29 @@ export async function GET(
   context: { params: Promise<{ bookId: string }> },
 ) {
   const { bookId } = await context.params;
-  const rawWorkspaceId = readWorkspaceIdFromCookieValue(
+  const workspaceId = readWorkspaceIdFromCookieValue(
     parseCookieValue(request, workspaceCookieName),
   );
-  const accountId = readVerifiedAccountIdFromCookieValue(
-    parseCookieValue(request, accountCookieName),
-  );
-  const workspaceAccess = verifyWorkspaceAccess(rawWorkspaceId, accountId);
-
-  if (workspaceAccess.error) {
-    return NextResponse.json({ error: workspaceAccess.error }, { status: 403 });
-  }
-
-  if (!workspaceAccess.workspaceId) {
+  if (!workspaceId) {
     return NextResponse.json({ error: "No workspace is active." }, { status: 401 });
   }
 
+  const outputs = getGenerationOutputsForBook(workspaceId, bookId);
+  const artifacts = listGenerationOutputHistoryForBook(
+    workspaceId,
+    bookId,
+    12,
+  );
+
   return NextResponse.json({
-    jobs: listRecentGenerationJobsForBook(workspaceAccess.workspaceId, bookId, 10),
-    outputs: getGenerationOutputsForBook(workspaceAccess.workspaceId, bookId),
-    artifacts: listGenerationOutputHistoryForBook(
-      workspaceAccess.workspaceId,
-      bookId,
-      12,
+    jobs: listRecentGenerationJobsForBook(workspaceId, bookId, 10).map(
+      toPublicGenerationJob,
+    ),
+    outputs: outputs.map((output) =>
+      toPublicGenerationOutput(output, artifacts),
+    ),
+    artifacts: artifacts.map((artifact) =>
+      toPublicGenerationArtifact(artifact, outputs),
     ),
   });
 }

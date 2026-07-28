@@ -12,3 +12,5 @@ _Updated by agent after each user correction. Read at session start._
 **Rule:** If a browser test is flaky because the UI correctly prevents bad input, replace it with deterministic unit coverage.
 
 **Rule:** Do not overbuild before the first vertical slice works end to end.
+
+**Rule:** Treat visually card-shaped library items as explicit keyboard-accessible links to their primary destination; do not require users to discover an off-screen secondary action.

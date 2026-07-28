@@ -1,229 +1,222 @@
 # Data Contracts
 
-These are the canonical product contracts that future work should reuse instead
-of redefining in page files.
+## Contract layers
 
-## Core reading and listening
+The same concept has different shapes at different trust boundaries. These layers must not be collapsed:
 
-### Book
+1. SQLite rows are private persistence details.
+2. Server domain records may contain workspace identity, manuscript text, raw generation metadata, and contained relative paths.
+3. Route DTOs are explicit browser contracts and contain only what that screen needs.
+4. Browser storage contains disposable preferences or cache and is never a durable backend record.
 
-Current root types:
-- `src/lib/types/models.ts`
-- `src/lib/library/local-library.ts`
-- `src/lib/backend/types.ts`
+`src/lib/backend/book-repository.ts`, `src/lib/backend/generation-repository.ts`, and `src/lib/backend/public-generation.ts` own the conversions between these layers. `src/lib/client/books-api.ts` and `src/lib/playback/local-playback.ts` validate browser-facing responses again before the UI trusts them.
 
-Practical contract:
-- `bookId`
-- `title`
-- `chapterCount`
-- `updatedAt`
-- optional identity metadata:
-  - `coverTheme`
-  - `coverLabel`
-  - `coverGlyph`
-  - `genreLabel`
+## Identity and local namespace
 
-Rule:
-- route files should consume a normalized book shape, not invent their own
-  title/cover fallbacks independently
+- `workspaceId` is an opaque local partition ID created by `src/lib/backend/workspace-session.ts` and carried in a signed, HTTP-only cookie.
+- A request body must never select or override `workspaceId`.
+- The cookie is integrity-protected with HMAC-SHA256, `SameSite=Lax`, secure in production, and valid for one year.
+- A workspace is not an account, identity, cloud tenant, or shared-device security boundary.
+- `bookId`, `chapterId`, `jobId`, and `artifactId` use generated, prefix-qualified IDs and are always resolved together with the active workspace at server boundaries.
 
-### Chapter
+## Authoritative persistence contracts
 
-Canonical type:
-- `src/lib/types/models.ts`
+The current schema version is 2. Active tables are:
 
-Fields:
-- `id`
-- `title`
-- `text`
-- `order`
+| Table | Contract | Owner |
+|---|---|---|
+| `workspaces` | Local namespace and timestamps; no user relation. | `src/lib/backend/book-repository.ts` and workspace-cookie creation |
+| `synced_books` | Book summary plus private normalized manuscript text in `draft_text`. The name is legacy; no cloud sync is implied. | `src/lib/backend/book-repository.ts` |
+| `book_chapters` | Ordered chapter ID, title, and private text for a book. | `src/lib/backend/book-repository.ts` |
+| `book_create_requests` | Idempotency key, request fingerprint, and resulting book ID. | `src/lib/backend/book-repository.ts` |
+| `sync_jobs` | Generation queue, status, error, attempt, heartbeat, lease, and private stats JSON. The name is legacy. | `src/lib/backend/generation-repository.ts` |
+| `generated_outputs` | One current output JSON record per workspace, book, and generation kind. | `src/lib/backend/generation-repository.ts` |
+| `generated_output_history` | Artifact rows retained for the current generation set, including chapter artifacts. | `src/lib/backend/generation-repository.ts` |
+| `book_progress` | One durable progress row per book, tied to the current artifact and guarded by a revision. | `src/lib/backend/book-repository.ts` |
+| `worker_heartbeats` | Local worker liveness and last-job diagnostics. | `src/lib/backend/sqlite.ts` and `scripts/job-worker.mjs` |
 
-### Listening profile
+Retired account, profile, snapshot, and community tables are removed by migration version 2 and are not valid v1 contracts.
 
-Canonical local type:
-- `LocalListeningProfile` in `src/lib/library/local-library.ts`
+## Core server and browser shapes
 
-Fields:
-- `bookId`
-- `narratorId`
-- `narratorName`
-- `mode`
+### Book summary
 
-Meaning:
-- one book-specific listening edition
+Server type: `WorkspaceBookSummary` in `src/lib/backend/book-repository.ts`.
 
-### Default listening profile
+```ts
+type BookSummary = {
+  bookId: string;
+  title: string;
+  chapterCount: number;
+  updatedAt: string;
+};
+```
 
-Backed by:
-- local default taste storage
-- backend sync snapshot `defaultListeningProfile`
+The library DTO extends this with bounded activity:
 
-Rule:
-- default taste is weaker than a saved book-specific taste
-- recent taste is weaker than both
+- at most 10 recent job status summaries per book;
+- current public output identity and URL without provider, narrator, mode, workspace, or storage path;
+- current progress without its internal revision.
 
-### Playback state
+### Book detail
 
-Canonical types:
-- `PersistedPlaybackState` in `src/lib/playback/local-playback.ts`
-- `SyncedPlaybackStateRecord` in `src/lib/backend/types.ts`
+Server and browser shape: `WorkspaceBookDetail` and `BookDetail`.
 
-Required behaviors:
-- compare local and backend freshness
-- prefer the newest trusted state
-- preserve:
-  - chapter index
-  - progress seconds
-  - speed
-  - sleep timer
-  - playback artifact kind
+```ts
+type BookDetail = BookSummary & {
+  manuscript: string;
+  chapters: Array<{
+    id: string;
+    title: string;
+    text: string;
+    order: number;
+  }>;
+};
+```
 
-### Playback defaults
+This is intentionally private browser data used by setup and playback. The route uses `Cache-Control: no-store`. It must not be logged, placed in URLs, included in screenshots, or copied into durable browser storage.
 
-Canonical type:
-- `PlaybackDefaults` in `src/lib/playback/local-playback.ts`
+### Book progress
 
-Rule:
-- immediate local changes should feel instant
-- workspace/account transitions should reset to the synced snapshot
+Canonical server type: `WorkspaceBookProgress` in `src/lib/backend/book-repository.ts`. Browser parser: `BookProgress` in `src/lib/playback/local-playback.ts`.
 
-## Generation and render history
+```ts
+type BookProgress = {
+  bookId: string;
+  artifactId: string;
+  positionSeconds: number;
+  durationSeconds: number;
+  speed: number;
+  chapterIndex: number | null;
+  revision: number;
+  updatedAt: string;
+};
+```
 
-### Sample request
-
-Canonical type:
-- `LocalSampleRequest` in `src/lib/library/local-library.ts`
-
-Fields:
-- `bookId`
-- `narratorId`
-- `mode`
-
-### Generated artifact
-
-Canonical types:
-- `LocalGenerationOutput` in `src/lib/library/local-library.ts`
-- `GenerationOutputSummary` in `src/lib/backend/types.ts`
-- `GenerationArtifactSummary` in `src/lib/backend/types.ts`
-
-Shared fields:
-- `workspaceId`
-- `bookId`
-- `kind`
-- `narratorId`
-- `mode`
-- `chapterCount`
-- `assetPath`
-- `mimeType`
-- `provider`
-- `generatedAt`
-
-Rule:
-- UI should prefer the freshest artifact metadata between local and backend
-- current vs archived is a first-class product distinction
+Writes include the expected `revision`. The server accepts only a current artifact for that book, validates duration, position, speed, and chapter bounds, and increments the revision atomically. A stale writer receives `409` and `currentRevision`.
 
 ### Generation job
 
-Canonical types:
-- `GenerationJobKind`
-- `SyncJobSummary`
+The server record is still named `SyncJobSummary` in `src/lib/backend/types.ts`; the name is legacy. Generation kinds are `sample-generation` and `full-book-generation`. Active statuses are `queued`, `running`, `completed`, `failed`, and `cancelled`.
 
-Kinds:
-- `sample-generation`
-- `full-book-generation`
+Every job route maps server records through `toPublicGenerationJob` in `src/lib/backend/public-generation.ts`. The public job shape is:
 
-Rule:
-- jobs are the orchestration record
-- artifacts are the playable outcome
+```ts
+type PublicGenerationJob = {
+  id: string;
+  kind: string;
+  status: string;
+  createdAt: string;
+  completedAt: string | null;
+  errorMessage: string | null;
+  bookId: string | null;
+  bookTitle: string | null;
+  narratorId: string | null;
+  mode: string | null;
+  chapterCount: number | null;
+  renderProgress: GenerationJobProgressSummary | null;
+  playableArtifactKind: GenerationJobKind | null;
+  resumePath: string | null;
+};
+```
 
-## Social and casual features
+Lease timestamps, attempt counters, workspace identity, raw `stats_json`, worker heartbeats, manuscript snapshots, profiles, and playback-state snapshots are server-only orchestration data. Enqueue, status, book history, cancellation, and retry responses all use this explicit allowlist; none serialize the broader `SyncJobSummary` directly.
 
-### Saved quote
+### Generation output and artifact
 
-Current owner:
-- quote-related helpers/components under `src/components/library`
+`GenerationOutputSummary` and `GenerationArtifactSummary` in `src/lib/backend/types.ts` are server-only because they contain:
 
-Practical contract:
-- unique id
-- `bookId`
-- optional `bookTitle`
-- `chapterIndex`
-- `progressSeconds`
-- `text`
-- timestamps for save/pin/share flows
+- `workspaceId`;
+- relative `assetPath` and chapter asset paths;
+- internal storage and provider metadata.
 
-### Listening edition
+`toPublicGenerationOutput` and `toPublicGenerationArtifact` in `src/lib/backend/public-generation.ts` produce browser DTOs:
 
-Product name for shared taste object.
+```ts
+type PublicGenerationOutput = {
+  artifactId: string | null;
+  artifactUrl: string;
+  bookId: string;
+  kind: "sample-generation" | "full-book-generation";
+  narratorId: string | null;
+  mode: string | null;
+  chapterCount: number | null;
+  mimeType: string;
+  provider: "kokoro-local" | "openai" | "mock";
+  generatedAt: string;
+  jobId: string | null;
+  chapterIndex: number | null;
+  chapterTitle: string | null;
+  chapterArtifacts: Array<{
+    artifactId: string;
+    artifactUrl: string;
+    chapterIndex: number | null;
+    chapterTitle: string | null;
+  }>;
+  isChapterArtifact: boolean;
+  isCurrent: boolean;
+};
+```
 
-Backed by:
-- listening profile
-- optional default playback values
-- optional social metadata
+`openai` and `mock` are read-only legacy compatibility values. New production output is `kokoro-local`. No browser DTO contains `assetPath`, `chapterAssetPaths`, or a resolved local path.
 
-Minimum share contract:
-- narrator
-- mode
-- optional playback defaults
-- optional creator label
+## HTTP route contracts
 
-### Book circle
+JSON errors use `{ error: string }` with optional conflict metadata. Book detail, progress, and audio routes explicitly use `Cache-Control: no-store`; other routes must not be assumed cacheable merely because they return JSON.
 
-Current product object:
-- social entry point around a quote or title
+| Route | Request | Success response |
+|---|---|---|
+| `GET /api/books` | Signed workspace cookie if one exists. | `{ books: LibraryBookSummary[] }`; an absent workspace returns an empty list. |
+| `POST /api/books` | Same-origin JSON `{ title, text }`, valid `Idempotency-Key`, maximum 6,100,000 request bytes. | `201` created or `200` replayed with `{ ok, replayed, book }`; sets a workspace cookie when needed. |
+| `GET /api/books/[bookId]` | Normalized book ID and workspace cookie. | `{ book: BookDetail }`, including private text, with `no-store`. |
+| `DELETE /api/books/[bookId]` | Same-origin request and workspace cookie. | `{ ok: true, deleted: boolean }`; cleanup failure is `409`. |
+| `GET /api/books/[bookId]/progress` | Workspace-owned book. | `{ progress: BookProgress | null }`. |
+| `PUT /api/books/[bookId]/progress` | Same-origin JSON `{ artifactId, positionSeconds, durationSeconds, speed, chapterIndex, revision }`, maximum 4,096 bytes. | `{ progress: BookProgress }`; stale revision or non-current artifact is `409`. |
+| `GET` or `HEAD /api/voices/[voiceId]/preview` | Curated voice ID; preview text is server-owned. | Range-capable preview WAV response or actionable JSON error. |
+| `POST /api/jobs/sample-generation` | Same-origin JSON `{ bookId, narratorId }`. | `201 { ok: true, job: PublicGenerationJob }`. |
+| `POST /api/jobs/full-book-generation` | Same-origin JSON `{ bookId }`; narrator is derived from the current sample. | `201 { ok: true, job: PublicGenerationJob }`. |
+| `GET /api/jobs/sample-generation/[jobId]` | Workspace-owned job. | `{ job: PublicGenerationJob }`. |
+| `GET /api/jobs/full-book-generation/[jobId]` | Workspace-owned job. | `{ job: PublicGenerationJob }`. |
+| `GET /api/jobs/book/[bookId]` | Workspace cookie and book ID. | `{ jobs: PublicGenerationJob[], outputs, artifacts }`; outputs and artifacts are public generation DTOs. |
+| `POST /api/jobs/cancel` | Same-origin JSON `{ jobId }`. | `{ job: PublicGenerationJob }` after an eligible cancellation. |
+| `POST /api/jobs/retry` | Same-origin JSON `{ jobId }`. | `{ job: PublicGenerationJob }` for the newly queued retry. |
+| `GET /api/audio/generated/[bookId]?kind=...` | Workspace-owned current output. | `200` or `206` WAV stream; `416` for an invalid single range. |
+| `GET /api/audio/generated/artifacts/[artifactId]` | Workspace-owned retained artifact. | `200` or `206` WAV stream without exposing its path. |
 
-Minimum contract:
-- title/book identity
-- featured quote or moment
-- recommended listening edition
-- invite/share action
+## Mutation and concurrency contracts
 
-## Account, workspace, and sync
+- State-changing routes derive workspace ownership from the signed cookie and verify same-origin headers.
+- Book creation is idempotent within a workspace. Reusing a key with the same request fingerprint replays the result; reusing it for different content returns `409`.
+- Import and progress request bodies are read through byte bounds before parsing.
+- Generation request validation owns allowed voices, compatibility mode, book limits, and duplicate-active-job checks on the server.
+- Job claim and expired-lease recovery occur inside one `BEGIN IMMEDIATE` transaction.
+- Job completion requires a running job with an unexpired lease and commits output, artifact, and job state together.
+- Progress uses optimistic concurrency and current-artifact validation rather than last-write-wins.
 
-### Library sync snapshot
+## Filesystem contract
 
-Canonical type:
-- `LibrarySyncSnapshot` in `src/lib/backend/types.ts`
+- `src/lib/backend/audio-storage.ts` is the only module that constructs or validates generated-audio paths.
+- Stored paths are contained relative paths, not browser URLs.
+- Public URLs are created by `src/lib/backend/public-generation.ts` and resolve through protected application routes.
+- `src/lib/backend/http-audio.ts` accepts one bounded byte range, streams only that range, and never buffers the complete book in memory.
+- File deletion and SQLite commit are separate resource boundaries. Rollback cannot restore a deleted file.
 
-This is the server-backed source for:
-- books
-- removed books
-- drafts
-- listening profiles
-- default profile
-- sample request
-- playback states
-- playback defaults
-- generation outputs
+## Browser cache contract
 
-Rule:
-- when local state is missing or weaker/staler, prefer the synced snapshot
+`src/lib/playback/local-playback.ts` may cache playback UI state, bookmarks, playback defaults, and pending progress. `src/lib/client/books-api.ts` may cache book summary metadata for transition UX. These caches may be discarded at any time and must never:
 
-### Workspace summary
+- become the durable manuscript store;
+- promote a book to ready without a current server artifact;
+- manufacture an audio URL;
+- override server ownership or validation;
+- be treated as a backup or multi-device record.
 
-Canonical types:
-- `WorkspaceSyncSummary`
-- `UserWorkspaceSummary`
+## Contract change rule
 
-Used for:
-- account card
-- linked workspace switching
-- backend status surfaces
+When a route contract changes:
 
-### Account session
-
-Canonical types:
-- `BackendAccountSession`
-- `UserAccountSessionSummary`
-- `EndedAccountSessionSummary`
-
-Rule:
-- session/security UI should read from these types, not reinterpret raw cookie
-  state
-
-## Contract hygiene rules
-
-- Add new product contracts here before duplicating types in routes.
-- Prefer extending canonical types over introducing route-local objects.
-- If a type exists in both local and backend layers, define the merge rules
-  explicitly in the owning helper.
+1. Change the owning server domain or repository type.
+2. Add or update an explicit public mapper when private fields exist.
+3. Update the client parser rather than trusting raw JSON.
+4. Test both required fields and forbidden private fields.
+5. Update this document in the same change.
