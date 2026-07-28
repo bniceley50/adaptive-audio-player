@@ -44,6 +44,10 @@ jobs:
       - name: Production build
         run: pnpm build
 
+      - name: Provision verified Kokoro E2E resources
+        shell: pwsh
+        run: ./scripts/provision-kokoro-ci.ps1
+
       - name: Install Playwright Chromium
         run: pnpm exec playwright install chromium
 
