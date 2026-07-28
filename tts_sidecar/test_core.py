@@ -82,8 +82,8 @@ class CoreTests(unittest.TestCase):
             ):
                 settings = load_settings()
 
-            self.assertEqual(settings.data_root, data_root)
-            self.assertEqual(settings.render_root, data_root / "tts-renders")
+            self.assertEqual(settings.data_root, data_root.resolve())
+            self.assertEqual(settings.render_root, (data_root / "tts-renders").resolve())
             render_path = next_render_path(settings)
             render_path.write_bytes(b"temporary render")
 
@@ -112,14 +112,16 @@ class CoreTests(unittest.TestCase):
 
             self.assertEqual(
                 settings.model_root,
-                project_root
-                / "data"
-                / "local-tts"
-                / "huggingface"
-                / "hub"
-                / "models--hexgrad--Kokoro-82M"
-                / "snapshots"
-                / KOKORO_REVISION,
+                (
+                    project_root
+                    / "data"
+                    / "local-tts"
+                    / "huggingface"
+                    / "hub"
+                    / "models--hexgrad--Kokoro-82M"
+                    / "snapshots"
+                    / KOKORO_REVISION
+                ).resolve(),
             )
 
     def test_rejects_a_render_root_outside_app_data(self) -> None:
