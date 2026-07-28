@@ -8,7 +8,7 @@ on:
 
 jobs:
   gate:
-    runs-on: ubuntu-24.04
+    runs-on: windows-2025
     steps:
       - uses: actions/checkout@v4
 
@@ -45,7 +45,7 @@ jobs:
         run: pnpm build
 
       - name: Install Playwright Chromium
-        run: pnpm exec playwright install --with-deps chromium
+        run: pnpm exec playwright install chromium
 
       - name: Core listening E2E
         run: pnpm test:e2e --grep "core listening"
