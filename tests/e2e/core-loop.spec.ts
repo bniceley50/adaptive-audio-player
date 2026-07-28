@@ -338,7 +338,7 @@ test("core listening: generated media advances, seeks, resumes, and sleeps", asy
   const importedBookId = new URL(page.url()).pathname.split("/").at(-1);
   expect(importedBookId).toBeTruthy();
 
-  await page.getByRole("link", { name: "Library" }).click();
+  await page.locator("header").getByRole("link", { name: "Library" }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByText("Books: 1", { exact: true })).toBeVisible();
   const shelfBook = page.locator(`[data-testid="shelf-book-${importedBookId}"]`);
