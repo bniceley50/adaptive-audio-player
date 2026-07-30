@@ -46,10 +46,13 @@ machine-readable final record outside the repository.
 - [ ] Bounded pasted text imports successfully.
 - [ ] Bounded TXT imports successfully.
 - [ ] Bounded DRM-free EPUB imports successfully.
+- [ ] Bounded authorized MP3 and M4B recordings transcribe locally and require complete transcript approval.
+- [ ] Embedded M4B chapters and chapterless MP3 fallback both produce reviewable chapters.
 - [ ] Title and extracted chapters are reviewable.
 - [ ] Each curated voice previews real local audio.
 - [ ] A 1,000-character sample generates and plays.
 - [ ] Complete-book generation finishes and supports HTTP range playback.
+- [ ] A re-narrated multi-chapter book seeks to exact generated chapter boundaries.
 - [ ] Playback position persists across close and reopen.
 - [ ] Original imports and explicit external exports remain outside package cleanup.
 
@@ -63,6 +66,7 @@ machine-readable final record outside the repository.
 - [ ] Offline launch and generation transfer zero model bytes.
 - [ ] Insufficient disk fails actionably without partial completion.
 - [ ] Corrupt model fails closed without cloud or mock fallback.
+- [ ] Missing, corrupt, or unapproved FFmpeg/Whisper transcription resources fail closed without retaining the imported recording.
 - [ ] Blocked loopback port fails safely without broadening the bind address.
 - [ ] Non-ASCII Windows user path passes install, generation, playback, and cleanup.
 - [ ] No host, server, worker, sidecar, guardian, or child process remains orphaned.

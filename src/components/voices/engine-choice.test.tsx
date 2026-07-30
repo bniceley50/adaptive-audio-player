@@ -79,6 +79,20 @@ describe("EngineChoice", () => {
     expect(onEngineChange).toHaveBeenCalledWith("chatterbox");
   });
 
+  it("preserves a saved High Quality choice while readiness is checked", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => statusResponse("ready")));
+    const onEngineChange = vi.fn();
+    const { container } = renderEngineChoice("chatterbox", onEngineChange);
+
+    await act(async () => Promise.resolve());
+
+    expect(
+      container.querySelector<HTMLInputElement>("#engine-choice-chatterbox")
+        ?.checked,
+    ).toBe(true);
+    expect(onEngineChange).not.toHaveBeenCalledWith("kokoro");
+  });
+
   afterEach(() => {
     for (const root of roots.splice(0)) {
       act(() => root.unmount());

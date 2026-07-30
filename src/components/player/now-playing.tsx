@@ -2,6 +2,7 @@
 
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { useMediaController } from "@/components/player/use-media-controller";
+import type { GenerationChapterTiming } from "@/lib/backend/types";
 import type { Chapter } from "@/lib/types/models";
 import {
   clearPlaybackDefaults,
@@ -23,6 +24,8 @@ import {
   clearLegacySavedQuotes,
 } from "@/lib/library/local-quotes";
 
+const noChapterTimings: readonly GenerationChapterTiming[] = [];
+
 export function NowPlaying({
   artifactId = null,
   audioKind,
@@ -30,6 +33,7 @@ export function NowPlaying({
   bookId,
   bookTitle,
   chapters,
+  chapterTimings = noChapterTimings,
   initialJumpTarget,
   initialPlaybackDefaults,
   initialPlaybackState,
@@ -45,6 +49,7 @@ export function NowPlaying({
   bookId: string;
   bookTitle: string;
   chapters: Chapter[];
+  chapterTimings?: readonly GenerationChapterTiming[];
   initialJumpTarget?: { chapterIndex: number; progressSeconds: number } | null;
   initialPlaybackDefaults?: PlaybackDefaults | null;
   initialPlaybackState?: PersistedPlaybackState | null;
@@ -251,6 +256,66 @@ export function NowPlaying({
       bookmark.chapterIndex === currentChapterIndex &&
       bookmark.progressSeconds === progressSeconds,
   );
+
+  const exactChapterTimings = useMemo(() => {
+    if (
+      audioKind !== "full-book-generation" ||
+      chapterTimings.length !== chapters.length
+    ) {
+      return [];
+    }
+
+    return chapterTimings.every(
+      (timing, index) =>
+        timing.chapterIndex === index &&
+        Number.isFinite(timing.startSeconds) &&
+        timing.startSeconds >= 0 &&
+        Number.isFinite(timing.durationSeconds) &&
+        timing.durationSeconds > 0,
+    )
+      ? chapterTimings
+      : [];
+  }, [audioKind, chapterTimings, chapters.length]);
+
+  function resolveChapterStartSeconds(index: number) {
+    const exactStart = exactChapterTimings[index]?.startSeconds;
+    if (Number.isFinite(exactStart)) {
+      return Math.max(exactStart ?? 0, 0);
+    }
+
+    if (audioKind !== "full-book-generation" || totalSeconds <= 0) {
+      return 0;
+    }
+
+    const chapterWeights = chapters.map((chapter) =>
+      Math.max(chapter.title.length + chapter.text.length, 1),
+    );
+    const totalWeight = chapterWeights.reduce(
+      (total, weight) => total + weight,
+      0,
+    );
+    const precedingWeight = chapterWeights
+      .slice(0, index)
+      .reduce((total, weight) => total + weight, 0);
+    return totalWeight > 0 ? (precedingWeight / totalWeight) * totalSeconds : 0;
+  }
+
+  useEffect(() => {
+    if (exactChapterTimings.length === 0) {
+      return;
+    }
+
+    let activeChapterIndex = 0;
+    for (const timing of exactChapterTimings) {
+      if (media.currentTime + 0.001 < timing.startSeconds) {
+        break;
+      }
+      activeChapterIndex = timing.chapterIndex;
+    }
+    if (activeChapterIndex !== currentChapterIndex) {
+      setCurrentChapterIndex(activeChapterIndex);
+    }
+  }, [currentChapterIndex, exactChapterTimings, media.currentTime]);
 
   const readCurrentProgressSnapshot = useEffectEvent(
     (
@@ -555,7 +620,7 @@ export function NowPlaying({
   function selectChapter(index: number) {
     userControlledResumeKeyRef.current = resumeSourceKey;
     setCurrentChapterIndex(index);
-    media.seek(0);
+    media.seek(resolveChapterStartSeconds(index));
     media.pause();
   }
 

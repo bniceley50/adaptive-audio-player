@@ -13,6 +13,7 @@ function renderImportSource(
   overrides: Partial<{
     fileName: string | null;
     isReadingFile: boolean;
+    isTranscribing: boolean;
     selectedKind: ImportSourceKind | null;
     text: string;
   }> = {},
@@ -22,6 +23,7 @@ function renderImportSource(
   const root = createRoot(container);
   roots.push(root);
   const onFileChange = vi.fn();
+  const onAudioFileChange = vi.fn();
   const onSourceKindChange = vi.fn();
   const onTextChange = vi.fn();
 
@@ -30,8 +32,10 @@ function renderImportSource(
       <ImportSource
         fileName={overrides.fileName ?? null}
         isReadingFile={overrides.isReadingFile ?? false}
+        isTranscribing={overrides.isTranscribing ?? false}
         selectedKind={overrides.selectedKind ?? null}
         text={overrides.text ?? ""}
+        onAudioFileChange={onAudioFileChange}
         onFileChange={onFileChange}
         onSourceKindChange={onSourceKindChange}
         onTextChange={onTextChange}
@@ -41,6 +45,7 @@ function renderImportSource(
 
   return {
     container,
+    onAudioFileChange,
     onFileChange,
     onSourceKindChange,
     onTextChange,
@@ -56,7 +61,7 @@ afterEach(() => {
 });
 
 describe("ImportSource", () => {
-  it("shows supported formats and two concise source choices", () => {
+  it("shows supported formats and three concise source choices", () => {
     const { container } = renderImportSource();
     const radios = [...container.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
 
@@ -64,9 +69,12 @@ describe("ImportSource", () => {
     expect(container.textContent).toContain("DRM-free EPUB up to 25 MB");
     expect(container.textContent).toContain("1,000,000 characters");
     expect(container.textContent).toContain("300 chapters");
+    expect(container.textContent).toContain("MP3");
+    expect(container.textContent).toContain("M4B");
     expect(radios.map((radio) => radio.labels?.[0]?.textContent)).toEqual([
       "Choose a file",
       "Paste text",
+      "Re-narrate audio",
     ]);
   });
 
@@ -115,5 +123,22 @@ describe("ImportSource", () => {
 
     act(() => input?.dispatchEvent(new Event("change", { bubbles: true })));
     expect(onFileChange).toHaveBeenCalledWith(file);
+  });
+
+  it("reports authorized audio through a separate local-transcription input", () => {
+    const { container, onAudioFileChange } = renderImportSource({
+      selectedKind: "audio",
+    });
+    const input = container.querySelector<HTMLInputElement>(
+      "#import-audio-file",
+    );
+    const file = new File(["ID3"], "alice.mp3", { type: "audio/mpeg" });
+    Object.defineProperty(input, "files", { configurable: true, value: [file] });
+
+    act(() => input?.dispatchEvent(new Event("change", { bubbles: true })));
+
+    expect(input?.accept).toContain(".m4b");
+    expect(container.textContent).toContain("does not clone the original narrator");
+    expect(onAudioFileChange).toHaveBeenCalledWith(file);
   });
 });

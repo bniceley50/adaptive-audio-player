@@ -8,7 +8,7 @@ Positioning: Choose how your audiobook sounds.
 
 ## Current implementation baseline
 
-The source build provides the local library, TXT and EPUB import, chapter review, three curated Kokoro voices, an explicitly installed optional Chatterbox High Quality narrator on supported NVIDIA hardware, real sample and full-book generation, playback, saved progress, job recovery, SQLite persistence, protected audio streaming, and supervised local narration sidecars and worker.
+The source build provides the local library, TXT/EPUB/pasted-text import, transcript-mediated MP3/M4B re-narration, chapter review, three curated Kokoro voices, an explicitly installed optional Chatterbox High Quality narrator on supported NVIDIA hardware, real sample and full-book generation, playback, saved progress, job recovery, SQLite persistence, protected audio streaming, and supervised local narration sidecars and worker.
 
 The product has not shipped as an end-user desktop package. There is no supported hosted demo, account service, cloud sync, or multi-device service. Current usage is developer-only until the Windows package and its release verification are complete.
 
@@ -23,7 +23,7 @@ The product has not shipped as an end-user desktop package. There is no supporte
 - Private, single-user, local operation with no account or cloud dependency.
 - Only DRM-free material the user owns or is authorized to transform.
 
-PDF, DOCX, MP3/M4B narrator replacement, original-audio playback, voice cloning, custom voice uploads, character-aware casting, accounts, cloud sync, sharing, community, discovery, reporting, moderation, analytics, listening sound-design modes, and multi-device behavior are outside v1.
+The text-first v1 contract remains the release baseline. The implemented MP3/M4B workflow is a separately gated post-v1 source extension; PDF, DOCX, original-audio playback, voice cloning, custom voice uploads, character-aware casting, accounts, cloud sync, sharing, community, discovery, reporting, moderation, analytics, listening sound-design modes, and multi-device behavior remain outside scope.
 
 ## Release journey
 
@@ -55,7 +55,7 @@ Library and Add book are the only primary destinations. Job, worker, storage, wo
 
 ## Packaging target
 
-The first release target is a signed, per-user Windows 11 x64 MSIX with an Electron host. It will package the standalone application, a separate pinned Node 22 runtime, the frozen Python 3.12 sidecar, and the hash-verified Kokoro model. Chatterbox is implemented for explicit source installation but remains an optional separately installed runtime until its desktop installation and upgrade path passes the release matrix. The exact desktop build dependencies and signing workflow remain approval-gated; none of this is presented as shipped behavior.
+The first release target is a signed, per-user Windows 11 x64 MSIX with an Electron host. It will package the standalone application, a separate pinned Node 22 runtime, the frozen Python 3.12 sidecar, and the hash-verified Kokoro model. Chatterbox and audio transcription are implemented for source use, but their desktop runtime/install paths remain separate release gates. The package must not advertise MP3/M4B support until an exact FFmpeg/FFprobe/whisper.cpp closure and notices are approved, bundled, and proven on a clean offline machine.
 
 ## Release targets
 
@@ -73,10 +73,10 @@ The first release target is a signed, per-user Windows 11 x64 MSIX with an Elect
 4. Validate clean install, upgrade, uninstall, offline generation, restart recovery, accessibility, performance, and release signing on the reference machine.
 5. Publish end-user install and use instructions only after the package passes the complete release matrix.
 
-## Approved post-v1 direction: Re-narrate my audiobook
+## Implemented source extension: Re-narrate my audiobook
 
-After the text-first v1 release is proven, evaluate a local workflow for
-user-owned or otherwise permitted, non-DRM audiobook recordings:
+The source build implements a local workflow for user-owned or otherwise
+permitted, non-DRM MP3/M4B recordings up to 2 GB and 30 hours:
 
 1. Import an eligible local audio recording.
 2. Transcribe speech to text locally.
@@ -87,6 +87,6 @@ user-owned or otherwise permitted, non-DRM audiobook recordings:
 Importing the original book text remains the preferred, higher-accuracy route.
 The audio workflow must not bypass DRM, automatically ingest protected services,
 or use reference audio for voice cloning or impersonation. Imported audio,
-transcripts, edits, and generated narration remain local by default. This is an
-approved future direction only and does not expand the current dual-engine
-foundation or the v1 input contract.
+transcripts, edits, and generated narration remain local by default. The source
+workflow is verified; packaged support remains blocked on the separately
+approved transcription binary/model closure and clean-machine evidence.

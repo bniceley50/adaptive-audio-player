@@ -21,6 +21,7 @@ removed and must not be represented as a supported security boundary.
 ## Protected assets
 
 - Imported TXT and DRM-free EPUB source material
+- Temporary authorized MP3/M4B source material and reviewed transcripts
 - Extracted manuscripts and chapter metadata
 - Generated samples and full-book audio
 - Playback position and listening preferences
@@ -35,13 +36,16 @@ they never contain raw storage paths.
 - Accept only DRM-free material the user owns or is authorized to transform.
 - Never bypass, remove, or help defeat DRM.
 - Do not publicly share imported material or generated audio.
-- Import copy and validation must not imply support for PDF, DOCX, MP3, or M4B
-  narrator replacement in v1.
+- MP3/M4B re-narration is transcript-mediated only. Do not ingest protected
+  services, retain the recording after transcription, or use it as reference
+  audio for cloning or impersonation.
 
 ## Input and resource limits
 
 - TXT input: at most 5 MB.
 - EPUB input: at most 25 MB compressed and DRM-free.
+- MP3/M4B input: at most 2 GB, 30 hours, one audio stream, and 300 embedded
+  chapters; reject encrypted/protected codec markers and malformed timing.
 - Extracted content: at most 1,000,000 characters and 300 chapters.
 - Validate extension, media type, structure, expanded size, entry count, and
   text bounds at the server boundary before persistence or generation.
@@ -63,6 +67,9 @@ they never contain raw storage paths.
 - Keep secrets and model/render payloads out of git.
 - Fail closed when the local TTS engine is absent, unhealthy, misconfigured, or
   returns invalid output.
+- Keep transcription on the local machine, verify the pinned Whisper model by
+  size and SHA-256 before use, bound FFmpeg/FFprobe execution and diagnostics,
+  and remove contained source and intermediate transcript files on every exit.
 - Bind every narration sidecar to loopback, authenticate it with an independent
   per-launch secret, and reject compressed, unbounded, or oversized render
   requests. The optional Chatterbox interface must not accept reference audio,
@@ -87,6 +94,8 @@ they never contain raw storage paths.
 ## Release security gate
 
 - [ ] Supported input formats and every size boundary are tested.
+- [ ] MP3/M4B probe, DRM rejection, local transcription, transcript approval,
+      and temporary-file cleanup pass on the exact packaged runtime.
 - [ ] Generated and archived audio deny cross-book access and expose no paths.
 - [ ] No unverified login route can create a session.
 - [ ] No routine playback update uploads a manuscript or full-library snapshot.

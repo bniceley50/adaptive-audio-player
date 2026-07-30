@@ -7,8 +7,9 @@ export function parseChapters(text: string): Chapter[] {
   }
 
   const rawParts = normalized.split(/\n(?=chapter\s+\d+\b)/i).filter(Boolean);
+  const firstLine = rawParts[0]?.split("\n", 1)[0]?.trim() ?? "";
 
-  if (rawParts.length === 1) {
+  if (rawParts.length === 1 && !/^chapter\s+\d+\b/iu.test(firstLine)) {
     return [
       {
         id: "chapter-1",

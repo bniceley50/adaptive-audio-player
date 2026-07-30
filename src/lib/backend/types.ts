@@ -46,6 +46,13 @@ export interface GenerationJobProgressSummary {
   currentChapterTitle: string | null;
 }
 
+export interface GenerationChapterTiming {
+  chapterIndex: number;
+  chapterTitle: string;
+  startSeconds: number;
+  durationSeconds: number;
+}
+
 export interface GenerationOutputSummary {
   workspaceId: string;
   bookId: string;
@@ -58,6 +65,7 @@ export interface GenerationOutputSummary {
   mimeType: string;
   provider: GenerationOutputProvider;
   generatedAt: string;
+  chapterTimings?: GenerationChapterTiming[];
   chapterIndex?: number | null;
   chapterTitle?: string | null;
   chapterAssetPaths?: string[];
@@ -92,6 +100,7 @@ export interface PublicGenerationOutputSummary {
   chapterIndex: number | null;
   chapterTitle: string | null;
   chapterArtifacts: PublicGenerationArtifactReference[];
+  chapterTimings?: GenerationChapterTiming[];
   isChapterArtifact: boolean;
   isCurrent: boolean;
 }

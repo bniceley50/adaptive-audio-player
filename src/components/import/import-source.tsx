@@ -1,11 +1,13 @@
 "use client";
 
-export type ImportSourceKind = "file" | "paste";
+export type ImportSourceKind = "audio" | "file" | "paste";
 
 interface ImportSourceProps {
   disabled?: boolean;
   fileName: string | null;
   isReadingFile?: boolean;
+  isTranscribing?: boolean;
+  onAudioFileChange: (file: File | null) => void;
   onFileChange: (file: File | null) => void;
   onSourceKindChange: (kind: ImportSourceKind) => void;
   onTextChange: (text: string) => void;
@@ -24,6 +26,11 @@ const sourceOptions = [
     kind: "paste",
     label: "Paste text",
   },
+  {
+    description: "Transcribe an authorized MP3 or M4B, then review every word.",
+    kind: "audio",
+    label: "Re-narrate audio",
+  },
 ] as const satisfies ReadonlyArray<{
   description: string;
   kind: ImportSourceKind;
@@ -34,6 +41,8 @@ export function ImportSource({
   disabled = false,
   fileName,
   isReadingFile = false,
+  isTranscribing = false,
+  onAudioFileChange,
   onFileChange,
   onSourceKindChange,
   onTextChange,
@@ -44,7 +53,7 @@ export function ImportSource({
     <section aria-labelledby="import-source-heading">
       <div className="max-w-3xl">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
-          Step 1 of 2
+          Step 1
         </p>
         <h2
           className="mt-2 text-2xl font-semibold text-stone-950"
@@ -53,9 +62,9 @@ export function ImportSource({
           Choose where your book comes from
         </h2>
         <p className="mt-3 text-sm leading-6 text-stone-600">
-          Supported files: TXT up to 5 MB and DRM-free EPUB up to 25 MB.
-          Extracted books may contain up to 1,000,000 characters and 300
-          chapters.
+          Import TXT up to 5 MB, DRM-free EPUB up to 25 MB, or authorized MP3
+          and M4B audio up to 2 GB. Extracted books and reviewed transcripts may
+          contain up to 1,000,000 characters and 300 chapters.
         </p>
         <p className="mt-2 text-sm leading-6 text-stone-600">
           Use only DRM-free material you own or are authorized to transform.
@@ -64,7 +73,7 @@ export function ImportSource({
 
       <fieldset className="mt-6" disabled={disabled}>
         <legend className="sr-only">Book source</legend>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-3">
           {sourceOptions.map((option) => {
             const inputId = `import-source-${option.kind}`;
             const descriptionId = `${inputId}-description`;
@@ -162,6 +171,42 @@ export function ImportSource({
               value={text}
               onChange={(event) => onTextChange(event.currentTarget.value)}
             />
+          </div>
+        ) : null}
+
+        {selectedKind === "audio" ? (
+          <div className="mt-5 rounded-[1.4rem] border border-stone-200 bg-stone-50 p-5">
+            <label
+              className="block font-semibold text-stone-950"
+              htmlFor="import-audio-file"
+            >
+              Choose an MP3 or M4B audiobook
+            </label>
+            <p
+              className="mt-1 text-sm leading-6 text-stone-600"
+              id="audio-file-help"
+            >
+              Importing the original book text is more accurate when available.
+              Audio must be DRM-free, owned by you or authorized for this use.
+              Transcription stays local and does not clone the original narrator.
+            </p>
+            <input
+              accept=".mp3,.m4b,audio/mpeg,audio/mp3,audio/mp4,audio/m4b,application/mp4"
+              aria-describedby="audio-file-help"
+              className="mt-4 block w-full text-sm text-stone-700 file:mr-4 file:rounded-full file:border-0 file:bg-[#274c5b] file:px-4 file:py-2.5 file:text-sm file:font-semibold file:text-white"
+              id="import-audio-file"
+              type="file"
+              onChange={(event) =>
+                onAudioFileChange(event.currentTarget.files?.[0] ?? null)
+              }
+            />
+            <p aria-live="polite" className="mt-3 text-sm text-stone-600">
+              {isTranscribing
+                ? "Transcribing locally. Longer audiobooks may take several minutes…"
+                : fileName
+                  ? `Selected: ${fileName}`
+                  : "No audio selected."}
+            </p>
           </div>
         ) : null}
       </fieldset>

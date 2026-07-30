@@ -14,14 +14,20 @@ import {
   createBook,
   createBookIdempotencyKey,
 } from "@/lib/client/books-api";
+import {
+  transcribeAudioBook,
+  type AudioTranscriptDraft,
+} from "@/lib/client/transcriptions-api";
 import { extractImportSource } from "@/lib/import/extract-text";
 import { parseChapters } from "@/lib/parser/parse-chapters";
+import { buildApprovedTranscriptManuscript } from "@/lib/transcription/transcript-review";
 import {
+  MAX_EXTRACTED_TEXT_CHARACTERS,
   MAX_IMPORT_TITLE_CHARACTERS,
   getImportDraftValidationError,
 } from "@/lib/validation/import-validation";
 
-type ImportStage = "source" | "review";
+type ImportStage = "review" | "source" | "transcript-review";
 type ParsedChapters = ReturnType<typeof parseChapters>;
 
 const primaryActionClass =
@@ -43,6 +49,7 @@ export default function ImportPage() {
   const importIdempotencyKeyRef = useRef<string | null>(null);
   const fileReadSequenceRef = useRef(0);
   const submissionControllerRef = useRef<AbortController | null>(null);
+  const transcriptionControllerRef = useRef<AbortController | null>(null);
   const [stage, setStage] = useState<ImportStage>("source");
   const [selectedSourceKind, setSelectedSourceKind] =
     useState<ImportSourceKind | null>(null);
@@ -51,19 +58,23 @@ export default function ImportPage() {
   const [author, setAuthor] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [chapters, setChapters] = useState<ParsedChapters>([]);
+  const [audioDraft, setAudioDraft] =
+    useState<AudioTranscriptDraft | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isReadingFile, setIsReadingFile] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
 
   useEffect(() => {
     return () => {
       fileReadSequenceRef.current += 1;
       submissionControllerRef.current?.abort();
+      transcriptionControllerRef.current?.abort();
     };
   }, []);
 
   useEffect(() => {
-    if (stage === "review") {
+    if (stage !== "source") {
       reviewHeadingRef.current?.focus();
       return;
     }
@@ -74,7 +85,11 @@ export default function ImportPage() {
 
     shouldFocusSourceRef.current = false;
     const targetId =
-      selectedSourceKind === "file" ? "import-file" : "import-text";
+      selectedSourceKind === "file"
+        ? "import-file"
+        : selectedSourceKind === "audio"
+          ? "import-audio-file"
+          : "import-text";
     document.getElementById(targetId)?.focus();
   }, [selectedSourceKind, stage]);
 
@@ -88,6 +103,8 @@ export default function ImportPage() {
     }
 
     fileReadSequenceRef.current += 1;
+    transcriptionControllerRef.current?.abort();
+    transcriptionControllerRef.current = null;
     setSelectedSourceKind(kind);
     setStage("source");
     setSourceText("");
@@ -95,8 +112,10 @@ export default function ImportPage() {
     setAuthor(null);
     setFileName(null);
     setChapters([]);
+    setAudioDraft(null);
     setError(null);
     setIsReadingFile(false);
+    setIsTranscribing(false);
     resetSubmissionIdentity();
   }
 
@@ -106,6 +125,7 @@ export default function ImportPage() {
     setAuthor(null);
     setFileName(null);
     setChapters([]);
+    setAudioDraft(null);
     setError(null);
     resetSubmissionIdentity();
   }
@@ -123,6 +143,7 @@ export default function ImportPage() {
     setTitle("");
     setAuthor(null);
     setChapters([]);
+    setAudioDraft(null);
     setError(null);
     resetSubmissionIdentity();
 
@@ -155,6 +176,64 @@ export default function ImportPage() {
     }
   }
 
+  async function transcribeAudio(file: File | null) {
+    if (!file || transcriptionControllerRef.current) {
+      return;
+    }
+
+    const sequence = fileReadSequenceRef.current + 1;
+    fileReadSequenceRef.current = sequence;
+    const controller = new AbortController();
+    transcriptionControllerRef.current = controller;
+    setIsTranscribing(true);
+    setFileName(file.name);
+    setSourceText("");
+    setTitle("");
+    setAuthor(null);
+    setChapters([]);
+    setAudioDraft(null);
+    setError(null);
+    resetSubmissionIdentity();
+
+    try {
+      const transcript = await transcribeAudioBook(file, {
+        signal: controller.signal,
+      });
+      if (
+        controller.signal.aborted ||
+        fileReadSequenceRef.current !== sequence
+      ) {
+        return;
+      }
+
+      setAudioDraft(transcript);
+      setTitle(transcript.title);
+      setAuthor(transcript.author);
+      setFileName(transcript.sourceFileName);
+      setStage("transcript-review");
+    } catch (transcriptionError) {
+      if (
+        controller.signal.aborted ||
+        (transcriptionError &&
+          typeof transcriptionError === "object" &&
+          "name" in transcriptionError &&
+          transcriptionError.name === "AbortError")
+      ) {
+        return;
+      }
+      setError(
+        transcriptionError instanceof Error
+          ? transcriptionError.message
+          : "This audiobook could not be transcribed locally. Choose another file.",
+      );
+    } finally {
+      if (transcriptionControllerRef.current === controller) {
+        transcriptionControllerRef.current = null;
+        setIsTranscribing(false);
+      }
+    }
+  }
+
   function reviewSource() {
     const trimmedText = sourceText.trim();
     const nextTitle = title.trim() || "Untitled book";
@@ -181,6 +260,64 @@ export default function ImportPage() {
     setTitle(nextTitle);
     setError(null);
     resetSubmissionIdentity();
+  }
+
+  function changeTranscriptChapter(
+    order: number,
+    field: "text" | "title",
+    value: string,
+  ) {
+    setAudioDraft((currentDraft) =>
+      currentDraft
+        ? {
+            ...currentDraft,
+            chapters: currentDraft.chapters.map((chapter) =>
+              chapter.order === order
+                ? { ...chapter, [field]: value }
+                : chapter,
+            ),
+          }
+        : null,
+    );
+    setError(null);
+    resetSubmissionIdentity();
+  }
+
+  function approveTranscript() {
+    if (!audioDraft) {
+      setError("Choose and transcribe an MP3 or M4B before continuing.");
+      return;
+    }
+
+    try {
+      const approvedText = buildApprovedTranscriptManuscript(
+        audioDraft.chapters,
+      );
+      const approvedTitle = title.trim() || "Untitled audiobook";
+      const approvedChapters = parseChapters(approvedText);
+      const validationError = getImportDraftValidationError({
+        chapterCount: approvedChapters.length,
+        text: approvedText,
+        title: approvedTitle,
+      });
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
+
+      setSourceText(approvedText);
+      setTitle(approvedTitle);
+      setChapters(approvedChapters);
+      setError(null);
+      setStage("review");
+      resetSubmissionIdentity();
+    } catch (approvalError) {
+      setError(
+        approvalError instanceof Error
+          ? approvalError.message
+          : "Review every transcript chapter before approving it.",
+      );
+    }
   }
 
   function returnToSource() {
@@ -276,19 +413,158 @@ export default function ImportPage() {
         <div className="p-6 sm:p-8">
           {stage === "source" ? (
             <ImportSource
-              disabled={isSubmitting}
+              disabled={isSubmitting || isTranscribing}
               fileName={fileName}
               isReadingFile={isReadingFile}
+              isTranscribing={isTranscribing}
               selectedKind={selectedSourceKind}
               text={sourceText}
+              onAudioFileChange={(file) => void transcribeAudio(file)}
               onFileChange={(file) => void readFile(file)}
               onSourceKindChange={chooseSource}
               onTextChange={changePastedText}
             />
+          ) : stage === "transcript-review" && audioDraft ? (
+            <section aria-labelledby="transcript-review-heading">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                Step 2 of 3
+              </p>
+              <h2
+                className="mt-2 text-2xl font-semibold text-stone-950 outline-none"
+                id="transcript-review-heading"
+                ref={reviewHeadingRef}
+                tabIndex={-1}
+              >
+                Review and approve transcript
+              </h2>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
+                Local speech-to-text can mishear names, punctuation, and
+                dialogue. Edit every chapter below. Nothing enters your library
+                or narration workflow until you explicitly approve this text.
+              </p>
+
+              <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
+                <div>
+                  <label
+                    className="block text-sm font-semibold text-stone-950"
+                    htmlFor="transcript-book-title"
+                  >
+                    Book title
+                  </label>
+                  <input
+                    className="mt-2 w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-base text-stone-950 outline-none transition focus:border-[#274c5b] focus:ring-4 focus:ring-[#274c5b]/10"
+                    id="transcript-book-title"
+                    maxLength={MAX_IMPORT_TITLE_CHARACTERS}
+                    value={title}
+                    onChange={(event) => changeTitle(event.currentTarget.value)}
+                  />
+                  <p className="mt-2 text-xs text-stone-500">
+                    {title.length} of {MAX_IMPORT_TITLE_CHARACTERS} characters
+                  </p>
+                </div>
+
+                <dl className="grid gap-3 rounded-[1.4rem] border border-stone-200 bg-stone-50 p-4 text-sm">
+                  <div>
+                    <dt className="font-medium text-stone-500">Local source</dt>
+                    <dd className="mt-1 break-words font-semibold text-stone-950">
+                      {audioDraft.sourceFileName}
+                    </dd>
+                  </div>
+                  {audioDraft.author ? (
+                    <div>
+                      <dt className="font-medium text-stone-500">Creator metadata</dt>
+                      <dd className="mt-1 font-semibold text-stone-950">
+                        {audioDraft.author}
+                      </dd>
+                    </div>
+                  ) : null}
+                  <div>
+                    <dt className="font-medium text-stone-500">Recording</dt>
+                    <dd className="mt-1 font-semibold text-stone-950">
+                      {Math.floor(audioDraft.durationSeconds / 60)} min ·{" "}
+                      {audioDraft.chapters.length} transcript
+                      {audioDraft.chapters.length === 1 ? " chapter" : " chapters"}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div className="mt-6">
+                <div className="flex flex-wrap items-end justify-between gap-2">
+                  <div>
+                    <h3 className="text-lg font-semibold text-stone-950">
+                      Editable transcript
+                    </h3>
+                    <p className="mt-1 text-sm leading-6 text-stone-600">
+                      The original recording has already been removed from the
+                      app&apos;s temporary workspace.
+                    </p>
+                  </div>
+                  <p className="text-xs text-stone-500">
+                    {audioDraft.chapters.reduce(
+                      (total, chapter) => total + chapter.text.length,
+                      0,
+                    ).toLocaleString()} of{" "}
+                    {MAX_EXTRACTED_TEXT_CHARACTERS.toLocaleString()} characters
+                  </p>
+                </div>
+                <ol className="mt-3 space-y-4">
+                  {audioDraft.chapters.map((chapter) => {
+                    const titleId = `transcript-chapter-title-${chapter.order}`;
+                    const textId = `transcript-chapter-text-${chapter.order}`;
+                    return (
+                      <li
+                        className="rounded-[1.4rem] border border-stone-200 bg-stone-50 p-4 sm:p-5"
+                        key={chapter.id}
+                      >
+                        <label
+                          className="block text-sm font-semibold text-stone-950"
+                          htmlFor={titleId}
+                        >
+                          Chapter {chapter.order + 1} title
+                        </label>
+                        <input
+                          className="mt-2 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm text-stone-950 outline-none transition focus:border-[#274c5b] focus:ring-4 focus:ring-[#274c5b]/10"
+                          id={titleId}
+                          maxLength={MAX_IMPORT_TITLE_CHARACTERS}
+                          value={chapter.title}
+                          onChange={(event) =>
+                            changeTranscriptChapter(
+                              chapter.order,
+                              "title",
+                              event.currentTarget.value,
+                            )
+                          }
+                        />
+                        <label
+                          className="mt-4 block text-sm font-semibold text-stone-950"
+                          htmlFor={textId}
+                        >
+                          Chapter {chapter.order + 1} transcript
+                        </label>
+                        <textarea
+                          className="mt-2 min-h-64 w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm leading-6 text-stone-900 outline-none transition focus:border-[#274c5b] focus:ring-4 focus:ring-[#274c5b]/10"
+                          id={textId}
+                          maxLength={MAX_EXTRACTED_TEXT_CHARACTERS}
+                          value={chapter.text}
+                          onChange={(event) =>
+                            changeTranscriptChapter(
+                              chapter.order,
+                              "text",
+                              event.currentTarget.value,
+                            )
+                          }
+                        />
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            </section>
           ) : (
             <section aria-labelledby="import-review-heading">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
-                Step 2 of 2
+                {selectedSourceKind === "audio" ? "Step 3 of 3" : "Step 2 of 2"}
               </p>
               <h2
                 className="mt-2 text-2xl font-semibold text-stone-950 outline-none"
@@ -384,15 +660,38 @@ export default function ImportPage() {
 
           <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-stone-200 pt-6">
             {stage === "source" ? (
+              selectedSourceKind === "audio" ? (
+                <button
+                  className={primaryActionClass}
+                  disabled={isTranscribing || !audioDraft}
+                  type="button"
+                  onClick={() => setStage("transcript-review")}
+                >
+                  {isTranscribing
+                    ? "Transcribing locally…"
+                    : audioDraft
+                      ? "Review transcript"
+                      : "Choose audio to transcribe"}
+                </button>
+              ) : (
+                <button
+                  className={primaryActionClass}
+                  disabled={
+                    isReadingFile || isSubmitting || !sourceText.trim()
+                  }
+                  type="button"
+                  onClick={reviewSource}
+                >
+                  {isReadingFile ? "Reading book…" : "Review book"}
+                </button>
+              )
+            ) : stage === "transcript-review" ? (
               <button
                 className={primaryActionClass}
-                disabled={
-                  isReadingFile || isSubmitting || !sourceText.trim()
-                }
                 type="button"
-                onClick={reviewSource}
+                onClick={approveTranscript}
               >
-                {isReadingFile ? "Reading book…" : "Review book"}
+                Approve transcript and continue
               </button>
             ) : (
               <button
@@ -405,14 +704,16 @@ export default function ImportPage() {
               </button>
             )}
 
-            {stage === "review" ? (
+            {stage !== "source" ? (
               <button
                 className={secondaryActionClass}
                 disabled={isSubmitting}
                 type="button"
                 onClick={returnToSource}
               >
-                Change source
+                {stage === "transcript-review"
+                  ? "Choose different source"
+                  : "Change source"}
               </button>
             ) : null}
 

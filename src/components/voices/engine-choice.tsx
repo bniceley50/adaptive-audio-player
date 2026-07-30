@@ -50,6 +50,9 @@ export function EngineChoice({
     selectedEngineId,
     statuses,
   );
+  const selectedEngineStatus = statuses.find(
+    (status) => status.id === selectedEngineId,
+  );
   const fallbackMessage = selection.message;
 
   useEffect(() => {
@@ -83,10 +86,19 @@ export function EngineChoice({
   }, [onEngineChange]);
 
   useEffect(() => {
+    if (selectedEngineStatus?.availability === "checking") {
+      return;
+    }
+
     if (selection.selectedEngineId !== selectedEngineId) {
       onEngineChange(selection.selectedEngineId);
     }
-  }, [onEngineChange, selectedEngineId, selection.selectedEngineId]);
+  }, [
+    onEngineChange,
+    selectedEngineId,
+    selectedEngineStatus?.availability,
+    selection.selectedEngineId,
+  ]);
 
   return (
     <fieldset className="space-y-3" disabled={disabled}>

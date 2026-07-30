@@ -16,4 +16,19 @@ describe("parseChapters", () => {
     expect(result).toHaveLength(1);
     expect(result[0]?.title).toBe("Chapter 1");
   });
+
+  it("preserves one explicit chapter heading and keeps it out of the body", () => {
+    const result = parseChapters(
+      "Chapter 1: Down the Rabbit Hole\nReviewed transcript text.",
+    );
+
+    expect(result).toEqual([
+      {
+        id: "chapter-1",
+        order: 0,
+        text: "Reviewed transcript text.",
+        title: "Chapter 1: Down the Rabbit Hole",
+      },
+    ]);
+  });
 });

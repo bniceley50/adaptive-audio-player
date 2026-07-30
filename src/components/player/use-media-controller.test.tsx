@@ -171,11 +171,24 @@ function renderController(options: MediaControllerOptions = {}): RenderedControl
 
 function renderNowPlaying({
   artifactId = null,
+  audioKind = "sample-generation",
   audioUrl = "/api/audio/generated/book-1?kind=sample-generation",
+  chapters = [
+    {
+      id: "chapter-1",
+      order: 0,
+      text: "A chapter used to verify real media playback.",
+      title: "Chapter One",
+    },
+  ],
+  chapterTimings = [],
   playbackIsReady = true,
 }: {
   artifactId?: string | null;
+  audioKind?: "sample-generation" | "full-book-generation";
   audioUrl?: string | null;
+  chapters?: React.ComponentProps<typeof NowPlaying>["chapters"];
+  chapterTimings?: React.ComponentProps<typeof NowPlaying>["chapterTimings"];
   playbackIsReady?: boolean;
 } = {}) {
   const container = document.createElement("div");
@@ -187,18 +200,12 @@ function renderNowPlaying({
     root.render(
       <NowPlaying
         artifactId={artifactId}
-        audioKind="sample-generation"
+        audioKind={audioKind}
         audioUrl={audioUrl}
         bookId="book-1"
         bookTitle="The Test Book"
-        chapters={[
-          {
-            id: "chapter-1",
-            order: 0,
-            text: "A chapter used to verify real media playback.",
-            title: "Chapter One",
-          },
-        ]}
+        chapters={chapters}
+        chapterTimings={chapterTimings}
         narratorName="Sloane"
         playbackIsReady={playbackIsReady}
       />,
@@ -538,5 +545,45 @@ describe("useMediaController", () => {
     expect(rendered.container.querySelector('[role="alert"]')?.textContent).toMatch(
       /could not start.*try again/i,
     );
+  });
+
+  it("seeks full-book playback to exact generated chapter boundaries", () => {
+    const rendered = renderNowPlaying({
+      audioKind: "full-book-generation",
+      audioUrl: "/api/audio/generated/book-1?kind=full-book-generation",
+      chapters: [
+        { id: "chapter-1", order: 0, text: "First", title: "Chapter One" },
+        { id: "chapter-2", order: 1, text: "Second", title: "Chapter Two" },
+      ],
+      chapterTimings: [
+        {
+          chapterIndex: 0,
+          chapterTitle: "Chapter One",
+          startSeconds: 0,
+          durationSeconds: 41.25,
+        },
+        {
+          chapterIndex: 1,
+          chapterTitle: "Chapter Two",
+          startSeconds: 41.25,
+          durationSeconds: 58.75,
+        },
+      ],
+    });
+    rendered.media.state.duration = 100;
+    rendered.media.state.readyState = 4;
+    rendered.media.state.seekableEnd = 100;
+    act(() => rendered.media.audio.dispatchEvent(new Event("loadedmetadata")));
+
+    const chapterTwo = Array.from(
+      rendered.container.querySelectorAll("button"),
+    ).find((button) => button.textContent === "Chapter Two");
+    if (!chapterTwo) {
+      throw new Error("Chapter Two control was not rendered.");
+    }
+    act(() => chapterTwo.click());
+
+    expect(rendered.media.state.currentTime).toBe(41.25);
+    expect(rendered.container.textContent).toContain("2 / 2");
   });
 });

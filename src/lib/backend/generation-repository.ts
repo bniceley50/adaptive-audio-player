@@ -9,6 +9,7 @@ import {
   type NarrationEngineId,
 } from "../narration/engines.ts";
 import type {
+  GenerationChapterTiming,
   GenerationArtifactSummary,
   GenerationJobKind,
   GenerationOutputProvider,
@@ -653,6 +654,7 @@ export interface GenerationJobCompletionOutput {
   assetPath: string;
   mimeType: string;
   provider: GenerationOutputProvider;
+  chapterTimings?: GenerationChapterTiming[];
   chapterAssetPaths?: string[];
   chapterArtifacts?: Array<{
     assetPath: string;
@@ -664,6 +666,49 @@ export interface GenerationJobCompletionOutput {
   chapterIndex?: number | null;
   chapterTitle?: string | null;
   isChapterArtifact?: boolean;
+}
+
+function normalizeGenerationChapterTimings(
+  value: unknown,
+): GenerationChapterTiming[] | null {
+  if (!Array.isArray(value) || value.length > 300) {
+    return null;
+  }
+
+  const timings: GenerationChapterTiming[] = [];
+  let expectedStartSeconds = 0;
+  for (const [position, candidate] of value.entries()) {
+    if (!candidate || typeof candidate !== "object") {
+      return null;
+    }
+    const timing = candidate as Partial<GenerationChapterTiming>;
+    const chapterTitle = timing.chapterTitle?.trim() ?? "";
+    if (
+      timing.chapterIndex !== position ||
+      !chapterTitle ||
+      chapterTitle.length > 200 ||
+      !Number.isFinite(timing.startSeconds) ||
+      Number(timing.startSeconds) < 0 ||
+      Math.abs(Number(timing.startSeconds) - expectedStartSeconds) > 0.001 ||
+      !Number.isFinite(timing.durationSeconds) ||
+      Number(timing.durationSeconds) <= 0
+    ) {
+      return null;
+    }
+    const durationSeconds = Number(timing.durationSeconds);
+    timings.push({
+      chapterIndex: position,
+      chapterTitle,
+      startSeconds: expectedStartSeconds,
+      durationSeconds,
+    });
+    expectedStartSeconds += durationSeconds;
+    if (!Number.isFinite(expectedStartSeconds)) {
+      return null;
+    }
+  }
+
+  return timings;
 }
 
 function readGenerationAssetPaths(outputJson: string) {
@@ -986,6 +1031,14 @@ export function completeGenerationJob(
       throw new Error("Generation job cannot complete without a book.");
     }
 
+    const chapterTimings =
+      outputAsset.chapterTimings === undefined
+        ? []
+        : normalizeGenerationChapterTimings(outputAsset.chapterTimings);
+    if (!chapterTimings) {
+      throw new Error("Generation output has invalid chapter timing metadata.");
+    }
+
     const latestOutput = {
       workspaceId: job.workspaceId,
       bookId: job.bookId,
@@ -998,6 +1051,7 @@ export function completeGenerationJob(
       mimeType: outputAsset.mimeType,
       provider: outputAsset.provider,
       generatedAt: completedAt,
+      ...(chapterTimings.length > 0 ? { chapterTimings } : {}),
       chapterAssetPaths: outputAsset.chapterAssetPaths ?? [],
       chapterIndex: outputAsset.chapterIndex ?? null,
       chapterTitle: outputAsset.chapterTitle ?? null,
@@ -1265,6 +1319,9 @@ function mapGenerationOutputRows(
         ? output.provider
         : "mock";
 
+    const chapterTimings = normalizeGenerationChapterTimings(
+      output.chapterTimings,
+    );
     return {
       workspaceId: row.workspace_id,
       bookId: row.book_id,
@@ -1279,6 +1336,7 @@ function mapGenerationOutputRows(
       mimeType: output.mimeType ?? "audio/wav",
       provider,
       generatedAt: output.generatedAt ?? new Date(0).toISOString(),
+      ...(chapterTimings?.length ? { chapterTimings } : {}),
       chapterIndex:
         typeof output.chapterIndex === "number" ? output.chapterIndex : null,
       chapterTitle:
@@ -1310,6 +1368,9 @@ function mapGenerationArtifactRows(
         ? output.provider
         : "mock";
 
+    const chapterTimings = normalizeGenerationChapterTimings(
+      output.chapterTimings,
+    );
     return {
       id: row.id,
       jobId: row.job_id,
@@ -1326,6 +1387,7 @@ function mapGenerationArtifactRows(
       mimeType: output.mimeType ?? "audio/wav",
       provider,
       generatedAt: output.generatedAt ?? new Date(0).toISOString(),
+      ...(chapterTimings?.length ? { chapterTimings } : {}),
       chapterIndex:
         typeof output.chapterIndex === "number" ? output.chapterIndex : null,
       chapterTitle:

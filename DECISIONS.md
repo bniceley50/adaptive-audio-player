@@ -700,3 +700,19 @@ Why:
 
 Remaining release boundary:
 - The source integration is not yet a packaged Chatterbox installer or updater. Shipping High Quality in the Windows desktop product requires a separately verified installation, upgrade, disk-space, license, and clean-uninstall path.
+
+## 2026-07-30 - Re-narrate authorized MP3/M4B through reviewed local transcripts
+
+Decision:
+- Implement the approved post-v1 audiobook re-narration direction now as a transcript-mediated workflow. Eligible inputs are one DRM-free MP3 or M4B recording up to 2 GB and 30 hours that the listener owns or is authorized to transform.
+- Transcribe locally with FFmpeg's `whisper.cpp` filter and the English `ggml-base.en.bin` model from `ggerganov/whisper.cpp` pinned to repository revision `5359861c739e955e79d9a303bcbc70fb988958b1`, exact size `147964211`, SHA-1 `137c40403d78fd54d454da0f9bd998f78703390c`, and SHA-256 `a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002`.
+- Keep the transcription runtime and model explicit and local. Normal app startup must not download or update the model. Source development may use an explicitly verified FFmpeg build with the Whisper filter; packaging must separately pin and license-review the shipped FFmpeg/whisper.cpp binary closure.
+- Validate extension, browser media type, byte size, probed container, duration, audio-stream count, encrypted codec markers, chapter bounds, transcript output size, timestamps, and extracted text again at the server boundary.
+- Use embedded M4B chapter markers when available and otherwise propose one reviewable chapter. Normalize overlapping Whisper windows without hiding transcription uncertainty.
+- Require the listener to review and edit the proposed transcript before it becomes a normal book manuscript and before either local TTS engine can generate narration. Imported audio is never accepted as reference audio and is not used for voice cloning or impersonation.
+- Stream the source into contained temporary local storage for probing and transcription, then remove the raw temporary recording and intermediate transcript after the browser receives the review draft. Original book-text import remains the preferred, higher-accuracy route.
+
+Why:
+- A live benchmark on the approved public-domain Alice chapter transcribed 13 minutes 16 seconds of MP3 audio in 4.9 seconds on the Windows reference machine with 30-second context windows. The result was usable but contained recognizable-word errors, which confirms that transcript review is a product requirement rather than optional polish.
+- Reusing FFmpeg's built-in whisper.cpp integration avoids contaminating the proven Kokoro and Chatterbox Python environments with a third dependency stack while preserving fully local processing.
+- Contained temporary ingestion and conversion into the existing reviewed-text book contract minimizes retention of the original recording and reuses the already verified narration, generation, and playback pipeline.

@@ -226,6 +226,33 @@ test("core listening: generated media advances, seeks, resumes, and sleeps", asy
 
   const { legacySyncRequests, mutationRequests, progressRequests } =
     await installDeterministicGeneration(page);
+  let transcriptionRequestCount = 0;
+  await page.route("**/api/transcriptions", async (route) => {
+    transcriptionRequestCount += 1;
+    expect(route.request().method()).toBe("POST");
+    expect(route.request().headers()["x-audio-file-name"]).toBe(
+      "alice-chapter-1.mp3",
+    );
+    await fulfillJson(route, {
+      transcript: {
+        album: "Alice's Adventures in Wonderland",
+        author: "Lewis Carroll",
+        chapters: [
+          {
+            endMs: 60_000,
+            id: "chapter-1",
+            order: 0,
+            startMs: 0,
+            text: "Alice followed the White Rabbit down the hole.",
+            title: "Down the Rabbit Hole",
+          },
+        ],
+        durationSeconds: 60,
+        sourceFileName: "alice-chapter-1.mp3",
+        title: "Alice's Adventures in Wonderland",
+      },
+    });
+  });
 
   await page.goto("/");
   await expect(page.locator("body")).toContainText("Your library");
@@ -282,6 +309,42 @@ test("core listening: generated media advances, seeks, resumes, and sleeps", asy
         .sort(),
     ),
   ).toEqual(databasesBeforeRejectedImport);
+  const audioSource = page.getByLabel("Re-narrate audio", { exact: true });
+  await audioSource.click();
+  const audioInput = page.getByLabel("Choose an MP3 or M4B audiobook");
+  await audioInput.setInputFiles({
+    buffer: Buffer.from("ID3 authorized public-domain audio fixture"),
+    mimeType: "audio/mpeg",
+    name: "alice-chapter-1.mp3",
+  });
+  await expect(
+    page.getByRole("heading", {
+      level: 2,
+      name: "Review and approve transcript",
+    }),
+  ).toBeVisible();
+  expect(transcriptionRequestCount).toBe(1);
+  const transcriptEditor = page.getByLabel("Chapter 1 transcript");
+  await expect(transcriptEditor).toHaveValue(
+    "Alice followed the White Rabbit down the hole.",
+  );
+  await transcriptEditor.fill(
+    "Alice carefully followed the White Rabbit down the hole.",
+  );
+  await page
+    .getByRole("button", { name: "Approve transcript and continue" })
+    .click();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Review your book" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      level: 4,
+      name: "Chapter 1: Down the Rabbit Hole",
+    }),
+  ).toBeVisible();
+  await expect(page.getByText(/Alice carefully followed/)).toBeVisible();
+  await page.getByRole("button", { name: "Change source" }).click();
   const pasteSource = page.getByLabel("Paste text", { exact: true });
   await pasteSource.focus();
   await page.keyboard.press("Space");

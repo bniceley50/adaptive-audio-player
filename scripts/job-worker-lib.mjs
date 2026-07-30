@@ -2,6 +2,7 @@ import { parseChapters } from "../src/lib/parser/parse-chapters.ts";
 
 const maxTtsChunkCharacters = 18_000;
 const maxChatterboxChunkCharacters = 900;
+const maxSampleCharacters = 1_000;
 
 class JobStoppedError extends Error {
   constructor(status) {
@@ -26,7 +27,7 @@ function buildSampleGenerationText(job, getSyncedBookDraftText) {
   const maximumCharacters =
     job.engineId === "chatterbox"
       ? maxChatterboxChunkCharacters
-      : maxTtsChunkCharacters;
+      : maxSampleCharacters;
   return sampleChapter
     ? `${sampleChapter.title}\n\n${sampleChapter.text}`.slice(0, maximumCharacters)
     : draftText.slice(0, maximumCharacters);
@@ -271,8 +272,28 @@ async function renderFullBook(
   unpublishedAssetPaths.push(fullBookAsset.relativePath);
   getRunningJobOrStop(job, dependencies.getGenerationJob);
 
+  if (fullBookAsset.partDurationsSeconds.length !== chapters.length) {
+    throw new Error("Generated chapter timing metadata is incomplete.");
+  }
+  let chapterStartSeconds = 0;
+  const chapterTimings = chapters.map((chapter, index) => {
+    const durationSeconds = fullBookAsset.partDurationsSeconds[index];
+    if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
+      throw new Error(`Chapter ${index + 1} has an invalid generated duration.`);
+    }
+    const timing = {
+      chapterIndex: chapter.index,
+      chapterTitle: chapter.title,
+      startSeconds: chapterStartSeconds,
+      durationSeconds,
+    };
+    chapterStartSeconds += durationSeconds;
+    return timing;
+  });
+
   return {
     assetPath: fullBookAsset.relativePath,
+    chapterTimings,
     mimeType: "audio/wav",
     provider:
       provider ??

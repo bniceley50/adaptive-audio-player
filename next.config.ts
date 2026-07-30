@@ -2,6 +2,10 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1:3100", "localhost:3100"],
+  experimental: {
+    // The transcription route streams and independently enforces this same cap.
+    proxyClientMaxBodySize: 2_000_000_000,
+  },
   output: "standalone",
   outputFileTracingExcludes: {
     "/*": [

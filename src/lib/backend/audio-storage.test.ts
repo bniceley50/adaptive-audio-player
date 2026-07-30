@@ -216,6 +216,9 @@ describe("bounded WAV part assembly", () => {
       Buffer.alloc(chapterPcmBytes, chapterCount - 1),
     );
     expect(pcm.length / 48_000).toBe(chapterCount);
+    expect(assembled.partDurationsSeconds).toEqual(
+      Array.from({ length: chapterCount }, () => 1),
+    );
     expect(assembled.peakBufferBytes).toBeLessThanOrEqual(64 * 1024);
     expect(assembled.peakBufferBytes).toBeLessThan(pcm.length);
     expect(absolutePartPaths.every((partPath) => !existsSync(partPath))).toBe(true);

@@ -25,6 +25,14 @@ The production package contains:
 - the exact verified Kokoro model and curated voice resources; and
 - license notices, version metadata, and a software bill of materials.
 
+MP3/M4B re-narration is implemented in the source build but is not yet an
+approved package capability. A package that advertises it must also contain an
+exact FFmpeg/FFprobe build with the Whisper filter and the verified Whisper
+model, with the complete binary closure, redistribution obligations, source
+offer where required, notices, SBOM entries, offline verification, and cleanup
+tests. Until that separate gate passes, the release must fail closed and must
+not claim packaged audio transcription support.
+
 The package does not contain development dependencies, a repository checkout,
 the development virtual environment, pnpm, a writable model cache, sample user
 data, or generated audio.
@@ -43,6 +51,15 @@ proof requires explicit approval of this exact candidate manifest:
 | Python freezer | `PyInstaller==6.21.0` using `pyinstaller-6.21.0-py3-none-win_amd64.whl` | SHA-256 `7fae06c494ce0ebfe6bd3055c0e409def884f63af2e3705d06bd431ad9237fc7`; GPL-2.0 with the bootloader exception plus identified Apache-2.0 components |
 | Child-process runtime | official `node-v22.23.1-win-x64.zip` | SHA-256 `7df0bc9375723f4a86b3aa1b7cc73342423d9677a8df4538aca31a049e309c29`; Node.js license and bundled notices |
 | MSIX tooling | installed Windows SDK x64 `MakeAppx.exe`, `MakePri.exe`, and `SignTool.exe`, product version `10.0.26100.7705` | Microsoft Windows SDK redistribution and signing terms apply |
+
+The proven development-only transcription inputs are recorded for audit, not
+approved for redistribution:
+
+| Input | Verified development identity | Release status |
+| --- | --- | --- |
+| FFmpeg | `8.1.1-full_build-www.gyan.dev`, `ffmpeg.exe` 227,398,656 bytes, SHA-256 `09948d4cdd0650da6ff5a87577469f2a218dc2615ae379f8f734d24c49de0f73` | Built with `--enable-gpl --enable-version3 --enable-whisper`; not approved for the package. |
+| FFprobe | Matching 8.1.1 full build, 227,193,344 bytes, SHA-256 `a6618e99bb58869ded3c6f37b53aa1a8d701c3591dbb7b5b317d47369c112be2` | Same unapproved GPL-enabled binary closure. |
+| Whisper model | `ggerganov/whisper.cpp` revision `5359861c739e955e79d9a303bcbc70fb988958b1`, `ggml-base.en.bin` 147,964,211 bytes, SHA-256 `a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002` | Verified for source testing; package placement, licensing notices, and release approval remain pending. |
 
 Electron 43 is supported through 2027-01-05. A disposable pnpm 11.3.0
 resolution of the three desktop packages, with lifecycle scripts disabled,

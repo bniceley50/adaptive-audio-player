@@ -363,6 +363,20 @@ describe("backend sqlite library sync", () => {
         assetPath: "generated/workspace-jobs/book-1-full.wav",
         mimeType: "audio/wav",
         provider: "mock",
+        chapterTimings: [
+          {
+            chapterIndex: 0,
+            chapterTitle: "Chapter 1",
+            startSeconds: 0,
+            durationSeconds: 30,
+          },
+          {
+            chapterIndex: 1,
+            chapterTitle: "Chapter 2",
+            startSeconds: 30,
+            durationSeconds: 45,
+          },
+        ],
         chapterAssetPaths: [
           "generated/workspace-jobs/book-1-chapter-1.wav",
           "generated/workspace-jobs/book-1-chapter-2.wav",
@@ -413,6 +427,20 @@ describe("backend sqlite library sync", () => {
         bookId: "book-1",
         kind: "full-book-generation",
         chapterCount: 2,
+        chapterTimings: [
+          {
+            chapterIndex: 0,
+            chapterTitle: "Chapter 1",
+            startSeconds: 0,
+            durationSeconds: 30,
+          },
+          {
+            chapterIndex: 1,
+            chapterTitle: "Chapter 2",
+            startSeconds: 30,
+            durationSeconds: 45,
+          },
+        ],
         chapterAssetPaths: [
           "generated/workspace-jobs/book-1-chapter-1.wav",
           "generated/workspace-jobs/book-1-chapter-2.wav",
@@ -521,6 +549,49 @@ describe("backend sqlite library sync", () => {
         "workspace-completion",
       ),
     ).toBeNull();
+  });
+
+  it("rejects non-contiguous chapter timing metadata atomically", () => {
+    useTemporaryDatabase();
+    const queuedJob = enqueueGenerationJob({
+      workspaceId: "workspace-completion",
+      kind: "full-book-generation",
+      bookId: "book-invalid-timings",
+      narratorId: "marlowe",
+      mode: "classic",
+      chapterCount: 2,
+    });
+    expect(claimNextGenerationJob()?.id).toBe(queuedJob?.id);
+
+    expect(() =>
+      completeGenerationJob(
+        queuedJob?.id ?? "",
+        "workspace-completion",
+        {
+          ...testOutputAsset("book-invalid-timings"),
+          chapterTimings: [
+            {
+              chapterIndex: 0,
+              chapterTitle: "Chapter 1",
+              startSeconds: 0,
+              durationSeconds: 30,
+            },
+            {
+              chapterIndex: 1,
+              chapterTitle: "Chapter 2",
+              startSeconds: 31,
+              durationSeconds: 45,
+            },
+          ],
+        },
+      ),
+    ).toThrow("invalid chapter timing metadata");
+    expect(
+      getGenerationOutputsForBook(
+        "workspace-completion",
+        "book-invalid-timings",
+      ),
+    ).toEqual([]);
   });
 
   it("rejects completion after cancellation and leaves the job cancelled", () => {

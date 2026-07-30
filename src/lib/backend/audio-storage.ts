@@ -353,7 +353,7 @@ function validatePcmWavFormat(formatChunk: Buffer) {
     throw new Error("Generated WAV file has unsupported PCM parameters.");
   }
 
-  return { blockAlign };
+  return { blockAlign, byteRate };
 }
 
 function readWavPartLayout(relativePath: string) {
@@ -415,7 +415,7 @@ function readWavPartLayout(relativePath: string) {
       throw new Error("Generated WAV file is missing the data chunk.");
     }
 
-    const { blockAlign } = validatePcmWavFormat(formatChunk);
+    const { blockAlign, byteRate } = validatePcmWavFormat(formatChunk);
     if (dataSize === 0 || dataSize % blockAlign !== 0) {
       throw new Error("Generated WAV data is not aligned to its PCM format.");
     }
@@ -424,6 +424,7 @@ function readWavPartLayout(relativePath: string) {
       absolutePath,
       dataOffset,
       dataSize,
+      durationSeconds: dataSize / byteRate,
       formatChunk,
     };
   } finally {
@@ -464,6 +465,7 @@ export function assembleGeneratedWavParts(input: {
         absolutePath: string;
         relativePath: string;
         peakBufferBytes: number;
+        partDurationsSeconds: number[];
       }
     | null = null;
   let assemblyError: unknown = null;
@@ -483,6 +485,7 @@ export function assembleGeneratedWavParts(input: {
       absolutePath: string;
       dataOffset: number;
       dataSize: number;
+      durationSeconds: number;
     }> = [];
     let formatChunk: Buffer | null = null;
     let totalDataSize = 0;
@@ -501,6 +504,7 @@ export function assembleGeneratedWavParts(input: {
         absolutePath: layout.absolutePath,
         dataOffset: layout.dataOffset,
         dataSize: layout.dataSize,
+        durationSeconds: layout.durationSeconds,
       });
     }
 
@@ -573,6 +577,7 @@ export function assembleGeneratedWavParts(input: {
         formatChunk.length,
         copyBuffer.length,
       ),
+      partDurationsSeconds: layouts.map((layout) => layout.durationSeconds),
     };
   } catch (error) {
     assemblyError = error;

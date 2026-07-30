@@ -83,6 +83,7 @@ function createHarness(kind = "sample-generation") {
           absolutePath: `D:/adaptive-audio-player/${relativePath}`,
           relativePath,
           peakBufferBytes: 64 * 1024,
+          partDurationsSeconds: [3, 4],
         };
       },
     ),
@@ -127,6 +128,28 @@ describe("executeGenerationJob", () => {
     expect(chunks.every((chunk) => chunk.length <= 900)).toBe(true);
     expect(chunks.every((chunk) => chunk.endsWith("."))).toBe(true);
     expect(chunks.join(" ")).toBe(text);
+  });
+
+  it("limits Fast / Compatible samples to 1,000 characters", async () => {
+    const harness = createHarness();
+    harness.dependencies.getSyncedBookDraftText.mockReturnValue(
+      `Chapter 1\n${"A sufficiently long sample sentence. ".repeat(60)}`,
+    );
+
+    await expect(harness.run()).resolves.toEqual({
+      status: "completed",
+      currentStatus: "completed",
+    });
+
+    const synthesisRequest = (
+      harness.dependencies.synthesizeAudio.mock.calls as unknown as Array<
+        [{ text: string }]
+      >
+    )[0]?.[0];
+    expect(synthesisRequest?.text.length).toBeGreaterThan(900);
+    expect(synthesisRequest?.text.length).toBeLessThanOrEqual(1_000);
+    expect(harness.dependencies.synthesizeAudio).toHaveBeenCalledTimes(1);
+    expect(splitTextForTts("A".repeat(1_500))).toEqual(["A".repeat(1_500)]);
   });
 
   it("preserves the selected engine through worker synthesis", async () => {
@@ -302,9 +325,21 @@ describe("executeGenerationJob", () => {
     expect(harness.dependencies.completeGenerationJob).toHaveBeenCalledWith(
       harness.job.id,
       harness.job.workspaceId,
-      expect.not.objectContaining({
-        chapterAssetPaths: expect.anything(),
-        chapterArtifacts: expect.anything(),
+      expect.objectContaining({
+        chapterTimings: [
+          {
+            chapterIndex: 0,
+            chapterTitle: "Chapter 1",
+            startSeconds: 0,
+            durationSeconds: 3,
+          },
+          {
+            chapterIndex: 1,
+            chapterTitle: "Chapter 2",
+            startSeconds: 3,
+            durationSeconds: 4,
+          },
+        ],
       }),
     );
     expect(harness.liveParts).toHaveLength(0);

@@ -76,6 +76,9 @@ export default function PlayerPage({ params }: PlayerPageProps) {
   const preferredAudioKind = playbackSource.artifactKind;
   const audioUrl = playbackSource.audioUrl;
   const displayNarratorName = playbackSource.narratorName;
+  const playbackOutput = [...currentOutputs, ...artifactHistory].find(
+    (output) => output.artifactId === playbackSource.artifactId,
+  );
   const jumpChapterParam = searchParams.get("quoteChapter");
   const jumpProgressParam = searchParams.get("quoteProgress");
   const jumpChapterIndex = Number(jumpChapterParam);
@@ -196,6 +199,7 @@ export default function PlayerPage({ params }: PlayerPageProps) {
         bookId={bookId}
         bookTitle={bookTitle}
         chapters={playerChapters}
+        chapterTimings={playbackOutput?.chapterTimings}
         initialJumpTarget={initialJumpTarget}
         initialPlaybackDefaults={hydratedPlaybackDefaults}
         initialPlaybackState={hydratedPlaybackState}
