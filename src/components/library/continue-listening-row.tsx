@@ -1,959 +1,471 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   getBookCoverTheme,
   getBookInitials,
   getUpdatedAtWeight,
 } from "@/features/reader/shared-support";
-import { pushClientLibrarySyncSnapshot } from "@/lib/backend/client-sync";
-import type { LibrarySyncSnapshot } from "@/lib/backend/types";
 import {
-  clearRemovedLocalLibraryBook,
-  defaultTasteChangedEvent,
-  describeListeningTasteSource,
-  formatRelativeUpdatedAt,
-  generationOutputChangedEvent,
-  libraryChangedEvent,
-  listeningProfileChangedEvent,
-  renameLocalLibraryBook,
-  readLocalGenerationOutput,
-  resolvePreferredGenerationOutput,
+  BooksApiError,
+  deleteBook as deletePersistedBook,
+  listBooks,
+  type LibraryBookActivity,
+  type LibraryBookSummary,
+  type LibraryGenerationKind,
+} from "@/lib/client/books-api";
+import {
   readLocalLibraryBooks,
-  readRemovedLocalLibraryBooks,
-  readLocalSampleRequest,
-  removedBooksChangedEvent,
   removeLocalLibraryBook,
-  restoreRemovedLocalLibraryBook,
-  resolveListeningTaste,
-  sampleRequestChangedEvent,
-  writeDefaultListeningProfile,
-  type LocalSampleRequest,
   type LocalLibraryBook,
-  type RemovedLocalLibraryBook,
 } from "@/lib/library/local-library";
-import {
-  formatPlaybackTime,
-  getPlaybackPercent,
-  playbackChangedEvent,
-  readPersistedPlaybackState,
-  resolvePreferredPlaybackState,
-} from "@/lib/playback/local-playback";
 
-type ShelfGroupKey =
-  | "active"
-  | "audio-ready"
+export type LibraryBookStateKind =
+  | "needs-setup"
+  | "sample-generating"
   | "sample-ready"
-  | "taste-ready"
-  | "setup-needed";
+  | "book-generating"
+  | "ready"
+  | "failed";
 
-type ShelfFilter = "all" | ShelfGroupKey;
-
-interface ShelfBookRecord {
-  book: LocalLibraryBook;
-  group: ShelfGroupKey;
-  searchText: string;
+export interface ResolvedLibraryBookState {
+  actionKind: "delete" | "link";
+  actionLabel: string;
+  detail: string;
+  href: string | null;
+  kind: LibraryBookStateKind;
+  label: string;
+  resumeLabel: string | null;
 }
 
-function mergeLibraryBooks(
-  localBooks: LocalLibraryBook[],
-  syncedBooks: LocalLibraryBook[],
-  removedBookIds: Set<string> = new Set(),
-): LocalLibraryBook[] {
-  const merged = new Map<string, LocalLibraryBook>();
-
-  for (const book of syncedBooks) {
-    if (removedBookIds.has(book.bookId)) {
-      continue;
-    }
-    merged.set(book.bookId, book);
-  }
-
-  for (const localBook of localBooks) {
-    if (removedBookIds.has(localBook.bookId)) {
-      continue;
-    }
-    const existing = merged.get(localBook.bookId);
-
-    if (!existing) {
-      merged.set(localBook.bookId, localBook);
-      continue;
-    }
-
-    merged.set(
-      localBook.bookId,
-      getUpdatedAtWeight(localBook.updatedAt) >= getUpdatedAtWeight(existing.updatedAt)
-        ? localBook
-        : existing,
-    );
-  }
-
-  return [...merged.values()];
+interface ResolveLibraryBookStateInput {
+  activity: LibraryBookActivity;
+  bookId: string;
 }
 
-function getShelfCoverTheme(book: LocalLibraryBook) {
-  return book.coverTheme ?? getBookCoverTheme(book.title);
+interface ShelfBook extends LibraryBookSummary {
+  coverGlyph?: string;
+  coverTheme?: string;
 }
-
-function getShelfCoverGlyph(book: LocalLibraryBook) {
-  return book.coverGlyph ?? getBookInitials(book.title);
-}
-
-const shelfGroups: Array<{
-  key: ShelfGroupKey;
-  heading: string;
-  description: string;
-}> = [
-  {
-    key: "active",
-    heading: "Continue listening",
-    description: "Books with listening progress you can resume immediately.",
-  },
-  {
-    key: "audio-ready",
-    heading: "Imported audiobooks",
-    description: "Private audiobook files that are ready to open directly in the player.",
-  },
-  {
-    key: "sample-ready",
-    heading: "Resume sample",
-    description: "Books with a generated sample and no listening history yet.",
-  },
-  {
-    key: "taste-ready",
-    heading: "Start with taste",
-    description: "Books that already know how they should sound, but have not generated a sample yet.",
-  },
-  {
-    key: "setup-needed",
-    heading: "Needs setup",
-    description: "Imported books that still need a narrator and listening mode.",
-  },
-];
 
 interface ContinueListeningRowProps {
-  initialSnapshot?: LibrarySyncSnapshot | null;
   hideWhenEmpty?: boolean;
 }
 
-export function ContinueListeningRow({
-  initialSnapshot = null,
-  hideWhenEmpty = false,
-}: ContinueListeningRowProps) {
-  const [libraryBooks, setLibraryBooks] = useState<LocalLibraryBook[]>(
-    () => mergeLibraryBooks([], initialSnapshot?.libraryBooks ?? []),
+function formatResumeTime(seconds: number) {
+  const wholeSeconds = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(wholeSeconds / 3_600);
+  const minutes = Math.floor((wholeSeconds % 3_600) / 60);
+  const remainingSeconds = wholeSeconds % 60;
+
+  return hours > 0
+    ? `${hours}:${minutes.toString().padStart(2, "0")}:${remainingSeconds
+        .toString()
+        .padStart(2, "0")}`
+    : `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+}
+
+function getCurrentOutput(
+  activity: LibraryBookActivity,
+  kind: LibraryGenerationKind,
+) {
+  return activity.outputs.find(
+    (output) =>
+      output.kind === kind &&
+      output.isCurrent &&
+      !!output.artifactId?.trim() &&
+      !!output.jobId?.trim() &&
+      output.artifactUrl.startsWith("/api/audio/"),
   );
-  const [removedBooks, setRemovedBooks] = useState<RemovedLocalLibraryBook[]>([]);
-  const [sampleRequest, setSampleRequest] = useState<LocalSampleRequest | null>(null);
-  const [expandedBookId, setExpandedBookId] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<ShelfFilter>("all");
-  const [search, setSearch] = useState("");
-  const [editingBookId, setEditingBookId] = useState<string | null>(null);
-  const [titleDraft, setTitleDraft] = useState("");
-  const [deleteConfirmBookId, setDeleteConfirmBookId] = useState<string | null>(null);
+}
 
-  useEffect(() => {
-    function refreshLibrary() {
-      const localBooks = readLocalLibraryBooks();
-      const nextRemovedBooks = readRemovedLocalLibraryBooks();
-      const removedBookIds = new Set(
-        nextRemovedBooks.map((removedBook) => removedBook.book.bookId),
-      );
-      setLibraryBooks(
-        mergeLibraryBooks(
-          localBooks,
-          initialSnapshot?.libraryBooks ?? [],
-          removedBookIds,
-        ),
-      );
-      setRemovedBooks(nextRemovedBooks);
-      setSampleRequest(readLocalSampleRequest() ?? initialSnapshot?.sampleRequest ?? null);
-    }
-
-    refreshLibrary();
-
-    window.addEventListener(libraryChangedEvent, refreshLibrary);
-    window.addEventListener(listeningProfileChangedEvent, refreshLibrary);
-    window.addEventListener(defaultTasteChangedEvent, refreshLibrary);
-    window.addEventListener(sampleRequestChangedEvent, refreshLibrary);
-    window.addEventListener(generationOutputChangedEvent, refreshLibrary);
-    window.addEventListener(playbackChangedEvent, refreshLibrary);
-    window.addEventListener(removedBooksChangedEvent, refreshLibrary);
-    window.addEventListener("storage", refreshLibrary);
-
-    return () => {
-      window.removeEventListener(libraryChangedEvent, refreshLibrary);
-      window.removeEventListener(listeningProfileChangedEvent, refreshLibrary);
-      window.removeEventListener(defaultTasteChangedEvent, refreshLibrary);
-      window.removeEventListener(sampleRequestChangedEvent, refreshLibrary);
-      window.removeEventListener(generationOutputChangedEvent, refreshLibrary);
-      window.removeEventListener(playbackChangedEvent, refreshLibrary);
-      window.removeEventListener(removedBooksChangedEvent, refreshLibrary);
-      window.removeEventListener("storage", refreshLibrary);
-    };
-  }, [initialSnapshot]);
-
-  const initialProfilesByBook = useMemo(
-    () =>
-      new Map(
-        (initialSnapshot?.listeningProfiles ?? []).map((profile) => [
-          profile.bookId,
-          profile,
-        ]),
-      ),
-    [initialSnapshot],
-  );
-  const initialPlaybackStatesByBook = useMemo(
-    () =>
-      new Map(
-        (initialSnapshot?.playbackStates ?? []).map((playback) => [
-          playback.bookId,
-          playback.state,
-        ]),
-      ),
-    [initialSnapshot],
-  );
-  const initialGenerationOutputsByKey = useMemo(
-    () =>
-      new Map(
-        (initialSnapshot?.generationOutputs ?? []).map((output) => [
-          `${output.bookId}:${output.kind}`,
-          output,
-        ]),
-      ),
-    [initialSnapshot],
-  );
-  const initialDefaultProfile = initialSnapshot?.defaultListeningProfile ?? null;
-  const initialRecentProfile = initialSnapshot?.listeningProfiles?.[0] ?? null;
-
-  const shelfBooks = useMemo(() => {
-    return libraryBooks
-      .map((book) => {
-        const playbackState = resolvePreferredPlaybackState(
-          readPersistedPlaybackState(book.bookId),
-          initialPlaybackStatesByBook.get(book.bookId) ?? null,
-        );
-        const localResolvedTaste = resolveListeningTaste(book.bookId);
-        const resolvedTaste =
-          localResolvedTaste.source !== "none"
-            ? localResolvedTaste
-            : initialProfilesByBook.get(book.bookId)
-              ? {
-                  profile: initialProfilesByBook.get(book.bookId) ?? null,
-                  source: "saved" as const,
-                }
-              : initialDefaultProfile
-                ? {
-                    profile: initialDefaultProfile,
-                    source: "default" as const,
-                  }
-                : initialRecentProfile
-                  ? {
-                      profile: initialRecentProfile,
-                      source: "recent" as const,
-                    }
-                  : localResolvedTaste;
-        const sampleOutput = resolvePreferredGenerationOutput(
-          readLocalGenerationOutput(book.bookId, "sample-generation"),
-          initialGenerationOutputsByKey.get(`${book.bookId}:sample-generation`) ??
-            null,
-        );
-        const fullBookOutput = resolvePreferredGenerationOutput(
-          readLocalGenerationOutput(book.bookId, "full-book-generation"),
-          initialGenerationOutputsByKey.get(`${book.bookId}:full-book-generation`) ??
-            null,
-        );
-        const isImportedAudio = book.sourceType === "audio";
-        const hasSample =
-          isImportedAudio ||
-          !!sampleOutput ||
-          ((sampleRequest ?? initialSnapshot?.sampleRequest ?? null)?.bookId === book.bookId &&
-            (resolvedTaste.source !== "none" || !!resolvedTaste.profile));
-        const group: ShelfGroupKey = playbackState
-          ? "active"
-          : isImportedAudio
-            ? "audio-ready"
-          : hasSample
-            ? "sample-ready"
-            : resolvedTaste.source === "none"
-              ? "setup-needed"
-              : "taste-ready";
-
-        return {
-          book,
-          group,
-          searchText:
-            `${book.title} ${book.genreLabel ?? ""} ${resolvedTaste.profile?.narratorName ?? ""} ${resolvedTaste.profile?.mode ?? ""} ${book.importedAudioFormat ?? ""} ${sampleOutput?.provider ?? ""} ${fullBookOutput ? "full book ready" : ""} ${isImportedAudio ? "imported audiobook original audio" : ""}`.toLowerCase(),
-        };
-      })
-      .sort((left, right) => {
-        const leftPlayback = resolvePreferredPlaybackState(
-          readPersistedPlaybackState(left.book.bookId),
-          initialPlaybackStatesByBook.get(left.book.bookId) ?? null,
-        );
-        const rightPlayback = resolvePreferredPlaybackState(
-          readPersistedPlaybackState(right.book.bookId),
-          initialPlaybackStatesByBook.get(right.book.bookId) ?? null,
-        );
-        const leftActivity =
-          leftPlayback?.updatedAt ?? left.book.updatedAt ?? new Date(0).toISOString();
-        const rightActivity =
-          rightPlayback?.updatedAt ?? right.book.updatedAt ?? new Date(0).toISOString();
-        return rightActivity.localeCompare(leftActivity);
-      });
-  }, [
-    initialDefaultProfile,
-    initialGenerationOutputsByKey,
-    initialPlaybackStatesByBook,
-    initialProfilesByBook,
-    initialRecentProfile,
-    initialSnapshot?.sampleRequest,
-    libraryBooks,
-    sampleRequest,
-  ]);
-
-  const normalizedSearch = search.trim().toLowerCase();
-  const filteredShelfBooks = shelfBooks.filter((entry) => {
-    const matchesFilter = activeFilter === "all" || entry.group === activeFilter;
-    const matchesSearch =
-      normalizedSearch.length === 0 || entry.searchText.includes(normalizedSearch);
-    return matchesFilter && matchesSearch;
-  });
-
-  const groupedShelfBooks = filteredShelfBooks.reduce<Record<ShelfGroupKey, ShelfBookRecord[]>>(
-    (groups, entry) => {
-      groups[entry.group].push(entry);
-      return groups;
-    },
-    {
-      active: [],
-      "audio-ready": [],
-      "sample-ready": [],
-      "taste-ready": [],
-      "setup-needed": [],
-    },
-  );
-
-  const totalStats = {
-    all: shelfBooks.length,
-    active: shelfBooks.filter((entry) => entry.group === "active").length,
-    "audio-ready": shelfBooks.filter((entry) => entry.group === "audio-ready").length,
-    "sample-ready": shelfBooks.filter((entry) => entry.group === "sample-ready").length,
-    "taste-ready": shelfBooks.filter((entry) => entry.group === "taste-ready").length,
-    "setup-needed": shelfBooks.filter((entry) => entry.group === "setup-needed").length,
-  };
-
-  if (hideWhenEmpty && libraryBooks.length === 0 && removedBooks.length === 0) {
+function getResumeLabel(
+  activity: LibraryBookActivity,
+  artifactId: string | null,
+) {
+  const progress = activity.progress;
+  if (
+    !progress ||
+    !artifactId ||
+    progress.artifactId !== artifactId ||
+    progress.positionSeconds <= 0
+  ) {
     return null;
   }
 
-  function startRenaming(book: LocalLibraryBook) {
-    setEditingBookId(book.bookId);
-    setTitleDraft(book.title);
-    setDeleteConfirmBookId(null);
+  const chapter =
+    progress.chapterIndex === null ? "" : ` · Chapter ${progress.chapterIndex + 1}`;
+  return `Resume at ${formatResumeTime(progress.positionSeconds)}${chapter}`;
+}
+
+function getLatestJob(activity: LibraryBookActivity) {
+  return [...activity.jobs].sort(
+    (left, right) =>
+      getUpdatedAtWeight(right.createdAt) - getUpdatedAtWeight(left.createdAt),
+  )[0];
+}
+
+export function resolveLibraryBookState({
+  activity,
+  bookId,
+}: ResolveLibraryBookStateInput): ResolvedLibraryBookState {
+  const fullOutput = getCurrentOutput(activity, "full-book-generation");
+  if (fullOutput) {
+    const resumeLabel = getResumeLabel(activity, fullOutput.artifactId);
+    return {
+      actionKind: "link",
+      actionLabel: resumeLabel ? "Continue listening" : "Listen to audiobook",
+      detail: "The complete audiobook is ready to play.",
+      href: `/player/${bookId}?artifact=full`,
+      kind: "ready",
+      label: "Audiobook ready",
+      resumeLabel,
+    };
   }
 
-  function cancelRenaming() {
-    setEditingBookId(null);
-    setTitleDraft("");
+  const hasActiveFullJob = activity.jobs.some(
+    (job) =>
+      job.kind === "full-book-generation" &&
+      (job.status === "queued" || job.status === "running"),
+  );
+  if (hasActiveFullJob) {
+    return {
+      actionKind: "link",
+      actionLabel: "View audiobook progress",
+      detail: "The complete audiobook is being created.",
+      href: `/books/${bookId}`,
+      kind: "book-generating",
+      label: "Audiobook is being created",
+      resumeLabel: null,
+    };
   }
 
-  function saveRename(book: LocalLibraryBook) {
-    const nextTitle = titleDraft.trim();
-    if (!nextTitle) {
-      setTitleDraft(book.title);
-      return;
+  const hasActiveSampleJob = activity.jobs.some(
+    (job) =>
+      job.kind === "sample-generation" &&
+      (job.status === "queued" || job.status === "running"),
+  );
+  if (hasActiveSampleJob) {
+    return {
+      actionKind: "link",
+      actionLabel: "View sample progress",
+      detail: "A voice sample is being created.",
+      href: `/books/${bookId}`,
+      kind: "sample-generating",
+      label: "Sample is being created",
+      resumeLabel: null,
+    };
+  }
+
+  const latestJob = getLatestJob(activity);
+  const latestCompletedWithoutOutput =
+    latestJob?.status === "completed" &&
+    !getCurrentOutput(activity, latestJob.kind);
+  if (
+    latestJob?.status === "failed" ||
+    latestJob?.status === "cancelled" ||
+    latestCompletedWithoutOutput
+  ) {
+    return {
+      actionKind: "link",
+      actionLabel: "Review and retry",
+      detail: "The last audio attempt did not produce playable audio.",
+      href: `/books/${bookId}`,
+      kind: "failed",
+      label: "Audio needs attention",
+      resumeLabel: null,
+    };
+  }
+
+  const sampleOutput = getCurrentOutput(activity, "sample-generation");
+  if (sampleOutput) {
+    const resumeLabel = getResumeLabel(activity, sampleOutput.artifactId);
+    return {
+      actionKind: "link",
+      actionLabel: resumeLabel ? "Continue sample" : "Listen to sample",
+      detail: "The selected voice sample is ready to play.",
+      href: `/player/${bookId}?artifact=sample`,
+      kind: "sample-ready",
+      label: "Sample ready",
+      resumeLabel,
+    };
+  }
+
+  return {
+    actionKind: "link",
+    actionLabel: "Choose a voice",
+    detail: "Choose a voice and create a short sample.",
+    href: `/books/${bookId}`,
+    kind: "needs-setup",
+    label: "Voice setup needed",
+    resumeLabel: null,
+  };
+}
+
+function buildShelfBooks(
+  persistedBooks: LibraryBookSummary[],
+  localBooks: LocalLibraryBook[],
+) {
+  const localById = new Map(localBooks.map((book) => [book.bookId, book]));
+  const merged: ShelfBook[] = persistedBooks.map((book) => {
+    const local = localById.get(book.bookId);
+    return {
+      ...book,
+      coverGlyph: local?.coverGlyph,
+      coverTheme: local?.coverTheme,
+    };
+  });
+
+  return merged.sort((left, right) => {
+    const leftUpdatedAt = left.activity.progress?.updatedAt ?? left.updatedAt;
+    const rightUpdatedAt = right.activity.progress?.updatedAt ?? right.updatedAt;
+    return getUpdatedAtWeight(rightUpdatedAt) - getUpdatedAtWeight(leftUpdatedAt);
+  });
+}
+
+export function ContinueListeningRow({
+  hideWhenEmpty = false,
+}: ContinueListeningRowProps) {
+  const [books, setBooks] = useState<ShelfBook[] | null>(null);
+  const [confirmingBookId, setConfirmingBookId] = useState<string | null>(null);
+  const [deletingBookId, setDeletingBookId] = useState<string | null>(null);
+  const [libraryError, setLibraryError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
+  useEffect(() => {
+    const abortController = new AbortController();
+
+    void listBooks({ signal: abortController.signal })
+      .then((persistedBooks) =>
+        buildShelfBooks(persistedBooks, readLocalLibraryBooks()),
+      )
+      .then((nextBooks) => {
+        if (!abortController.signal.aborted) {
+          setBooks(nextBooks);
+          setLibraryError(null);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!abortController.signal.aborted) {
+          setBooks([]);
+          setLibraryError(
+            error instanceof BooksApiError
+              ? error.message
+              : "The library could not be loaded. Reload and try again.",
+          );
+        }
+      });
+
+    return () => abortController.abort();
+  }, [loadAttempt]);
+
+  async function handleDelete(bookId: string) {
+    setDeletingBookId(bookId);
+    setLibraryError(null);
+
+    try {
+      await deletePersistedBook(bookId);
+      removeLocalLibraryBook(bookId);
+      setBooks((current) =>
+        current?.filter((book) => book.bookId !== bookId) ?? [],
+      );
+      setConfirmingBookId(null);
+    } catch (error) {
+      setLibraryError(
+        error instanceof BooksApiError
+          ? error.message
+          : "This book could not be deleted safely. Try again.",
+      );
+    } finally {
+      setDeletingBookId(null);
     }
-
-    renameLocalLibraryBook(book.bookId, nextTitle);
-    setEditingBookId(null);
-    setTitleDraft("");
-    void pushClientLibrarySyncSnapshot().catch(() => null);
   }
 
-  function confirmDelete(bookId: string) {
-    setDeleteConfirmBookId(bookId);
-    if (editingBookId === bookId) {
-      cancelRenaming();
-    }
+  if (books === null) {
+    return (
+      <section
+        aria-busy="true"
+        className="rounded-[1.75rem] border border-stone-200 bg-white p-6 shadow-sm"
+      >
+        <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
+          Personal library
+        </p>
+        <h2 className="mt-2 text-lg font-semibold text-stone-900">
+          Loading your library
+        </h2>
+      </section>
+    );
   }
 
-  function cancelDelete() {
-    setDeleteConfirmBookId(null);
-  }
-
-  function deleteBook(bookId: string) {
-    removeLocalLibraryBook(bookId);
-    setDeleteConfirmBookId((current) => (current === bookId ? null : current));
-    setExpandedBookId((current) => (current === bookId ? null : current));
-    setEditingBookId((current) => (current === bookId ? null : current));
-    setTitleDraft("");
-    void pushClientLibrarySyncSnapshot().catch(() => null);
-  }
-
-  function restoreBook(bookId: string) {
-    restoreRemovedLocalLibraryBook(bookId);
-    void pushClientLibrarySyncSnapshot().catch(() => null);
-  }
-
-  function dismissRemovedBook(bookId: string) {
-    clearRemovedLocalLibraryBook(bookId);
-    void pushClientLibrarySyncSnapshot().catch(() => null);
+  if (hideWhenEmpty && books.length === 0 && !libraryError) {
+    return null;
   }
 
   return (
-    <section className="overflow-hidden rounded-[1.75rem] border border-stone-200 bg-white shadow-sm">
-      <div className="border-b border-stone-200 bg-[linear-gradient(135deg,#f8f3e7_0%,#fffdf8_48%,#eef4ff_100%)] p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-              Personal library
-            </p>
-            <h2 className="mt-2 text-lg font-semibold text-stone-900">
-              Continue listening
-            </h2>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-              Your shelf is organized by listening state, so the next useful action
-              is always visible: resume, review the sample, start with taste, or
-              finish setup.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2 text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
-            <span className="rounded-full border border-white/80 bg-white/80 px-3 py-2 backdrop-blur">
-              Books: {totalStats.all}
-            </span>
-            <span className="rounded-full border border-white/80 bg-white/80 px-3 py-2 backdrop-blur">
-              Active: {totalStats.active}
-            </span>
-            <span className="rounded-full border border-white/80 bg-white/80 px-3 py-2 backdrop-blur">
-              Audiobooks: {totalStats["audio-ready"]}
-            </span>
-            <span className="rounded-full border border-white/80 bg-white/80 px-3 py-2 backdrop-blur">
-              Samples: {totalStats["sample-ready"]}
-            </span>
-            <span className="rounded-full border border-white/80 bg-white/80 px-3 py-2 backdrop-blur">
-              Setup: {totalStats["setup-needed"]}
-            </span>
-          </div>
+    <section aria-labelledby="library-heading" className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
+            Personal library
+          </p>
+          <h2 id="library-heading" className="mt-2 text-2xl font-semibold text-stone-950">
+            Books: {books.length}
+          </h2>
         </div>
-      </div>
-
-      <div className="p-6">
-      <div className="flex flex-wrap gap-3">
-        {[
-          ["all", "All books"],
-          ["active", "Continue listening"],
-          ["audio-ready", "Imported audiobooks"],
-          ["sample-ready", "Resume sample"],
-          ["taste-ready", "Start with taste"],
-          ["setup-needed", "Needs setup"],
-        ].map(([value, label]) => (
-          <button
-            key={value}
-            className={`rounded-full px-4 py-2 text-sm font-medium ${
-              activeFilter === value
-                ? "bg-stone-950 text-white shadow-sm"
-                : "border border-stone-300 bg-white text-stone-700 shadow-sm transition hover:border-stone-400 hover:text-stone-950"
-            }`}
-            type="button"
-            onClick={() => setActiveFilter(value as ShelfFilter)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-5">
-        <label className="block text-sm font-medium text-stone-900" htmlFor="library-search">
-          Search your shelf
-        </label>
-        <input
-          id="library-search"
-          className="mt-2 w-full rounded-[1.25rem] border border-stone-200 bg-white px-4 py-3 text-sm text-stone-800 outline-none transition focus:border-stone-400"
-          placeholder="Search by title, narrator, or mode"
-          type="text"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
-      </div>
-
-      {removedBooks.length > 0 ? (
-        <section className="mt-6 rounded-[1.5rem] border border-amber-200 bg-[linear-gradient(135deg,#fff7d8_0%,#fffdf7_100%)] p-5 shadow-sm">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h3 className="text-base font-semibold text-amber-950">Recently removed</h3>
-              <p className="mt-1 text-sm text-amber-900">
-                Deleted books can be restored from here before you dismiss them.
-              </p>
-            </div>
-            <span className="rounded-full bg-white px-3 py-2 text-xs font-medium uppercase tracking-[0.18em] text-amber-700">
-              {removedBooks.length}
-            </span>
-          </div>
-          <div className="mt-4 grid gap-3">
-            {removedBooks.map((removedBook) => (
-              <div
-                key={removedBook.book.bookId}
-                className="rounded-2xl border border-amber-200 bg-white px-4 py-4 text-sm text-stone-700 shadow-sm"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="font-medium text-stone-950">{removedBook.book.title}</p>
-                    <p className="mt-1 text-stone-600">
-                      Removed {formatRelativeUpdatedAt(removedBook.removedAt).replace("Updated ", "").toLowerCase()}.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white"
-                      type="button"
-                      onClick={() => restoreBook(removedBook.book.bookId)}
-                    >
-                      Restore book
-                    </button>
-                    <button
-                      className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700"
-                      type="button"
-                      onClick={() => dismissRemovedBook(removedBook.book.bookId)}
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {libraryBooks.length > 0 ? (
-        <div className="mt-6 space-y-6">
-          {shelfGroups.map(({ key, heading, description }) => {
-            const groupBooks = groupedShelfBooks[key];
-
-            if (groupBooks.length === 0) {
-              return null;
-            }
-
-            return (
-              <section key={key} className="space-y-4">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <h3 className="text-base font-semibold text-stone-900">{heading}</h3>
-                    <p className="mt-1 text-sm text-stone-600">{description}</p>
-                  </div>
-                  <span className="rounded-full border border-stone-200 bg-white px-3 py-2 text-xs font-medium uppercase tracking-[0.18em] text-stone-500 shadow-sm">
-                    {groupBooks.length}
-                  </span>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {groupBooks.map(({ book }, index) => {
-                    const isImportedAudio = book.sourceType === "audio";
-                    const playbackState = resolvePreferredPlaybackState(
-                      readPersistedPlaybackState(book.bookId),
-                      initialPlaybackStatesByBook.get(book.bookId) ?? null,
-                    );
-                    const sampleOutput =
-                      readLocalGenerationOutput(book.bookId, "sample-generation") ??
-                      initialGenerationOutputsByKey.get(
-                        `${book.bookId}:sample-generation`,
-                      ) ??
-                      null;
-                    const fullBookOutput =
-                      readLocalGenerationOutput(book.bookId, "full-book-generation") ??
-                      initialGenerationOutputsByKey.get(
-                        `${book.bookId}:full-book-generation`,
-                      ) ??
-                      null;
-                    const currentChapterNumber = Math.min(
-                      (playbackState?.currentChapterIndex ?? 0) + 1,
-                      Math.max(book.chapterCount, 1),
-                    );
-                    const progressLabel = playbackState
-                      ? `${formatPlaybackTime(playbackState.progressSeconds)} listened`
-                      : "Not started yet";
-                    const progressPercent = playbackState
-                      ? `${getPlaybackPercent(playbackState.progressSeconds)}% through this chapter`
-                      : "Ready to start";
-                    const bookmarkCount = playbackState?.bookmarks?.length ?? 0;
-                    const localResolvedTaste = resolveListeningTaste(book.bookId);
-                    const resolvedTaste =
-                      localResolvedTaste.source !== "none"
-                        ? localResolvedTaste
-                        : initialProfilesByBook.get(book.bookId)
-                          ? {
-                              profile:
-                                initialProfilesByBook.get(book.bookId) ?? null,
-                              source: "saved" as const,
-                            }
-                          : initialDefaultProfile
-                            ? {
-                                profile: initialDefaultProfile,
-                                source: "default" as const,
-                              }
-                            : initialRecentProfile
-                              ? {
-                                  profile: initialRecentProfile,
-                                  source: "recent" as const,
-                                }
-                              : localResolvedTaste;
-                    const narratorLabel =
-                      isImportedAudio
-                        ? "Original audio"
-                        : resolvedTaste.profile?.narratorName ??
-                      sampleOutput?.narratorId ??
-                      ((sampleRequest ?? initialSnapshot?.sampleRequest ?? null)?.bookId ===
-                      book.bookId
-                        ? (sampleRequest ?? initialSnapshot?.sampleRequest ?? null)
-                            ?.narratorId
-                        : "Not chosen yet");
-                    const modeLabel =
-                      isImportedAudio
-                        ? book.importedAudioFormat?.toUpperCase() ?? "Audio file"
-                        : resolvedTaste.profile?.mode ??
-                      sampleOutput?.mode ??
-                      ((sampleRequest ?? initialSnapshot?.sampleRequest ?? null)?.bookId ===
-                      book.bookId
-                        ? (sampleRequest ?? initialSnapshot?.sampleRequest ?? null)?.mode
-                        : "setup pending");
-                    const sampleResumeProfile =
-                      (resolvedTaste.profile && resolvedTaste.source === "saved"
-                        ? resolvedTaste.profile
-                        : null) ??
-                      (sampleOutput?.narratorId && sampleOutput.mode
-                        ? {
-                            narratorId: sampleOutput.narratorId,
-                            mode: sampleOutput.mode,
-                          }
-                        : null) ??
-                      ((sampleRequest ?? initialSnapshot?.sampleRequest ?? null)?.bookId ===
-                      book.bookId
-                        ? {
-                            narratorId:
-                              (sampleRequest ?? initialSnapshot?.sampleRequest ?? null)
-                                ?.narratorId ?? "",
-                            mode:
-                              (sampleRequest ?? initialSnapshot?.sampleRequest ?? null)
-                                ?.mode ?? "ambient",
-                          }
-                        : null);
-                    const resumeArtifact = isImportedAudio
-                      ? "imported"
-                      : playbackState?.playbackArtifactKind === "sample-generation" &&
-                      sampleOutput
-                        ? "sample"
-                        : playbackState?.playbackArtifactKind ===
-                              "full-book-generation" && fullBookOutput
-                          ? "full"
-                          : fullBookOutput && !playbackState
-                            ? "full"
-                            : sampleOutput
-                              ? "sample"
-                              : null;
-                    const resumeHref = isImportedAudio
-                      ? `/player/${book.bookId}`
-                      : sampleResumeProfile
-                        ? `/player/${book.bookId}?narrator=${sampleResumeProfile.narratorId}&mode=${sampleResumeProfile.mode}${resumeArtifact ? `&artifact=${resumeArtifact}` : ""}`
-                        : resumeArtifact
-                          ? `/player/${book.bookId}?artifact=${resumeArtifact}`
-                        : `/books/${book.bookId}`;
-                    const ctaLabel = isImportedAudio
-                      ? playbackState
-                        ? "Continue audiobook"
-                        : "Open audiobook"
-                      : resumeArtifact === "full" && !playbackState
-                        ? "Listen full book"
-                        : sampleResumeProfile && playbackState
-                        ? "Continue listening"
-                        : sampleOutput
-                          ? "Resume sample"
-                        : resolvedTaste.source === "default"
-                            ? "Start with default taste"
-                            : resolvedTaste.source === "recent"
-                              ? "Start with latest taste"
-                              : "Continue setup";
-                    const defaultableProfile = resolvedTaste.profile;
-                    const tasteSource = isImportedAudio
-                      ? {
-                          badge: "Original audio",
-                          summary: book.importedAudioFormat?.toUpperCase() ?? "Imported file",
-                          detail:
-                            "This title uses the original private audiobook file you imported into this browser, so it does not depend on narrator setup or generated sample state.",
-                          actionHint:
-                            "Open the player to keep listening, or import another private audiobook file.",
-                        }
-                      : describeListeningTasteSource(resolvedTaste);
-                    const secondaryHref = isImportedAudio
-                      ? "/import?source=audio"
-                      : resolvedTaste.source === "saved"
-                        ? `/books/${book.bookId}`
-                        : resolvedTaste.source === "none"
-                          ? `/books/${book.bookId}`
-                          : `/import`;
-                    const resumeArtifactLabel =
-                      resumeArtifact === "imported"
-                        ? "Resumes imported audiobook"
-                        : resumeArtifact === "full"
-                        ? "Resumes full-book audio"
-                        : resumeArtifact === "sample"
-                          ? "Resumes sample audio"
-                          : null;
-                    const statusLabel =
-                      key === "active"
-                        ? "In progress"
-                        : key === "audio-ready"
-                          ? "Audiobook ready"
-                        : key === "sample-ready"
-                          ? "Sample is ready"
-                          : key === "taste-ready"
-                            ? "Taste chosen"
-                            : "Needs setup";
-
-                    return (
-                      <div
-                        key={book.bookId}
-                        data-testid={`shelf-book-${book.bookId}`}
-                        className="overflow-hidden rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#ffffff_0%,#faf8f4_100%)] p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-                      >
-                        <div className="flex items-start gap-4">
-                          <div
-                            className={`flex h-28 w-24 shrink-0 flex-col justify-between overflow-hidden rounded-[1.35rem] border border-stone-200 bg-gradient-to-br ${getShelfCoverTheme(book)} p-4 shadow-sm`}
-                          >
-                            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-stone-600">
-                              {book.coverLabel ?? (index === 0 ? "Featured" : "Library")}
-                            </p>
-                            <div>
-                              <p className="text-2xl font-semibold tracking-tight text-stone-950">
-                                {getShelfCoverGlyph(book)}
-                              </p>
-                              <p className="mt-1 text-[0.68rem] uppercase tracking-[0.18em] text-stone-500">
-                                {modeLabel}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm uppercase tracking-[0.22em] text-stone-500">
-                              {index === 0 ? "Most recent in this section" : "Library import"}
-                            </p>
-                            {editingBookId === book.bookId ? (
-                              <div className="mt-3 space-y-3">
-                                <label
-                                  className="block text-sm font-medium text-stone-900"
-                                  htmlFor={`rename-${book.bookId}`}
-                                >
-                                  Rename book
-                                </label>
-                                <input
-                                  id={`rename-${book.bookId}`}
-                                  className="w-full rounded-[1.25rem] border border-stone-200 bg-white px-4 py-3 text-sm text-stone-800 outline-none transition focus:border-stone-400"
-                                  type="text"
-                                  value={titleDraft}
-                                  onChange={(event) => setTitleDraft(event.target.value)}
-                                />
-                                <div className="flex flex-wrap gap-3">
-                                  <button
-                                    className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white"
-                                    type="button"
-                                    onClick={() => saveRename(book)}
-                                  >
-                                    Save title
-                                  </button>
-                                  <button
-                                    className="rounded-full border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700"
-                                    type="button"
-                                    onClick={cancelRenaming}
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <h3 className="mt-3 text-2xl font-semibold text-stone-950">
-                                {book.title}
-                              </h3>
-                            )}
-                            <p className="mt-2 text-sm leading-6 text-stone-600">
-                              {isImportedAudio
-                                ? `Private ${book.importedAudioFormat?.toUpperCase() ?? "audio"} file ready in your library${book.importedAudioDurationSeconds ? ` · ${Math.round(book.importedAudioDurationSeconds / 60)} min` : ""}.`
-                                : `${book.chapterCount} chapter${book.chapterCount === 1 ? "" : "s"} ready in your private library.`}
-                            </p>
-                          </div>
-                        </div>
-                        <p className="mt-2 text-sm text-stone-500">
-                          {formatRelativeUpdatedAt(book.updatedAt)}
-                        </p>
-                        <p className="mt-2 text-sm font-medium text-stone-800">
-                          {statusLabel}
-                        </p>
-                        <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
-                          {book.genreLabel ? (
-                            <span className="rounded-full border border-fuchsia-200 bg-fuchsia-50 px-3 py-2 text-fuchsia-800">
-                              {book.genreLabel}
-                            </span>
-                          ) : null}
-                          {isImportedAudio ? (
-                            <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-2 text-sky-800">
-                              Imported {book.importedAudioFormat?.toUpperCase() ?? "audio"}
-                            </span>
-                          ) : null}
-                          <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">
-                            {tasteSource.badge}
-                          </span>
-                          <span className="rounded-full border border-stone-200 bg-stone-100 px-3 py-2">
-                            Narrator: {narratorLabel}
-                          </span>
-                          <span className="rounded-full border border-stone-200 bg-stone-100 px-3 py-2 capitalize">
-                            Mode: {modeLabel}
-                          </span>
-                          {sampleOutput ? (
-                            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-800">
-                              Sample ready
-                            </span>
-                          ) : null}
-                          {fullBookOutput ? (
-                            <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-2 text-sky-800">
-                              Full book ready
-                            </span>
-                          ) : null}
-                          {resumeArtifactLabel ? (
-                            <span className="rounded-full border border-stone-200 bg-white px-3 py-2 text-stone-700">
-                              {resumeArtifactLabel}
-                            </span>
-                          ) : null}
-                        </div>
-                        <div className="mt-4 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-4 text-sm text-stone-700">
-                          <p className="font-medium text-stone-900">
-                            Chapter {currentChapterNumber}
-                          </p>
-                          <p className="mt-1">{progressLabel}</p>
-                          <p className="mt-1 text-stone-500">{progressPercent}</p>
-                          <p className="mt-1 text-stone-500">
-                            Bookmarks: {bookmarkCount}
-                          </p>
-                        </div>
-                        <div className="mt-4 rounded-2xl border border-dashed border-stone-200 bg-stone-50/80 px-4 py-4 text-sm text-stone-700">
-                          <p className="font-medium text-stone-900">
-                            Why this taste: {tasteSource.summary}
-                          </p>
-                          <p className="mt-1">{tasteSource.actionHint}</p>
-                          <button
-                            className="mt-3 text-sm font-medium text-stone-900 underline underline-offset-4"
-                            type="button"
-                            onClick={() =>
-                              setExpandedBookId(
-                                expandedBookId === book.bookId ? null : book.bookId,
-                              )
-                            }
-                          >
-                            {expandedBookId === book.bookId
-                              ? "Hide taste details"
-                              : "Show taste details"}
-                          </button>
-                          {expandedBookId === book.bookId ? (
-                            <p className="mt-3 text-stone-600">{tasteSource.detail}</p>
-                          ) : null}
-                        </div>
-                        <div className="mt-5 flex flex-wrap gap-3">
-                          <Link
-                            className="rounded-full bg-stone-950 px-5 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-stone-800"
-                            href={resumeHref}
-                          >
-                            {ctaLabel}
-                          </Link>
-                          <Link
-                            className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 shadow-sm transition hover:border-stone-400 hover:text-stone-950"
-                            href={secondaryHref}
-                          >
-                            {resolvedTaste.source === "saved"
-                              ? "Review this taste"
-                              : resolvedTaste.source === "none"
-                                ? "Choose a taste"
-                                : "Manage default taste"}
-                          </Link>
-                          {defaultableProfile ? (
-                            <button
-                              className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 shadow-sm transition hover:border-stone-400 hover:text-stone-950"
-                              type="button"
-                              onClick={() => writeDefaultListeningProfile(defaultableProfile)}
-                            >
-                              Make this the default
-                            </button>
-                          ) : null}
-                          {fullBookOutput?.assetPath ? (
-                            <Link
-                              className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 shadow-sm transition hover:border-stone-400 hover:text-stone-950"
-                              href={`/api/audio/generated/${book.bookId}?kind=full-book-generation`}
-                              target="_blank"
-                            >
-                              Download full book
-                            </Link>
-                          ) : null}
-                          {editingBookId === book.bookId ? null : (
-                            <button
-                              className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 shadow-sm transition hover:border-stone-400 hover:text-stone-950"
-                              type="button"
-                              onClick={() => startRenaming(book)}
-                            >
-                              Rename
-                            </button>
-                          )}
-                          {deleteConfirmBookId === book.bookId ? (
-                            <>
-                              <button
-                                className="rounded-full bg-rose-600 px-5 py-3 text-sm font-medium text-white shadow-sm transition hover:bg-rose-700"
-                                type="button"
-                                onClick={() => deleteBook(book.bookId)}
-                              >
-                                Confirm delete
-                              </button>
-                              <button
-                                className="rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 shadow-sm transition hover:border-stone-400 hover:text-stone-950"
-                                type="button"
-                                onClick={cancelDelete}
-                              >
-                                Keep book
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              className="rounded-full border border-rose-300 bg-white px-5 py-3 text-sm font-medium text-rose-700 shadow-sm transition hover:border-rose-400 hover:text-rose-800"
-                              type="button"
-                              onClick={() => confirmDelete(book.bookId)}
-                            >
-                              Delete book
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            );
-          })}
-
-          {filteredShelfBooks.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-5 text-sm text-stone-600 shadow-sm">
-              No books match this filter yet. Try a different shelf state or clear the
-              search.
-            </div>
-          ) : null}
-
+        {books.length > 0 ? (
           <Link
-            className="inline-flex rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-700 shadow-sm transition hover:border-stone-400 hover:text-stone-950"
+            className="text-sm font-semibold text-amber-800 underline decoration-amber-300 underline-offset-4"
             href="/import"
           >
-            Import another book
+            Add another book
+          </Link>
+        ) : null}
+      </div>
+
+      {libraryError ? (
+        <div
+          className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-900"
+          role="alert"
+        >
+          <p>{libraryError}</p>
+          <button
+            className="mt-3 font-semibold underline underline-offset-4"
+            onClick={() => {
+              setBooks(null);
+              setLoadAttempt((attempt) => attempt + 1);
+            }}
+            type="button"
+          >
+            Try loading again
+          </button>
+        </div>
+      ) : null}
+
+      {books.length === 0 ? (
+        <div className="rounded-[1.75rem] border border-dashed border-stone-300 bg-white p-8 text-center shadow-sm">
+          <h3 className="text-lg font-semibold text-stone-950">Add your first book</h3>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-stone-600">
+            Import a text file, a DRM-free EPUB, or pasted text to choose a voice and hear a sample.
+          </p>
+          <Link
+            className="mt-5 inline-flex min-h-11 items-center justify-center rounded-full bg-stone-950 px-5 py-2.5 text-sm font-semibold text-white"
+            href="/import"
+          >
+            Add your first book
           </Link>
         </div>
       ) : (
-        <p className="mt-2 text-sm leading-6 text-stone-600">
-          Import a book to create your first continue-listening card.
-        </p>
+        <ul className="grid gap-4" aria-label="Your books">
+          {books.map((book) => {
+            const state = resolveLibraryBookState({
+              activity: book.activity,
+              bookId: book.bookId,
+            });
+            const isConfirming = confirmingBookId === book.bookId;
+            const isDeleting = deletingBookId === book.bookId;
+            const primaryHref = state.href ?? `/books/${book.bookId}`;
+
+            return (
+              <li
+                className="rounded-[1.5rem] border border-stone-200 bg-white p-4 shadow-sm sm:p-5"
+                data-testid={`shelf-book-${book.bookId}`}
+                key={book.bookId}
+              >
+                <article className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <Link
+                    aria-label={`Open ${book.title}`}
+                    className="group flex min-w-0 flex-1 items-center gap-4 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700 focus-visible:ring-offset-4"
+                    href={primaryHref}
+                  >
+                    <div
+                      aria-hidden="true"
+                      className={`flex h-24 w-20 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-xl font-bold text-stone-800 ${
+                        book.coverTheme ?? getBookCoverTheme(book.title)
+                      }`}
+                    >
+                      {book.coverGlyph ?? getBookInitials(book.title)}
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-lg font-semibold text-stone-950 transition group-hover:text-amber-800 group-hover:underline group-hover:underline-offset-4">
+                        {book.title}
+                      </h3>
+                      <p className="mt-1 text-xs font-medium uppercase tracking-[0.16em] text-stone-500">
+                        {book.chapterCount}{" "}
+                        {book.chapterCount === 1 ? "chapter" : "chapters"}
+                      </p>
+                      <p className="mt-3 font-semibold text-stone-900">
+                        {state.label}
+                      </p>
+                      <p className="mt-1 text-sm leading-6 text-stone-600">
+                        {state.detail}
+                      </p>
+                      {state.resumeLabel ? (
+                        <p className="mt-2 text-sm font-medium text-amber-800">
+                          {state.resumeLabel}
+                        </p>
+                      ) : null}
+                    </div>
+                  </Link>
+
+                  <div className="flex shrink-0 flex-col items-stretch gap-2 sm:w-52">
+                    {isConfirming ? (
+                      <>
+                        <button
+                          className="min-h-11 rounded-full bg-red-700 px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-wait disabled:opacity-60"
+                          disabled={isDeleting}
+                          onClick={() => void handleDelete(book.bookId)}
+                          type="button"
+                        >
+                          {isDeleting ? "Removing…" : "Confirm removal"}
+                        </button>
+                        <button
+                          className="min-h-11 rounded-full border border-stone-300 px-4 py-2.5 text-sm font-semibold text-stone-700"
+                          disabled={isDeleting}
+                          onClick={() => setConfirmingBookId(null)}
+                          type="button"
+                        >
+                          Keep book
+                        </button>
+                      </>
+                    ) : state.actionKind === "link" && state.href ? (
+                      <Link
+                        className="inline-flex min-h-11 items-center justify-center rounded-full bg-stone-950 px-4 py-2.5 text-center text-sm font-semibold text-white"
+                        href={state.href}
+                      >
+                        {state.actionLabel}
+                      </Link>
+                    ) : (
+                      <button
+                        className="min-h-11 rounded-full bg-stone-950 px-4 py-2.5 text-sm font-semibold text-white"
+                        onClick={() => setConfirmingBookId(book.bookId)}
+                        type="button"
+                      >
+                        {state.actionLabel}
+                      </button>
+                    )}
+
+                    {!isConfirming && state.actionKind !== "delete" ? (
+                      <details className="text-center text-sm text-stone-600">
+                        <summary className="cursor-pointer py-2 font-medium">Book options</summary>
+                        <button
+                          className="min-h-10 px-3 py-2 font-semibold text-red-700 underline underline-offset-4"
+                          onClick={() => setConfirmingBookId(book.bookId)}
+                          type="button"
+                        >
+                          Remove book
+                        </button>
+                      </details>
+                    ) : null}
+                  </div>
+                </article>
+              </li>
+            );
+          })}
+        </ul>
       )}
-      </div>
     </section>
   );
 }

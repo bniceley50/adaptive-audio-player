@@ -5,18 +5,34 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { POST } from "@/app/api/jobs/retry/route";
 import {
-  createAccountSession,
   enqueueGenerationJob,
   failGenerationJob,
-  linkWorkspaceToUser,
+  getDatabase,
   resetDatabaseForTests,
-  syncWorkspaceLibrarySnapshot,
-  upsertUserByEmail,
 } from "@/lib/backend/sqlite";
-import {
-  createSignedAccountSession,
-  createSignedWorkspaceCookieValue,
-} from "@/lib/backend/workspace-session";
+import { createSignedWorkspaceCookieValue } from "@/lib/backend/workspace-session";
+
+function seedStoredBook(workspaceId: string) {
+  const database = getDatabase();
+  const timestamp = "2026-03-09T10:00:00.000Z";
+  database
+    .prepare(
+      `
+        insert into workspaces (id, created_at, updated_at, last_synced_at)
+        values (?, ?, ?, null)
+      `,
+    )
+    .run(workspaceId, timestamp, timestamp);
+  database
+    .prepare(
+      `
+        insert into synced_books (
+          workspace_id, book_id, title, chapter_count, updated_at, draft_text
+        ) values (?, 'book-1', 'Storm Harbor', 2, ?, 'Chapter 1\nStorm Harbor')
+      `,
+    )
+    .run(workspaceId, timestamp);
+}
 
 describe("retry generation job route", () => {
   const createdDirs: string[] = [];
@@ -36,23 +52,7 @@ describe("retry generation job route", () => {
     createdDirs.push(tempDir);
     process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
 
-    syncWorkspaceLibrarySnapshot("workspace-retry", {
-      libraryBooks: [
-        {
-          bookId: "book-1",
-          title: "Storm Harbor",
-          chapterCount: 2,
-          updatedAt: "2026-03-09T10:00:00.000Z",
-        },
-      ],
-      draftTexts: [{ bookId: "book-1", text: "Chapter 1\nStorm Harbor" }],
-      listeningProfiles: [],
-      defaultListeningProfile: null,
-      sampleRequest: null,
-      playbackStates: [],
-      playbackDefaults: null,
-      syncedAt: "2026-03-09T10:01:00.000Z",
-    });
+    seedStoredBook("workspace-retry");
 
     const failedJob = enqueueGenerationJob({
       workspaceId: "workspace-retry",
@@ -77,13 +77,39 @@ describe("retry generation job route", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({
+    const payload = (await response.json()) as {
+      job: Record<string, unknown>;
+    };
+    expect(payload).toMatchObject({
       job: expect.objectContaining({
         kind: "sample-generation",
         status: "queued",
         bookId: "book-1",
       }),
     });
+    expect(Object.keys(payload.job).sort()).toEqual(
+      [
+        "bookId",
+        "bookTitle",
+        "chapterCount",
+        "completedAt",
+        "createdAt",
+        "engineId",
+        "errorMessage",
+        "id",
+        "kind",
+        "mode",
+        "narratorId",
+        "playableArtifactKind",
+        "renderProgress",
+        "resumePath",
+        "status",
+      ].sort(),
+    );
+    expect(payload.job).not.toHaveProperty("workspaceId");
+    expect(payload.job).not.toHaveProperty("books");
+    expect(payload.job).not.toHaveProperty("profiles");
+    expect(payload.job).not.toHaveProperty("playbackStates");
   });
 
   it("returns 404 when retrying a non-failed job in the current workspace", async () => {
@@ -91,23 +117,7 @@ describe("retry generation job route", () => {
     createdDirs.push(tempDir);
     process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
 
-    syncWorkspaceLibrarySnapshot("workspace-retry", {
-      libraryBooks: [
-        {
-          bookId: "book-1",
-          title: "Storm Harbor",
-          chapterCount: 2,
-          updatedAt: "2026-03-09T10:00:00.000Z",
-        },
-      ],
-      draftTexts: [{ bookId: "book-1", text: "Chapter 1\nStorm Harbor" }],
-      listeningProfiles: [],
-      defaultListeningProfile: null,
-      sampleRequest: null,
-      playbackStates: [],
-      playbackDefaults: null,
-      syncedAt: "2026-03-09T10:01:00.000Z",
-    });
+    seedStoredBook("workspace-retry");
 
     const queuedJob = enqueueGenerationJob({
       workspaceId: "workspace-retry",
@@ -136,28 +146,12 @@ describe("retry generation job route", () => {
     });
   });
 
-  it("rejects retry when the signed-in account does not own the linked workspace", async () => {
+  it("does not require a legacy account session for local retry", async () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), "adaptive-audio-player-"));
     createdDirs.push(tempDir);
     process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
 
-    syncWorkspaceLibrarySnapshot("workspace-retry", {
-      libraryBooks: [
-        {
-          bookId: "book-1",
-          title: "Storm Harbor",
-          chapterCount: 2,
-          updatedAt: "2026-03-09T10:00:00.000Z",
-        },
-      ],
-      draftTexts: [{ bookId: "book-1", text: "Chapter 1\nStorm Harbor" }],
-      listeningProfiles: [],
-      defaultListeningProfile: null,
-      sampleRequest: null,
-      playbackStates: [],
-      playbackDefaults: null,
-      syncedAt: "2026-03-09T10:01:00.000Z",
-    });
+    seedStoredBook("workspace-retry");
 
     const failedJob = enqueueGenerationJob({
       workspaceId: "workspace-retry",
@@ -168,22 +162,6 @@ describe("retry generation job route", () => {
     });
     failGenerationJob(failedJob?.id ?? "", "workspace-retry", "Mock failure");
 
-    const owner = upsertUserByEmail({
-      email: "owner@example.com",
-      displayName: "Owner",
-    });
-    const intruder = upsertUserByEmail({
-      email: "intruder@example.com",
-      displayName: "Intruder",
-    });
-    linkWorkspaceToUser("workspace-retry", owner.id);
-
-    const intruderSession = createAccountSession(
-      intruder.id,
-      new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-      "Test browser",
-    );
-
     const response = await POST(
       new Request("http://127.0.0.1:3100/api/jobs/retry", {
         method: "POST",
@@ -193,19 +171,21 @@ describe("retry generation job route", () => {
           origin: "http://127.0.0.1:3100",
           cookie: [
             `adaptive-audio-player.workspace=${createSignedWorkspaceCookieValue("workspace-retry")}`,
-            `adaptive-audio-player.account=${createSignedAccountSession(
-              intruder.id,
-              intruderSession?.id ?? "",
-            )}`,
+            "adaptive-audio-player.account=stale-legacy-session",
           ].join("; "),
         },
         body: JSON.stringify({ jobId: failedJob?.id }),
       }),
     );
 
-    expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toEqual({
-      error: "This workspace belongs to another account.",
+    expect(response.status).toBe(200);
+    const responseBody = await response.json();
+    expect(responseBody).toMatchObject({
+      job: expect.objectContaining({
+        bookId: "book-1",
+        status: "queued",
+      }),
     });
+    expect(responseBody.job.id).not.toBe(failedJob?.id);
   });
 });

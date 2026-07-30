@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
 
+import { toPublicGenerationJob } from "@/lib/backend/public-generation";
 import { getGenerationJob } from "@/lib/backend/sqlite";
 import {
-  accountCookieName,
   readWorkspaceIdFromCookieValue,
-  readVerifiedAccountIdFromCookieValue,
-  verifyWorkspaceAccess,
   workspaceCookieName,
 } from "@/lib/backend/workspace-session";
 
@@ -25,26 +23,17 @@ export async function GET(
   context: { params: Promise<{ jobId: string }> },
 ) {
   const { jobId } = await context.params;
-  const rawWorkspaceId = readWorkspaceIdFromCookieValue(
+  const workspaceId = readWorkspaceIdFromCookieValue(
     parseCookieValue(request, workspaceCookieName),
   );
-  const accountId = readVerifiedAccountIdFromCookieValue(
-    parseCookieValue(request, accountCookieName),
-  );
-  const workspaceAccess = verifyWorkspaceAccess(rawWorkspaceId, accountId);
-
-  if (workspaceAccess.error) {
-    return NextResponse.json({ error: workspaceAccess.error }, { status: 403 });
-  }
-
-  if (!workspaceAccess.workspaceId) {
+  if (!workspaceId) {
     return NextResponse.json({ error: "No workspace is active." }, { status: 401 });
   }
 
-  const job = getGenerationJob(jobId, workspaceAccess.workspaceId);
+  const job = getGenerationJob(jobId, workspaceId);
   if (!job) {
     return NextResponse.json({ error: "Job not found." }, { status: 404 });
   }
 
-  return NextResponse.json({ job });
+  return NextResponse.json({ job: toPublicGenerationJob(job) });
 }

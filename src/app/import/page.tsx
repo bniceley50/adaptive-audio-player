@@ -1,1254 +1,425 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+
+import {
+  ImportSource,
+  type ImportSourceKind,
+} from "@/components/import/import-source";
 import { AppShell } from "@/components/shared/app-shell";
-import { StudioDisclosure } from "@/components/shared/studio-disclosure";
-import { getAllPublicBookCircles } from "@/features/discovery/book-circles";
 import {
-  discoveryChangedEvent,
-  readPinnedDiscoverySignal,
-  togglePinnedDiscoverySignal,
-} from "@/features/discovery/local-discovery";
-import { getEditionDiscoveryReason } from "@/features/discovery/personalization";
-import { featuredListeningEditions } from "@/features/discovery/listening-editions";
-import { useDiscoveryPreferences } from "@/features/discovery/use-discovery-preferences";
-import { useSocialState } from "@/features/social/use-social-state";
-import { extractImportText } from "@/lib/import/extract-text";
-import {
-  buildImportedAudioPlaceholderText,
-  getImportedAudioSegmentCount,
-} from "@/lib/import/imported-audio-chapters";
-import { saveImportedAudioFile } from "@/lib/import/local-audio-assets";
-import {
-  createNextLocalLibraryBook,
-  readRemovedLocalLibraryBooks,
-  readDefaultListeningProfile,
-  readLibraryTotals,
-  upsertLocalLibraryBook,
-  writeDefaultListeningProfile,
-  writeLocalDraftText,
-} from "@/lib/library/local-library";
+  cacheBookMetadata,
+  createBook,
+  createBookIdempotencyKey,
+} from "@/lib/client/books-api";
+import { extractImportSource } from "@/lib/import/extract-text";
 import { parseChapters } from "@/lib/parser/parse-chapters";
 import {
-  getSupportedAudioImportExtension,
-  isSupportedAudioImportExtension,
+  MAX_IMPORT_TITLE_CHARACTERS,
+  getImportDraftValidationError,
 } from "@/lib/validation/import-validation";
 
-function suggestTitleFromFilename(filename: string): string {
-  const baseName = filename.replace(/\.[^.]+$/, "").trim();
-  const collapsed = baseName.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
-
-  if (!collapsed) {
-    return "";
-  }
-
-  return collapsed.replace(/\b([a-z])/g, (match) => match.toUpperCase());
-}
-
-function sortByRecent<
-  T extends {
-    savedAt?: string;
-    joinedAt?: string;
-    lastUsedAt?: string | null;
-    lastOpenedAt?: string | null;
-  },
->(items: T[]) {
-  return [...items].sort((left, right) => {
-    const leftTime = new Date(
-      left.lastUsedAt ?? left.lastOpenedAt ?? left.savedAt ?? left.joinedAt ?? 0,
-    ).getTime();
-    const rightTime = new Date(
-      right.lastUsedAt ?? right.lastOpenedAt ?? right.savedAt ?? right.joinedAt ?? 0,
-    ).getTime();
-    return rightTime - leftTime;
-  });
-}
+type ImportStage = "source" | "review";
+type ParsedChapters = ReturnType<typeof parseChapters>;
 
 const primaryActionClass =
-  "rounded-full bg-[#274c5b] px-5 py-3 text-sm font-semibold text-stone-50 shadow-[0_14px_32px_-24px_rgba(39,76,91,0.8)] transition hover:bg-[#1f3d49] disabled:bg-stone-300 disabled:text-stone-500";
+  "inline-flex min-h-12 items-center justify-center rounded-full bg-[#274c5b] px-6 py-3 text-sm font-semibold text-white shadow-[0_16px_36px_-24px_rgba(39,76,91,0.9)] transition hover:bg-[#1f3d49] disabled:cursor-not-allowed disabled:bg-stone-300 disabled:text-stone-600";
 const secondaryActionClass =
-  "rounded-full border border-stone-300 bg-white px-5 py-3 text-sm font-medium text-stone-800 transition hover:border-stone-400 hover:bg-stone-50";
-const compactPrimaryActionClass =
-  "rounded-full bg-[#274c5b] px-4 py-2 text-sm font-semibold text-stone-50 shadow-[0_14px_32px_-24px_rgba(39,76,91,0.8)] transition hover:bg-[#1f3d49]";
-const compactSecondaryActionClass =
-  "rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-800 transition hover:border-stone-400 hover:bg-stone-50";
-const fileInputClass =
-  "mt-5 block w-full text-sm text-stone-700 file:mr-4 file:rounded-full file:border-0 file:bg-[#274c5b] file:px-4 file:py-2 file:text-sm file:font-semibold file:text-stone-50";
+  "inline-flex min-h-11 items-center justify-center rounded-full border border-stone-300 bg-white px-5 py-2.5 text-sm font-semibold text-stone-700 transition hover:border-stone-400 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60";
+
+function suggestTitleFromFilename(filename: string): string {
+  const baseName = filename.replace(/\.[^.]+$/u, "").trim();
+  const collapsed = baseName.replace(/[_-]+/gu, " ").replace(/\s+/gu, " ").trim();
+
+  return collapsed.replace(/\b([a-z])/gu, (match) => match.toUpperCase());
+}
 
 export default function ImportPage() {
   const router = useRouter();
-  const titleInputRef = useRef<HTMLInputElement | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const audioFileInputRef = useRef<HTMLInputElement | null>(null);
-  const audioPlanRef = useRef<HTMLElement | null>(null);
-  const importRoadmapRef = useRef<HTMLElement | null>(null);
-  const sourceTextRef = useRef<HTMLTextAreaElement | null>(null);
-  const [title, setTitle] = useState("");
+  const reviewHeadingRef = useRef<HTMLHeadingElement | null>(null);
+  const shouldFocusSourceRef = useRef(false);
+  const importIdempotencyKeyRef = useRef<string | null>(null);
+  const fileReadSequenceRef = useRef(0);
+  const submissionControllerRef = useRef<AbortController | null>(null);
+  const [stage, setStage] = useState<ImportStage>("source");
+  const [selectedSourceKind, setSelectedSourceKind] =
+    useState<ImportSourceKind | null>(null);
   const [sourceText, setSourceText] = useState("");
+  const [title, setTitle] = useState("");
+  const [author, setAuthor] = useState<string | null>(null);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [chapters, setChapters] = useState<ParsedChapters>([]);
   const [error, setError] = useState<string | null>(null);
-  const [fileLabel, setFileLabel] = useState<string>("Paste text or upload a file");
-  const [audioFileLabel, setAudioFileLabel] = useState<string>(
-    "Import an MP3 or M4B audiobook file",
-  );
-  const [defaultListeningProfile, setDefaultListeningProfile] = useState(() =>
-    typeof window !== "undefined" ? readDefaultListeningProfile() : null,
-  );
-  const [startingTasteSource, setStartingTasteSource] = useState<"default" | "recent" | "none">(
-    () =>
-      typeof window !== "undefined" && readDefaultListeningProfile()
-        ? "default"
-        : "none",
-  );
-  const [libraryTotals, setLibraryTotals] = useState(() =>
-    typeof window !== "undefined"
-      ? readLibraryTotals()
-      : { totalBooks: 0, booksWithSavedTaste: 0, latestSampleBookId: null },
-  );
-  const [removedBooks, setRemovedBooks] = useState(() =>
-    typeof window !== "undefined" ? readRemovedLocalLibraryBooks() : [],
-  );
-  const [selectedEditionFeedback, setSelectedEditionFeedback] = useState(false);
-  const [pinnedDiscoverySignal, setPinnedDiscoverySignal] = useState(() =>
-    typeof window !== "undefined" ? readPinnedDiscoverySignal() : null,
-  );
-  const { savedEditions, circleMemberships, createdCircles, promotedMoments } =
-    useSocialState();
-  const discoveryPreferences = useDiscoveryPreferences();
-  const effectiveFollowedAuthors = useMemo(
-    () =>
-      discoveryPreferences.personalizationPaused ? [] : discoveryPreferences.followedAuthors,
-    [discoveryPreferences.followedAuthors, discoveryPreferences.personalizationPaused],
-  );
-  const effectiveJoinedCircles = useMemo(
-    () => (discoveryPreferences.personalizationPaused ? [] : discoveryPreferences.joinedCircles),
-    [discoveryPreferences.joinedCircles, discoveryPreferences.personalizationPaused],
-  );
-  const effectiveTrackedFeatures = useMemo(
-    () =>
-      discoveryPreferences.personalizationPaused
-        ? []
-        : discoveryPreferences.trackedPlannedFeatures,
-    [
-      discoveryPreferences.personalizationPaused,
-      discoveryPreferences.trackedPlannedFeatures,
-    ],
-  );
-  const effectivePinnedSignal = useMemo(
-    () => (discoveryPreferences.personalizationPaused ? null : pinnedDiscoverySignal),
-    [discoveryPreferences.personalizationPaused, pinnedDiscoverySignal],
-  );
-  const [selectedEditionId] = useState<string | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-
-    return new URLSearchParams(window.location.search).get("edition");
-  });
-  const [selectedEditionEntry] = useState<string | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-
-    return new URLSearchParams(window.location.search).get("entry");
-  });
-  const [selectedSource] = useState<"paste" | "upload" | "audio" | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-
-    const value = new URLSearchParams(window.location.search).get("source");
-    if (value === "paste" || value === "upload" || value === "audio") {
-      return value;
-    }
-
-    return null;
-  });
-  const chapters = useMemo(() => parseChapters(sourceText), [sourceText]);
-  const trimmedSourceText = sourceText.trim();
-  const allPublicCircles = useMemo(
-    () =>
-      getAllPublicBookCircles({
-        savedEditions,
-        circleMemberships,
-        createdCircles,
-        promotedMoments,
-      }),
-    [circleMemberships, createdCircles, promotedMoments, savedEditions],
-  );
-  const selectedEdition = useMemo(() => {
-    return (
-      featuredListeningEditions.find((edition) => edition.id === selectedEditionId) ?? null
-    );
-  }, [selectedEditionId]);
-  const selectedEditionReason = useMemo(() => {
-    if (!selectedEdition) {
-      return null;
-    }
-
-    return getEditionDiscoveryReason(selectedEdition.id, {
-      followedAuthors: effectiveFollowedAuthors,
-      joinedCircles: effectiveJoinedCircles,
-      trackedPlannedFeatures: effectiveTrackedFeatures,
-    });
-  }, [
-    effectiveFollowedAuthors,
-    effectiveJoinedCircles,
-    effectiveTrackedFeatures,
-    selectedEdition,
-  ]);
-  const socialSeedEdition = useMemo(() => {
-    const latestSavedEdition = sortByRecent(savedEditions)[0] ?? null;
-    if (!latestSavedEdition) {
-      return null;
-    }
-
-    return (
-      featuredListeningEditions.find((edition) => edition.id === latestSavedEdition.editionId) ??
-      null
-    );
-  }, [savedEditions]);
-  const socialSeedCircle = useMemo(() => {
-    const latestCircleMembership = sortByRecent(circleMemberships)[0] ?? null;
-    if (!latestCircleMembership) {
-      return null;
-    }
-
-    return allPublicCircles.find((circle) => circle.id === latestCircleMembership.circleId) ?? null;
-  }, [allPublicCircles, circleMemberships]);
-  const highlightedFuturePath = useMemo(() => {
-    if (
-      selectedSource === "audio" ||
-      (effectivePinnedSignal?.kind === "feature" &&
-        effectivePinnedSignal.id === "private-audio-files") ||
-      effectiveTrackedFeatures.includes("private-audio-files")
-    ) {
-      return {
-        eyebrow:
-          effectivePinnedSignal?.kind === "feature" &&
-          effectivePinnedSignal.id === "private-audio-files"
-            ? "Pinned future path"
-            : discoveryPreferences.personalizationPaused
-              ? "Neutral import mode"
-            : "Saved future path",
-        title: "Private audiobook files",
-        detail:
-          effectivePinnedSignal?.kind === "feature" &&
-          effectivePinnedSignal.id === "private-audio-files"
-            ? "You pinned private audiobook imports, so this roadmap stays ahead of the normal import guidance while the simple text flow remains the fastest path today."
-            : discoveryPreferences.personalizationPaused
-              ? "Personalization is paused, so this roadmap is only showing because you opened the audio path directly."
-            : "You already showed interest in private audiobook imports, so this roadmap stays visible while the simple text flow remains the fastest path today.",
-        actionLabel: "Review audio import plans",
-        target: "audio-plan" as const,
-      };
-    }
-
-    if (
-      effectivePinnedSignal?.kind === "feature" &&
-      effectivePinnedSignal.id === "richer-document-imports"
-    ) {
-      return {
-        eyebrow: "Pinned future path",
-        title: "Richer document imports",
-        detail:
-          "You pinned richer document imports, so the roadmap stays in front while the live text flow remains simple and ready now.",
-        actionLabel: "Review the import roadmap",
-        target: "import-roadmap" as const,
-      };
-    }
-
-    if (effectiveTrackedFeatures.includes("richer-document-imports")) {
-      return {
-        eyebrow: "Saved future path",
-        title: "Richer document imports",
-        detail:
-          "You saved richer document imports for later, so the intake roadmap keeps EPUB, PDF, and DOCX plans visible without getting in the way of the live text flow.",
-        actionLabel: "Review the import roadmap",
-        target: "import-roadmap" as const,
-      };
-    }
-
-    return null;
-  }, [
-    discoveryPreferences.personalizationPaused,
-    effectivePinnedSignal,
-    effectiveTrackedFeatures,
-    selectedSource,
-  ]);
-  const importState = error
-    ? {
-        label: "Import needs attention",
-        detail: error,
-        action: "Fix the source or switch to pasted text.",
-        accent:
-          "border-rose-200 bg-[linear-gradient(135deg,#fff1f2_0%,#fffaf9_100%)] text-rose-950",
-        badge: "border-rose-200 bg-white/80 text-rose-700",
-      }
-    : chapters.length > 0
-      ? {
-          label: "Ready for setup",
-          detail:
-            "The parser found a stable chapter structure. You can move straight into taste design.",
-          action: "Continue to voice setup and generate a sample.",
-          accent:
-            "border-emerald-200 bg-[linear-gradient(135deg,#ecfdf5_0%,#f8fffc_100%)] text-emerald-950",
-          badge: "border-emerald-200 bg-white/80 text-emerald-700",
-        }
-      : trimmedSourceText
-        ? {
-            label: "Text is loaded",
-            detail:
-              "Your draft is in the intake flow. Preview the parsed chapters before you continue.",
-            action: "Preview chapters to confirm the structure.",
-            accent:
-              "border-amber-200 bg-[linear-gradient(135deg,#fff7d8_0%,#fffdf7_100%)] text-amber-950",
-            badge: "border-amber-200 bg-white/80 text-amber-700",
-          }
-        : {
-            label: "Ready to import",
-            detail:
-              "Start by uploading a file or pasting text. The app will parse chapters before narrator setup.",
-            action: "Add source text to begin the intake flow.",
-            accent:
-              "border-stone-200 bg-[linear-gradient(135deg,#faf7ef_0%,#ffffff_100%)] text-stone-950",
-            badge: "border-stone-200 bg-white/80 text-stone-600",
-        };
-  const nextStepCard = chapters.length > 0
-    ? {
-        label: "Open voice setup",
-        detail:
-          "The chapter map is stable. Move into narrator setup and generate the first sample.",
-        hint: "This is the fastest path once the import is parsed.",
-        actionLabel: "Open voice setup",
-        action: () => continueToSetup(),
-      }
-    : trimmedSourceText
-      ? {
-          label: "Review parsed chapters",
-          detail:
-            "Your source is loaded. Confirm the chapter structure before you pick the sound.",
-          hint: "Previewing now keeps the next screen cleaner.",
-          actionLabel: "Review parsed chapters",
-          action: () => previewPastedText(),
-        }
-      : {
-          label: "Paste text or upload a file",
-          detail:
-            "Bring in the book first. The app will handle chapter parsing before voice setup.",
-          hint: "Start with pasted text for the quickest first run.",
-          actionLabel: "Focus text editor",
-          action: () => sourceTextRef.current?.focus(),
-        };
+  const [isReadingFile, setIsReadingFile] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function hydrateStartingTaste() {
-      const response = await fetch("/api/sync/library").catch(() => null);
-      const payload = response
-        ? ((await response.json().catch(() => null)) as
-            | {
-                snapshot?: import("@/lib/backend/types").LibrarySyncSnapshot | null;
-              }
-            | null)
-        : null;
-
-      if (cancelled || !payload?.snapshot) {
-        return;
-      }
-
-      const syncedDefault = payload.snapshot.defaultListeningProfile ?? null;
-      const syncedRecent = payload.snapshot.listeningProfiles[0] ?? null;
-
-      if (!defaultListeningProfile && syncedDefault) {
-        setDefaultListeningProfile(syncedDefault);
-        setStartingTasteSource("default");
-      } else if (!defaultListeningProfile && syncedRecent) {
-        setDefaultListeningProfile(syncedRecent);
-        setStartingTasteSource("recent");
-      }
-
-      setLibraryTotals((currentTotals) => ({
-        totalBooks: Math.max(
-          currentTotals.totalBooks,
-          payload.snapshot?.libraryBooks.length ?? 0,
-        ),
-        booksWithSavedTaste: Math.max(
-          currentTotals.booksWithSavedTaste,
-          payload.snapshot?.listeningProfiles.length ?? 0,
-        ),
-        latestSampleBookId:
-          currentTotals.latestSampleBookId ??
-          payload.snapshot?.generationOutputs?.find(
-            (output) => output.kind === "sample-generation",
-          )?.bookId ??
-          null,
-      }));
-
-      setRemovedBooks((currentRemovedBooks) =>
-        currentRemovedBooks.length > 0
-          ? currentRemovedBooks
-          : payload.snapshot?.removedBooks ?? [],
-      );
-    }
-
-    void hydrateStartingTaste();
-
     return () => {
-      cancelled = true;
-    };
-  }, [defaultListeningProfile]);
-
-  useEffect(() => {
-    function refreshPinnedSignal() {
-      setPinnedDiscoverySignal(readPinnedDiscoverySignal());
-    }
-
-    refreshPinnedSignal();
-    window.addEventListener(discoveryChangedEvent, refreshPinnedSignal);
-
-    return () => {
-      window.removeEventListener(discoveryChangedEvent, refreshPinnedSignal);
+      fileReadSequenceRef.current += 1;
+      submissionControllerRef.current?.abort();
     };
   }, []);
 
   useEffect(() => {
-    if (selectedSource === "paste") {
-      sourceTextRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      sourceTextRef.current?.focus();
+    if (stage === "review") {
+      reviewHeadingRef.current?.focus();
       return;
     }
 
-    if (selectedSource === "upload") {
-      fileInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      fileInputRef.current?.focus();
+    if (!shouldFocusSourceRef.current) {
       return;
     }
 
-    if (selectedSource === "audio") {
-      audioFileInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      audioFileInputRef.current?.focus();
-    }
-  }, [selectedSource]);
+    shouldFocusSourceRef.current = false;
+    const targetId =
+      selectedSourceKind === "file" ? "import-file" : "import-text";
+    document.getElementById(targetId)?.focus();
+  }, [selectedSourceKind, stage]);
 
-  async function handleTextFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+  function resetSubmissionIdentity() {
+    importIdempotencyKeyRef.current = null;
+  }
+
+  function chooseSource(kind: ImportSourceKind) {
+    if (kind === selectedSourceKind) {
+      return;
+    }
+
+    fileReadSequenceRef.current += 1;
+    setSelectedSourceKind(kind);
+    setStage("source");
+    setSourceText("");
+    setTitle("");
+    setAuthor(null);
+    setFileName(null);
+    setChapters([]);
+    setError(null);
+    setIsReadingFile(false);
+    resetSubmissionIdentity();
+  }
+
+  function changePastedText(text: string) {
+    setSourceText(text);
+    setTitle((currentTitle) => currentTitle || "Untitled book");
+    setAuthor(null);
+    setFileName(null);
+    setChapters([]);
+    setError(null);
+    resetSubmissionIdentity();
+  }
+
+  async function readFile(file: File | null) {
     if (!file) {
       return;
     }
 
-    setFileLabel(file.name);
-    setTitle((currentTitle) =>
-      currentTitle.trim() ? currentTitle : suggestTitleFromFilename(file.name),
-    );
+    const sequence = fileReadSequenceRef.current + 1;
+    fileReadSequenceRef.current = sequence;
+    setIsReadingFile(true);
+    setFileName(file.name);
+    setSourceText("");
+    setTitle("");
+    setAuthor(null);
+    setChapters([]);
+    setError(null);
+    resetSubmissionIdentity();
 
     try {
-      const text = await extractImportText(file);
-      setSourceText(text);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to read import.");
+      const extracted = await extractImportSource(file);
+      if (fileReadSequenceRef.current !== sequence) {
+        return;
+      }
+
+      setSourceText(extracted.text);
+      setTitle(
+        extracted.title || suggestTitleFromFilename(file.name) || "Untitled book",
+      );
+      setAuthor(extracted.author);
+    } catch (readError) {
+      if (fileReadSequenceRef.current !== sequence) {
+        return;
+      }
+
+      setSourceText("");
+      setError(
+        readError instanceof Error
+          ? readError.message
+          : "This book could not be read. Choose another source.",
+      );
+    } finally {
+      if (fileReadSequenceRef.current === sequence) {
+        setIsReadingFile(false);
+      }
     }
   }
 
-  async function handleAudioFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) {
+  function reviewSource() {
+    const trimmedText = sourceText.trim();
+    const nextTitle = title.trim() || "Untitled book";
+    const nextChapters = parseChapters(trimmedText);
+    const validationError = getImportDraftValidationError({
+      chapterCount: nextChapters.length,
+      text: trimmedText,
+      title: nextTitle,
+    });
+
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
-    if (!isSupportedAudioImportExtension(file.name)) {
-      setError("Private audiobook imports currently support MP3 and M4B files.");
-      return;
-    }
+    setSourceText(trimmedText);
+    setTitle(nextTitle);
+    setChapters(nextChapters);
+    setError(null);
+    setStage("review");
+  }
 
-    const nextTitle = title.trim() || suggestTitleFromFilename(file.name);
-    const format = getSupportedAudioImportExtension(file.name);
-    if (!format) {
-      setError("Private audiobook imports currently support MP3 and M4B files.");
-      return;
-    }
-
-    setAudioFileLabel(file.name);
+  function changeTitle(nextTitle: string) {
     setTitle(nextTitle);
     setError(null);
+    resetSubmissionIdentity();
+  }
+
+  function returnToSource() {
+    shouldFocusSourceRef.current = true;
+    setStage("source");
+    setError(null);
+    setChapters([]);
+  }
+
+  async function addBook() {
+    if (submissionControllerRef.current) {
+      return;
+    }
+
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      setError("Add a book title before continuing.");
+      return;
+    }
+
+    const trimmedText = sourceText.trim();
+    const validationError = getImportDraftValidationError({
+      chapterCount: chapters.length,
+      text: trimmedText,
+      title: trimmedTitle,
+    });
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    const idempotencyKey =
+      importIdempotencyKeyRef.current ?? createBookIdempotencyKey();
+    importIdempotencyKeyRef.current = idempotencyKey;
+    const controller = new AbortController();
+    submissionControllerRef.current = controller;
+    setIsSubmitting(true);
+    setError(null);
 
     try {
-      const bookId = crypto.randomUUID();
-      const metadata = await saveImportedAudioFile(bookId, file);
-      const chapterCount = getImportedAudioSegmentCount(metadata.durationSeconds);
-      const nextBook = createNextLocalLibraryBook(nextTitle, chapterCount, {
-        bookId,
-        sourceType: "audio",
-        importedAudioFormat: format,
-        importedAudioFileName: file.name,
-        genreLabel: "Imported audio",
-        coverLabel: "Private audio",
-        coverGlyph: "AU",
+      const result = await createBook({
+        idempotencyKey,
+        signal: controller.signal,
+        text: trimmedText,
+        title: trimmedTitle,
       });
-      const nextBookWithAudio = {
-        ...nextBook,
-        importedAudioDurationSeconds: metadata.durationSeconds,
-      };
+      if (controller.signal.aborted) {
+        return;
+      }
 
-      writeLocalDraftText(
-        nextBookWithAudio.bookId,
-        buildImportedAudioPlaceholderText({
-          title: nextBookWithAudio.title,
-          fileName: metadata.fileName,
-          format: metadata.format,
-          durationSeconds: metadata.durationSeconds,
-        }),
-      );
-      upsertLocalLibraryBook(nextBookWithAudio);
-      router.push(`/player/${nextBookWithAudio.bookId}`);
-    } catch (err) {
+      cacheBookMetadata(result.book);
+      router.push(`/books/${result.book.bookId}`);
+    } catch (submissionError) {
+      if (
+        controller.signal.aborted ||
+        (submissionError &&
+          typeof submissionError === "object" &&
+          "name" in submissionError &&
+          submissionError.name === "AbortError")
+      ) {
+        return;
+      }
+
       setError(
-        err instanceof Error ? err.message : "Unable to import the audiobook file.",
+        submissionError instanceof Error
+          ? submissionError.message
+          : "The book could not be saved. Your review is still here; try again.",
       );
+    } finally {
+      if (submissionControllerRef.current === controller) {
+        submissionControllerRef.current = null;
+        setIsSubmitting(false);
+      }
     }
-  }
-
-  function previewPastedText() {
-    const trimmed = sourceText.trim();
-    if (!trimmed) {
-      setError("Paste some text before previewing chapters.");
-      return;
-    }
-
-    setSourceText(trimmed);
-    setError(null);
-  }
-
-  function continueToSetup() {
-    const trimmed = sourceText.trim();
-    if (!trimmed) {
-      setError("Preview chapters before moving to voice setup.");
-      return;
-    }
-
-    const nextBook = createNextLocalLibraryBook(title.trim(), chapters.length);
-    writeLocalDraftText(nextBook.bookId, trimmed);
-    upsertLocalLibraryBook(nextBook);
-    router.push(`/books/${nextBook.bookId}`);
-  }
-
-  function openHighlightedFuturePath(target: "audio-plan" | "import-roadmap") {
-    const ref = target === "audio-plan" ? audioPlanRef : importRoadmapRef;
-    ref.current?.scrollIntoView({
-      behavior: "smooth",
-      block: target === "audio-plan" ? "center" : "start",
-    });
   }
 
   return (
-    <AppShell eyebrow="Import" title="Bring in a book">
-      <section className="overflow-hidden rounded-[1.75rem] border border-stone-200 bg-white shadow-sm">
-        <div className="border-b border-stone-200 bg-[linear-gradient(135deg,#f7f0df_0%,#fffdf7_45%,#edf4ff_100%)] p-8">
-          <div className="max-w-3xl">
-            <p className="text-xs font-medium uppercase tracking-[0.22em] text-stone-500">
-              Start with one source
-            </p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-stone-950">
-              Import text or personal audio, then move straight into listening
-            </h2>
-            <p className="mt-3 text-base leading-7 text-stone-600">
-              The simplest path is: choose a source, name the book, preview the
-              chapters, then continue to setup. Community and roadmap details can wait.
-            </p>
-          </div>
+    <AppShell eyebrow="Add book" title="Add a book">
+      <section className="overflow-hidden rounded-[2rem] border border-stone-200 bg-white shadow-[0_24px_70px_-46px_rgba(28,25,23,0.4)]">
+        <div className="border-b border-stone-200 bg-[linear-gradient(135deg,#fff8e8_0%,#ffffff_50%,#eef7f5_100%)] p-6 sm:p-8">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">
+            Private local import
+          </p>
+          <h2 className="mt-2 max-w-3xl text-2xl font-semibold text-stone-950 sm:text-3xl">
+            Add the book first, then choose how it sounds
+          </h2>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-stone-600">
+            Choose one source, review the title and chapters, and add it to your
+            private library. Narration starts on the next screen.
+          </p>
         </div>
 
-        <div className="p-8">
-          <div className="grid gap-4 md:grid-cols-3">
-            <article className="rounded-[1.4rem] border border-emerald-200 bg-[linear-gradient(180deg,#f0fdf4_0%,#ffffff_100%)] p-5 shadow-sm">
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-                Fastest path
+        <div className="p-6 sm:p-8">
+          {stage === "source" ? (
+            <ImportSource
+              disabled={isSubmitting}
+              fileName={fileName}
+              isReadingFile={isReadingFile}
+              selectedKind={selectedSourceKind}
+              text={sourceText}
+              onFileChange={(file) => void readFile(file)}
+              onSourceKindChange={chooseSource}
+              onTextChange={changePastedText}
+            />
+          ) : (
+            <section aria-labelledby="import-review-heading">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+                Step 2 of 2
               </p>
-              <h3 className="mt-3 text-lg font-semibold text-stone-950">Paste the book text</h3>
-              <p className="mt-2 text-sm leading-6 text-stone-600">
-                Fastest first run. Paste chapters directly and move into voice setup right away.
-              </p>
-              <button
-                className={`mt-4 ${compactPrimaryActionClass}`}
-                type="button"
-                onClick={() => sourceTextRef.current?.focus()}
+              <h2
+                className="mt-2 text-2xl font-semibold text-stone-950 outline-none"
+                id="import-review-heading"
+                ref={reviewHeadingRef}
+                tabIndex={-1}
               >
-                Paste text now
-              </button>
-            </article>
-            <article className="rounded-[1.4rem] border border-sky-200 bg-[linear-gradient(180deg,#eff6ff_0%,#ffffff_100%)] p-5 shadow-sm">
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
-                Supported upload
+                Review your book
+              </h2>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-stone-600">
+                Check the title and detected chapters. Nothing is added until
+                you choose Add book.
               </p>
-              <h3 className="mt-3 text-lg font-semibold text-stone-950">Upload a `.txt` file</h3>
-              <p className="mt-2 text-sm leading-6 text-stone-600">
-                Plain text uploads work today. The rest of the flow stays the same after upload.
-              </p>
-              <button
-                className={`mt-4 ${compactSecondaryActionClass}`}
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                Choose a `.txt` file
-              </button>
-            </article>
-            <article className="rounded-[1.4rem] border border-cyan-200 bg-[linear-gradient(180deg,#ecfeff_0%,#ffffff_100%)] p-5 shadow-sm">
-              <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-cyan-700">
-                Private audio
-              </p>
-              <h3 className="mt-3 text-lg font-semibold text-stone-950">Import MP3 or M4B</h3>
-              <p className="mt-2 text-sm leading-6 text-stone-600">
-                Bring in a DRM-free or already-converted personal audiobook file and open it directly in the player.
-              </p>
-              <button
-                className={`mt-4 ${compactSecondaryActionClass}`}
-                type="button"
-                onClick={() => audioFileInputRef.current?.click()}
-              >
-                Choose MP3 or M4B
-              </button>
-            </article>
-          </div>
 
-          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-            <div className="space-y-6">
-              <div className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#ffffff_0%,#faf8f4_100%)] p-6 shadow-sm">
-                <label className="block text-sm font-medium text-stone-900" htmlFor="book-title">
-                  Book title
-                </label>
-                <input
-                  id="book-title"
-                  className="mt-3 w-full rounded-[1.5rem] border border-stone-200 bg-white px-5 py-4 text-sm text-stone-800 outline-none transition focus:border-stone-400"
-                  name="book-title"
-                  placeholder="Name your import"
-                  ref={titleInputRef}
-                  type="text"
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                />
-                <p className="mt-3 text-sm text-stone-500">
-                  Give this import a shelf-worthy title before you move into setup.
-                </p>
-              </div>
-
-              <label className="block rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] p-6 text-sm text-stone-700 shadow-sm">
-                <span className="block text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
-                  Upload
-                </span>
-                <span className="mt-2 block text-lg font-semibold text-stone-900">
-                  Upload a file
-                </span>
-                <span className="mt-2 block text-stone-600">{fileLabel}</span>
-                <input
-                  className={fileInputClass}
-                  type="file"
-                  accept=".txt,text/plain"
-                  ref={fileInputRef}
-                  onChange={handleTextFileChange}
-                />
-                <p className="mt-3 text-sm text-stone-500">
-                  Uploads currently support plain text files only.
-                </p>
-              </label>
-
-              <label className="block rounded-[1.5rem] border border-cyan-200 bg-[linear-gradient(180deg,#ecfeff_0%,#ffffff_100%)] p-6 text-sm text-stone-700 shadow-sm">
-                <span className="block text-xs font-medium uppercase tracking-[0.18em] text-cyan-700">
-                  Private audiobook
-                </span>
-                <span className="mt-2 block text-lg font-semibold text-stone-900">
-                  Import an MP3 or M4B file
-                </span>
-                <span className="mt-2 block text-stone-600">{audioFileLabel}</span>
-                <input
-                  className={fileInputClass}
-                  type="file"
-                  accept=".mp3,.m4b,audio/mpeg,audio/mp4"
-                  ref={audioFileInputRef}
-                  onChange={handleAudioFileChange}
-                />
-                <p className="mt-3 text-sm text-stone-500">
-                  The file stays local to this browser and opens directly in the player.
-                </p>
-              </label>
-
-              <div className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#ffffff_0%,#faf8f4_100%)] p-6 shadow-sm">
-                <label className="block text-sm font-medium text-stone-900" htmlFor="source-text">
-                  Or paste text
-                </label>
-                <textarea
-                  id="source-text"
-                  className="mt-3 min-h-64 w-full rounded-[1.5rem] border border-stone-200 bg-white p-5 text-sm leading-6 text-stone-800 outline-none transition focus:border-stone-400"
-                  name="source-text"
-                  placeholder={"Chapter 1\nIt was a wet night...\n\nChapter 2\nThe city woke late."}
-                  ref={sourceTextRef}
-                  value={sourceText}
-                  onChange={(event) => setSourceText(event.target.value)}
-                />
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <button
-                    className={primaryActionClass}
-                    type="button"
-                    onClick={previewPastedText}
+              <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem]">
+                <div>
+                  <label
+                    className="block text-sm font-semibold text-stone-950"
+                    htmlFor="book-title"
                   >
-                    Preview chapters
-                  </button>
-                  <p className="text-sm text-stone-500">
-                    Clean chapter headings here before moving to voice setup.
+                    Book title
+                  </label>
+                  <input
+                    className="mt-2 w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-base text-stone-950 outline-none transition focus:border-[#274c5b] focus:ring-4 focus:ring-[#274c5b]/10"
+                    disabled={isSubmitting}
+                    id="book-title"
+                    maxLength={MAX_IMPORT_TITLE_CHARACTERS}
+                    value={title}
+                    onChange={(event) => changeTitle(event.currentTarget.value)}
+                  />
+                  <p className="mt-2 text-xs text-stone-500">
+                    {title.length} of {MAX_IMPORT_TITLE_CHARACTERS} characters
                   </p>
                 </div>
-              </div>
-            </div>
 
-            <aside className="space-y-4">
-              <div className="rounded-[1.5rem] border border-[#274c5b]/30 bg-[linear-gradient(135deg,#17323e_0%,#274c5b_48%,#5d8092_100%)] p-5 text-white shadow-sm">
-                <div className="flex flex-wrap items-start justify-between gap-4">
+                <dl className="grid gap-3 rounded-[1.4rem] border border-stone-200 bg-stone-50 p-4 text-sm">
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/70">
-                      Fastest path
-                    </p>
-                    <h3 className="mt-3 text-lg font-semibold text-white">
-                      {nextStepCard.label}
-                    </h3>
-                    <p className="mt-2 text-sm leading-6 text-white/80">
-                      {nextStepCard.detail}
-                    </p>
-                    <p className="mt-3 text-sm text-white/65">
-                      {nextStepCard.hint}
-                    </p>
+                    <dt className="font-medium text-stone-500">Source</dt>
+                    <dd className="mt-1 font-semibold text-stone-950">
+                      {fileName ?? "Pasted text"}
+                    </dd>
                   </div>
-                  <div className="rounded-[1.2rem] border border-white/15 bg-white/10 px-4 py-4 text-right backdrop-blur">
-                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/60">
-                      Best next move
-                    </p>
-                    <p className="mt-2 text-sm font-semibold text-white">
-                      {nextStepCard.actionLabel}
-                    </p>
+                  {author ? (
+                    <div>
+                      <dt className="font-medium text-stone-500">Author</dt>
+                      <dd className="mt-1 font-semibold text-stone-950">
+                        {author}
+                      </dd>
+                    </div>
+                  ) : null}
+                  <div>
+                    <dt className="font-medium text-stone-500">Chapters</dt>
+                    <dd className="mt-1 font-semibold text-stone-950">
+                      {chapters.length} detected
+                    </dd>
                   </div>
-                </div>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <button
-                    className="rounded-full bg-white px-5 py-3 text-sm font-semibold text-[#274c5b] shadow-sm transition hover:bg-stone-100"
-                    type="button"
-                    onClick={nextStepCard.action}
-                  >
-                    {nextStepCard.actionLabel}
-                  </button>
-                  <button
-                    className="rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-medium text-white transition hover:bg-white/15"
-                    type="button"
-                    onClick={() => titleInputRef.current?.focus()}
-                  >
-                    Name the book first
-                  </button>
-                </div>
-                <div className="mt-4 grid gap-3">
-                  <article className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
-                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/60">
-                      1. Bring in the text
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-white/80">
-                      Paste text or upload a file to seed the book quickly.
-                    </p>
-                  </article>
-                  <article className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
-                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/60">
-                      2. Confirm the structure
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-white/80">
-                      Preview the parser output so setup starts from a clean chapter map.
-                    </p>
-                  </article>
-                  <article className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3">
-                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/60">
-                      3. Hear the sample
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-white/80">
-                      Move into setup, keep the sound simple, and generate the first preview.
-                    </p>
-                  </article>
-                </div>
+                </dl>
               </div>
 
-              <div className="rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(180deg,#f9f6ef_0%,#ffffff_100%)] p-5 shadow-sm">
-                <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
-                  What happens next
-                </p>
-                <ol className="mt-4 space-y-3 text-sm text-stone-700">
-                  <li className="rounded-2xl border border-stone-200 bg-white px-4 py-3">
-                    <span className="font-medium text-stone-950">1. Import</span>
-                    <span className="mt-1 block text-stone-600">
-                      Upload a file or paste text into the editor.
-                    </span>
-                  </li>
-                  <li className="rounded-2xl border border-stone-200 bg-white px-4 py-3">
-                    <span className="font-medium text-stone-950">2. Review chapters</span>
-                    <span className="mt-1 block text-stone-600">
-                      Check the parse and confirm the book structure feels right.
-                    </span>
-                  </li>
-                  <li className="rounded-2xl border border-stone-200 bg-white px-4 py-3">
-                    <span className="font-medium text-stone-950">3. Choose the sound</span>
-                    <span className="mt-1 block text-stone-600">
-                      Move into narrator and listening-mode setup for the sample.
-                    </span>
-                  </li>
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold text-stone-950">
+                  Detected chapters
+                </h3>
+                <ol className="mt-3 max-h-[30rem] space-y-3 overflow-y-auto rounded-[1.4rem] border border-stone-200 bg-stone-50 p-4">
+                  {chapters.map((chapter) => (
+                    <li
+                      className="rounded-xl border border-stone-200 bg-white p-4"
+                      key={chapter.id}
+                    >
+                      <h4 className="font-semibold text-stone-950">
+                        {chapter.title}
+                      </h4>
+                      <p className="mt-2 text-sm leading-6 text-stone-600">
+                        {chapter.text.slice(0, 180) ||
+                          "No chapter body was detected."}
+                      </p>
+                    </li>
+                  ))}
                 </ol>
               </div>
-
-              {error ? (
-                <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-                  {error}
-                </p>
-              ) : null}
-
-              {chapters.length > 0 ? (
-                <div className="rounded-[1.5rem] border border-emerald-200 bg-[linear-gradient(135deg,#ecfdf5_0%,#f8fffc_100%)] p-5 text-sm text-emerald-950 shadow-sm">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <span className="rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-emerald-700">
-                          Ready for setup
-                        </span>
-                        <span className="rounded-full border border-emerald-200 bg-white/80 px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-                          {chapters.length} parsed chapter{chapters.length === 1 ? "" : "s"}
-                        </span>
-                      </div>
-                      <h3 className="mt-3 text-lg font-semibold text-emerald-950">
-                        {title.trim() || "Untitled import"} is ready for narrator setup
-                      </h3>
-                      <p className="mt-2 max-w-xl leading-6 text-emerald-900">
-                        The import looks valid. The next screen will use this parsed structure,
-                        carry over your title, and start from the best available taste profile
-                        before you generate the first sample.
-                      </p>
-                    </div>
-                    <div className="rounded-[1.2rem] border border-emerald-200 bg-white/85 px-4 py-4 text-right shadow-sm">
-                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-                        Starting taste
-                      </p>
-                      <p className="mt-2 font-semibold text-emerald-950">
-                        {defaultListeningProfile
-                          ? `${defaultListeningProfile.narratorName} · ${defaultListeningProfile.mode}`
-                          : "Latest taste fallback"}
-                      </p>
-                      <p className="mt-1 text-xs leading-5 text-emerald-900">
-                        {startingTasteSource === "default"
-                          ? "Book-specific saved taste will override this after the first setup pass."
-                          : "This comes from your latest synced listening taste until you save a default or a book-specific profile."}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-4 grid gap-3 md:grid-cols-3">
-                    <article className="rounded-2xl border border-emerald-200 bg-white/80 px-4 py-3">
-                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-                        1. Review the taste
-                      </p>
-                      <p className="mt-2 leading-6 text-emerald-900">
-                        Confirm narrator and listening mode on the setup screen.
-                      </p>
-                    </article>
-                    <article className="rounded-2xl border border-emerald-200 bg-white/80 px-4 py-3">
-                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-                        2. Generate a sample
-                      </p>
-                      <p className="mt-2 leading-6 text-emerald-900">
-                        Render one sample first before committing to a full-book pass.
-                      </p>
-                    </article>
-                    <article className="rounded-2xl border border-emerald-200 bg-white/80 px-4 py-3">
-                      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-                        3. Start listening
-                      </p>
-                      <p className="mt-2 leading-6 text-emerald-900">
-                        Move into playback once the sample sounds right.
-                      </p>
-                    </article>
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="rounded-[1.5rem] border border-stone-200 bg-stone-50/80 p-5 shadow-sm">
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    className={primaryActionClass}
-                    type="button"
-                    disabled={chapters.length === 0}
-                    onClick={continueToSetup}
-                  >
-                    Continue to voice setup
-                  </button>
-                  <Link
-                    className={secondaryActionClass}
-                    href="/"
-                  >
-                    Back to library
-                  </Link>
-                </div>
-              </div>
-            </aside>
-          </div>
-
-          <div className="mt-6">
-            <StudioDisclosure
-              detail="Open this when you want suggestions, saved listening versions, future import plans, or deeper library context. None of it is required for the first import."
-              title="Suggestions, roadmap, and library context"
-            >
-              <div className="space-y-5">
-                {selectedEdition ? (
-                  <div className="rounded-[1.6rem] border border-stone-200 bg-[linear-gradient(135deg,#fffdf7_0%,#ffffff_52%,#eef4ff_100%)] px-5 py-5 shadow-sm">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div className="max-w-3xl">
-                        <div className="flex flex-wrap items-center gap-2 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
-                          <span className="rounded-full bg-stone-100 px-2.5 py-1">
-                            Selected listening version
-                          </span>
-                          <span className="rounded-full bg-stone-100 px-2.5 py-1 capitalize">
-                            {selectedEdition.mode}
-                          </span>
-                          {selectedEditionEntry === "trending-edition" ? (
-                            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-amber-700">
-                              Trending now
-                            </span>
-                          ) : null}
-                        </div>
-                        <h3 className="mt-3 text-lg font-semibold text-stone-950">
-                          Start with {selectedEdition.title}
-                        </h3>
-                        <p className="mt-2 text-sm leading-6 text-stone-600">
-                          {selectedEdition.creator} recommends {selectedEdition.narratorName} for{" "}
-                          {selectedEdition.bookTitle}. Use it as a default starting taste if
-                          you want help choosing the sound.
-                        </p>
-                        {selectedEditionReason ? (
-                          <div className="mt-4 rounded-[1.1rem] border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-left">
-                            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-emerald-700">
-                              {selectedEditionReason.label}
-                            </p>
-                            <p className="mt-2 text-sm leading-6 text-emerald-900">
-                              {selectedEditionReason.detail}
-                            </p>
-                          </div>
-                        ) : null}
-                        <div className="mt-4 flex flex-wrap gap-3">
-                          <button
-                            className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
-                            type="button"
-                            onClick={() => {
-                              writeDefaultListeningProfile({
-                                bookId: `featured-${selectedEdition.id}`,
-                                narratorId: selectedEdition.narratorName
-                                  .toLowerCase()
-                                  .replace(/\s+/g, "-"),
-                                narratorName: selectedEdition.narratorName,
-                                mode: selectedEdition.mode,
-                              });
-                              setDefaultListeningProfile({
-                                bookId: `featured-${selectedEdition.id}`,
-                                narratorId: selectedEdition.narratorName
-                                  .toLowerCase()
-                                  .replace(/\s+/g, "-"),
-                                narratorName: selectedEdition.narratorName,
-                                mode: selectedEdition.mode,
-                              });
-                              setStartingTasteSource("default");
-                              setSelectedEditionFeedback(true);
-                              window.setTimeout(() => setSelectedEditionFeedback(false), 1800);
-                            }}
-                          >
-                            Use as starting taste
-                          </button>
-                          <button
-                            className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
-                            type="button"
-                            onClick={() => sourceTextRef.current?.focus()}
-                          >
-                            Go back to import
-                          </button>
-                        </div>
-                        {selectedEditionFeedback ? (
-                          <p className="mt-3 text-sm text-emerald-700">
-                            This listening version is now the default starting taste for new imports.
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-
-                {!selectedEdition && (socialSeedEdition || socialSeedCircle) ? (
-                  <div className="rounded-[1.6rem] border border-amber-200 bg-[linear-gradient(135deg,#fff8e8_0%,#ffffff_100%)] px-5 py-5 shadow-sm">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div className="max-w-3xl">
-                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-amber-700">
-                          Synced social memory
-                        </p>
-                        <h3 className="mt-2 text-lg font-semibold text-stone-950">
-                          Start from something you already saved
-                        </h3>
-                        <p className="mt-2 text-sm leading-6 text-stone-600">
-                          Your saved listening versions and joined groups can seed this import,
-                          but they are optional.
-                        </p>
-                        <div className="mt-4 flex flex-wrap gap-3">
-                          {socialSeedEdition ? (
-                            <Link
-                              className="rounded-full bg-stone-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-stone-800"
-                              href={`/import?edition=${socialSeedEdition.id}`}
-                            >
-                              Use saved listening version
-                            </Link>
-                          ) : null}
-                          {socialSeedCircle ? (
-                            <Link
-                              className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
-                              href={`/import?edition=${socialSeedCircle.editionId}`}
-                            >
-                              Start from joined group
-                            </Link>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-
-                {highlightedFuturePath ? (
-                  <div className="rounded-[1.5rem] border border-sky-200 bg-[linear-gradient(135deg,#eff6ff_0%,#ffffff_100%)] px-5 py-5 shadow-sm">
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div className="max-w-3xl">
-                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-sky-700">
-                          {highlightedFuturePath.eyebrow}
-                        </p>
-                        <h3 className="mt-2 text-lg font-semibold text-stone-950">
-                          {highlightedFuturePath.title}
-                        </h3>
-                        <p className="mt-2 text-sm leading-6 text-stone-600">
-                          {highlightedFuturePath.detail}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap gap-3">
-                        <button
-                          className="rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-medium text-sky-900 transition hover:bg-sky-50"
-                          type="button"
-                          onClick={() => openHighlightedFuturePath(highlightedFuturePath.target)}
-                        >
-                          {highlightedFuturePath.actionLabel}
-                        </button>
-                        <button
-                          className="rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-700 transition hover:border-stone-400 hover:bg-stone-50"
-                          type="button"
-                          onClick={() => {
-                            const id =
-                              highlightedFuturePath.target === "audio-plan"
-                                ? "private-audio-files"
-                                : "richer-document-imports";
-                            togglePinnedDiscoverySignal({
-                              kind: "feature",
-                              id,
-                            });
-                          }}
-                        >
-                          {pinnedDiscoverySignal?.kind === "feature" &&
-                          ((highlightedFuturePath.target === "audio-plan" &&
-                            pinnedDiscoverySignal.id === "private-audio-files") ||
-                            (highlightedFuturePath.target === "import-roadmap" &&
-                              pinnedDiscoverySignal.id === "richer-document-imports"))
-                            ? "Unpin path"
-                            : "Pin path"}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-
-                <section
-                  ref={importRoadmapRef}
-                  className="overflow-hidden rounded-[1.5rem] border border-stone-200 bg-[linear-gradient(135deg,#fffefb_0%,#ffffff_100%)] shadow-sm"
-                >
-                  <div className="border-b border-stone-200 bg-white/80 px-5 py-4">
-                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-stone-500">
-                      Import roadmap
-                    </p>
-                    <h3 className="mt-2 text-lg font-semibold text-stone-950">
-                      What works now and what comes later
-                    </h3>
-                  </div>
-                  <div className="grid gap-4 px-5 py-5 md:grid-cols-3">
-                    <article className="rounded-[1.4rem] border border-emerald-200 bg-[linear-gradient(180deg,#f0fdf4_0%,#ffffff_100%)] p-5 shadow-sm">
-                      <h4 className="text-lg font-semibold text-stone-950">Today: text</h4>
-                      <p className="mt-2 text-sm leading-6 text-stone-600">
-                        Paste text or upload `.txt` and move into setup.
-                      </p>
-                    </article>
-                    <article
-                      ref={audioPlanRef}
-                      className="rounded-[1.4rem] border border-sky-200 bg-[linear-gradient(180deg,#eff6ff_0%,#ffffff_100%)] p-5 shadow-sm"
-                    >
-                      <h4 className="text-lg font-semibold text-stone-950">Today: personal audio</h4>
-                      <p className="mt-2 text-sm leading-6 text-stone-600">
-                        MP3 and M4B files work locally in this browser for private listening.
-                      </p>
-                    </article>
-                    <article className="rounded-[1.4rem] border border-stone-200 bg-[linear-gradient(180deg,#fafaf9_0%,#ffffff_100%)] p-5 shadow-sm">
-                      <h4 className="text-lg font-semibold text-stone-950">Later: richer imports</h4>
-                      <p className="mt-2 text-sm leading-6 text-stone-600">
-                        EPUB, PDF, DOCX, and library connectors can layer onto the same intake flow.
-                      </p>
-                    </article>
-                  </div>
-                </section>
-
-                <div className="grid gap-4 md:grid-cols-3">
-                  <article className="rounded-2xl border border-stone-200 bg-[linear-gradient(180deg,#faf7f0_0%,#ffffff_100%)] p-4 shadow-sm">
-                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
-                      Library books
-                    </p>
-                    <p className="mt-3 text-2xl font-semibold text-stone-900">
-                      {libraryTotals.totalBooks}
-                    </p>
-                    <p className="mt-2 text-xs leading-5 text-stone-500">
-                      Imports already living in your private shelf.
-                    </p>
-                  </article>
-                  <article className="rounded-2xl border border-stone-200 bg-[linear-gradient(180deg,#f4f8ff_0%,#ffffff_100%)] p-4 shadow-sm">
-                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
-                      Saved tastes
-                    </p>
-                    <p className="mt-3 text-2xl font-semibold text-stone-900">
-                      {libraryTotals.booksWithSavedTaste}
-                    </p>
-                    <p className="mt-2 text-xs leading-5 text-stone-500">
-                      Books already carrying narrator and mode choices.
-                    </p>
-                  </article>
-                  <article className="rounded-2xl border border-stone-200 bg-[linear-gradient(180deg,#fff7ef_0%,#ffffff_100%)] p-4 shadow-sm">
-                    <p className="text-xs font-medium uppercase tracking-[0.18em] text-stone-500">
-                      Recently removed
-                    </p>
-                    <p className="mt-3 text-2xl font-semibold text-stone-900">
-                      {removedBooks.length}
-                    </p>
-                    <p className="mt-2 text-xs leading-5 text-stone-500">
-                      Recoverable titles still available from stale links or the home shelf.
-                    </p>
-                  </article>
-                </div>
-
-                {removedBooks.length > 0 ? (
-                  <div className="rounded-[1.5rem] border border-amber-200 bg-[linear-gradient(135deg,#fff7d8_0%,#fffdf7_100%)] p-5 text-sm text-amber-950 shadow-sm">
-                    <p className="font-medium">Removed books are still recoverable.</p>
-                    <p className="mt-2 leading-6 text-amber-900">
-                      Stale setup and player links can restore them, and the home shelf keeps a
-                      recently removed list until you dismiss it.
-                    </p>
-                  </div>
-                ) : null}
-
-                <div
-                  className={`rounded-[1.6rem] border p-5 shadow-sm ${importState.accent}`}
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-3">
-                        <span
-                          className={`rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.22em] ${importState.badge}`}
-                        >
-                          Current state
-                        </span>
-                        <span
-                          className={`rounded-full border px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] ${importState.badge}`}
-                        >
-                          {importState.label}
-                        </span>
-                      </div>
-                      <p className="mt-3 max-w-2xl text-sm leading-6">
-                        {importState.detail}
-                      </p>
-                      <p className="mt-3 text-sm font-medium">
-                        Next move: {importState.action}
-                      </p>
-                    </div>
-                    <div className="grid min-w-[240px] gap-3 sm:grid-cols-3 sm:gap-2">
-                      <div className="rounded-[1.2rem] border border-white/70 bg-white/80 px-4 py-3 shadow-sm">
-                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-current/60">
-                          Source
-                        </p>
-                        <p className="mt-2 text-sm font-semibold text-current">
-                          {fileLabel !== "Paste text or upload a file"
-                            ? fileLabel
-                            : trimmedSourceText
-                              ? "Pasted text"
-                              : "Waiting for source"}
-                        </p>
-                      </div>
-                      <div className="rounded-[1.2rem] border border-white/70 bg-white/80 px-4 py-3 shadow-sm">
-                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-current/60">
-                          Shelf size
-                        </p>
-                        <p className="mt-2 text-sm font-semibold text-current">
-                          {libraryTotals.totalBooks} imported title
-                          {libraryTotals.totalBooks === 1 ? "" : "s"}
-                        </p>
-                      </div>
-                      <div className="rounded-[1.2rem] border border-white/70 bg-white/80 px-4 py-3 shadow-sm">
-                        <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-current/60">
-                          Starting taste
-                        </p>
-                        <p className="mt-2 text-sm font-semibold text-current">
-                          {defaultListeningProfile
-                            ? `${defaultListeningProfile.narratorName} · ${defaultListeningProfile.mode}`
-                            : "Latest taste fallback"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </StudioDisclosure>
-          </div>
-        </div>
-      </section>
-      <section className="rounded-[1.75rem] border border-stone-200 bg-white p-6 shadow-sm">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold text-stone-900">Import review</h2>
-            <p className="mt-2 text-sm leading-6 text-stone-600">
-              The first vertical slice focuses on chapter parsing and preview before
-              voice setup.
-            </p>
-          </div>
-          <div className="rounded-full bg-stone-100 px-4 py-2 text-sm font-medium text-stone-700">
-            {chapters.length} chapter{chapters.length === 1 ? "" : "s"}
-          </div>
-        </div>
-        <div className="mt-6 grid gap-4">
-          {chapters.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-stone-300 bg-stone-50 p-5 text-sm text-stone-600">
-              Add text above to see parsed chapter previews here.
-            </div>
-          ) : (
-            chapters.map((chapter) => (
-              <article
-                key={chapter.id}
-                className="rounded-[1.4rem] border border-stone-200 bg-[linear-gradient(180deg,#faf8f4_0%,#ffffff_100%)] p-5 shadow-sm"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-lg font-semibold text-stone-900">
-                    {chapter.title}
-                  </h3>
-                  <span className="rounded-full border border-stone-200 bg-white px-3 py-1 text-xs font-medium uppercase tracking-[0.2em] text-stone-500">
-                    Section {chapter.order + 1}
-                  </span>
-                </div>
-                <p className="mt-3 text-sm leading-6 text-stone-600">
-                  {chapter.text.slice(0, 220) || "No chapter body found yet."}
-                </p>
-              </article>
-            ))
+            </section>
           )}
+
+          {error ? (
+            <div
+              className="mt-5 rounded-[1.4rem] border border-rose-200 bg-rose-50 p-4 text-sm text-rose-950"
+              role="alert"
+            >
+              <p className="font-semibold">This book needs attention</p>
+              <p className="mt-1 leading-6 text-rose-800">{error}</p>
+            </div>
+          ) : null}
+
+          <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-stone-200 pt-6">
+            {stage === "source" ? (
+              <button
+                className={primaryActionClass}
+                disabled={
+                  isReadingFile || isSubmitting || !sourceText.trim()
+                }
+                type="button"
+                onClick={reviewSource}
+              >
+                {isReadingFile ? "Reading book…" : "Review book"}
+              </button>
+            ) : (
+              <button
+                className={primaryActionClass}
+                disabled={isSubmitting}
+                type="button"
+                onClick={() => void addBook()}
+              >
+                {isSubmitting ? "Adding book…" : "Add book"}
+              </button>
+            )}
+
+            {stage === "review" ? (
+              <button
+                className={secondaryActionClass}
+                disabled={isSubmitting}
+                type="button"
+                onClick={returnToSource}
+              >
+                Change source
+              </button>
+            ) : null}
+
+            <Link className={secondaryActionClass} href="/">
+              Back to library
+            </Link>
+          </div>
         </div>
       </section>
     </AppShell>

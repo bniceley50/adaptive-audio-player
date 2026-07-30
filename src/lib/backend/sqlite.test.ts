@@ -1,43 +1,30 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
+import { writeGeneratedAudioAsset } from "@/lib/backend/audio-storage";
 import {
+  cancelGenerationJob,
   claimNextGenerationJob,
   completeGenerationJob,
-  createAccountSession,
+  deleteWorkspaceBook,
   enqueueGenerationJob,
   failGenerationJob,
-  getAccountSessionById,
   getGenerationArtifactForJob,
   getGenerationOutputsForBook,
-  getSocialCommunityPulse,
+  getDatabase,
   getWorkerHeartbeat,
   listGenerationOutputHistoryForBook,
-  listPublicSocialCircles,
-  listPublicSocialMoments,
   getGenerationJob,
-  getUserById,
-  getWorkspaceLibrarySnapshot,
-  getWorkspaceSyncSummary,
-  getWorkspaceUser,
-  linkWorkspaceToUser,
-  listRecentSyncJobsForUser,
   listRecentSyncJobsForWorkspace,
   listRecentGenerationJobsForBook,
-  listRecentSocialActivityEvents,
-  listWorkspacesForUser,
-  listAccountSessionsForUser,
-  listEndedAccountSessionsForUser,
-  revokeAccountSession,
   recordWorkerHeartbeat,
+  renewGenerationJobLease,
   resetDatabaseForTests,
-  rotateUserSessionVersion,
   retryGenerationJob,
-  syncWorkspaceLibrarySnapshot,
-  upsertUserByEmail,
+  updateGenerationJobProgress,
 } from "@/lib/backend/sqlite";
 
 describe("backend sqlite library sync", () => {
@@ -51,553 +38,108 @@ describe("backend sqlite library sync", () => {
     }
 
     delete process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH;
+    delete process.env.ADAPTIVE_AUDIO_PLAYER_DATA_ROOT;
   });
 
-  it("persists and reconciles a workspace snapshot", () => {
+  function useTemporaryDatabase() {
     const tempDir = mkdtempSync(path.join(tmpdir(), "adaptive-audio-player-"));
+    const dataRoot = mkdtempSync(
+      path.join(process.cwd(), ".adaptive-audio-sqlite-"),
+    );
     createdDirs.push(tempDir);
-    process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
+    createdDirs.push(dataRoot);
+    process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(
+      tempDir,
+      "library.sqlite",
+    );
+    process.env.ADAPTIVE_AUDIO_PLAYER_DATA_ROOT = dataRoot;
+    return tempDir;
+  }
 
-    const firstSummary = syncWorkspaceLibrarySnapshot("workspace-1", {
-      libraryBooks: [
-        {
-          bookId: "book-1",
-          title: "Storm Harbor",
-          chapterCount: 2,
-          updatedAt: "2026-03-08T12:00:00.000Z",
-          coverTheme: "from-sky-200 via-cyan-100 to-white",
-          coverLabel: "Noir coast",
-          coverGlyph: "SH",
-          genreLabel: "Mystery",
-        },
-        {
-          bookId: "book-2",
-          title: "Quiet Harbor",
-          chapterCount: 1,
-          updatedAt: "2026-03-08T12:01:00.000Z",
-        },
-      ],
-      draftTexts: [
-        { bookId: "book-1", text: "Chapter 1\nStorm" },
-        { bookId: "book-2", text: "Chapter 1\nQuiet" },
-      ],
-      listeningProfiles: [
-        {
-          bookId: "book-1",
-          narratorId: "sloane",
-          narratorName: "Sloane",
-          mode: "immersive",
-        },
-      ],
-      defaultListeningProfile: {
-        bookId: "book-1",
-        narratorId: "sloane",
-        narratorName: "Sloane",
-        mode: "immersive",
-      },
-      sampleRequest: {
-        bookId: "book-1",
-        narratorId: "sloane",
-        mode: "immersive",
-      },
-      playbackStates: [
-        {
-          bookId: "book-1",
-          state: {
-            currentChapterIndex: 1,
-            progressSeconds: 33,
-            speed: 1.15,
-            isBookmarked: false,
-            sleepTimerMinutes: 15,
-            bookmarks: [],
-            updatedAt: "2026-03-08T12:02:00.000Z",
-          },
-        },
-      ],
-      playbackDefaults: {
-        speed: 1.15,
-        sleepTimerMinutes: 15,
-      },
-      discoveryPreferences: {
-        followedAuthors: ["Annie Hart"],
-        joinedCircles: ["circle-storm-harbor"],
-        trackedPlannedFeatures: ["private-audio-files"],
-        followedAuthorTimestamps: {
-          "Annie Hart": "2026-03-08T11:58:00.000Z",
-        },
-        joinedCircleTimestamps: {
-          "circle-storm-harbor": "2026-03-08T11:59:00.000Z",
-        },
-        trackedFeatureTimestamps: {
-          "private-audio-files": "2026-03-08T12:00:00.000Z",
-        },
-        pinnedDiscoverySignal: {
-          kind: "circle",
-          id: "circle-storm-harbor",
-        },
-        personalizationPaused: false,
-      },
-      socialState: {
-        savedEditions: [
-          {
-            editionId: "cinematic-harbor",
-            savedAt: "2026-03-08T12:00:30.000Z",
-            lastUsedAt: "2026-03-08T12:01:30.000Z",
-          },
-        ],
-        circleMemberships: [
-          {
-            circleId: "circle-storm-harbor",
-            joinedAt: "2026-03-08T11:59:30.000Z",
-            lastOpenedAt: "2026-03-08T12:02:30.000Z",
-            shareCount: 2,
-          },
-        ],
-        createdCircles: [],
-        promotedMoments: [],
-      },
-      syncedAt: "2026-03-08T12:03:00.000Z",
-    });
+  function testOutputAsset(label: string) {
+    return {
+      assetPath: `generated/test/${label}.wav`,
+      mimeType: "audio/wav",
+      provider: "kokoro-local" as const,
+    };
+  }
 
-    expect(firstSummary?.syncedBookCount).toBe(2);
-    expect(firstSummary?.syncedProfileCount).toBe(1);
-    expect(firstSummary?.syncedPlaybackCount).toBe(1);
-    expect(firstSummary?.generatedOutputCount).toBe(0);
-    expect(firstSummary?.lastJobStatus).toBe("completed");
+  function seedWorkspace(workspaceId: string, lastSyncedAt: string | null) {
+    const timestamp = lastSyncedAt ?? "2026-03-08T12:00:00.000Z";
+    getDatabase()
+      .prepare(
+        `
+          insert into workspaces (id, created_at, updated_at, last_synced_at)
+          values (?, ?, ?, ?)
+        `,
+      )
+      .run(workspaceId, timestamp, timestamp, lastSyncedAt);
+  }
 
-    const secondSummary = syncWorkspaceLibrarySnapshot("workspace-1", {
-      libraryBooks: [
-        {
-          bookId: "book-1",
-          title: "Storm Harbor Revised",
-          chapterCount: 3,
-          updatedAt: "2026-03-08T12:04:00.000Z",
-          coverTheme: "from-emerald-200 via-teal-100 to-white",
-          coverLabel: "Revised coast",
-          coverGlyph: "SR",
-          genreLabel: "Mystery",
-        },
-      ],
-      draftTexts: [{ bookId: "book-1", text: "Chapter 1\nRevised" }],
-      listeningProfiles: [],
-      defaultListeningProfile: null,
-      sampleRequest: null,
-      playbackStates: [],
-      playbackDefaults: null,
-      discoveryPreferences: {
-        followedAuthors: [],
-        joinedCircles: [],
-        trackedPlannedFeatures: ["richer-document-imports"],
-        followedAuthorTimestamps: {},
-        joinedCircleTimestamps: {},
-        trackedFeatureTimestamps: {
-          "richer-document-imports": "2026-03-08T12:04:30.000Z",
-        },
-        pinnedDiscoverySignal: {
-          kind: "feature",
-          id: "richer-document-imports",
-        },
-        personalizationPaused: true,
-      },
-      socialState: {
-        savedEditions: [],
-        circleMemberships: [
-          {
-            circleId: "created-harbor-warning-circle",
-            joinedAt: "2026-03-08T12:04:35.000Z",
-            lastOpenedAt: null,
-            shareCount: 0,
-          },
-        ],
-        createdCircles: [
-          {
-            id: "created-harbor-warning-circle",
-            title: "Harbor Warning Circle",
-            editionId: "cinematic-harbor",
-            host: "You",
-            bookTitle: "Storm Harbor Revised",
-            memberCount: 1,
-            checkpoint: "Chapter 1 and the harbor warning",
-            vibe: "Moment-led close reading",
-            summary: "A user-created public circle built from a promoted harbor line.",
-            sourceMomentId: "promoted-harbor-warning",
-            createdAt: "2026-03-08T12:04:34.000Z",
-          },
-        ],
-        promotedMoments: [
-          {
-            id: "promoted-harbor-warning",
-            bookId: "book-1",
-            bookTitle: "Storm Harbor Revised",
-            chapterIndex: 0,
-            chapterLabel: "Chapter 1",
-            progressSeconds: 94,
-            quoteText: "The harbor kept its warnings polished and quiet.",
-            promotedAt: "2026-03-08T12:04:40.000Z",
-            editionId: "cinematic-harbor",
-            circleId: "created-harbor-warning-circle",
-          },
-        ],
-      },
-      syncedAt: "2026-03-08T12:05:00.000Z",
-    });
-
-    expect(secondSummary?.syncedBookCount).toBe(1);
-    expect(secondSummary?.syncedProfileCount).toBe(0);
-    expect(secondSummary?.syncedPlaybackCount).toBe(0);
-    expect(secondSummary?.generatedOutputCount).toBe(0);
-    expect(getWorkspaceSyncSummary("workspace-1")?.syncedBookCount).toBe(1);
-    expect(getWorkspaceLibrarySnapshot("workspace-1")).toMatchObject({
-      libraryBooks: [
-        {
-          bookId: "book-1",
-          title: "Storm Harbor Revised",
-          chapterCount: 3,
-          updatedAt: "2026-03-08T12:04:00.000Z",
-          coverTheme: "from-emerald-200 via-teal-100 to-white",
-          coverLabel: "Revised coast",
-          coverGlyph: "SR",
-          genreLabel: "Mystery",
-        },
-      ],
-      discoveryPreferences: {
-        followedAuthors: [],
-        joinedCircles: [],
-        trackedPlannedFeatures: ["richer-document-imports"],
-        pinnedDiscoverySignal: {
-          kind: "feature",
-          id: "richer-document-imports",
-        },
-        personalizationPaused: true,
-      },
-      socialState: {
-        savedEditions: [],
-        circleMemberships: [
-          {
-            circleId: "created-harbor-warning-circle",
-            joinedAt: "2026-03-08T12:04:35.000Z",
-            lastOpenedAt: null,
-            shareCount: 0,
-          },
-        ],
-        createdCircles: [
-          {
-            id: "created-harbor-warning-circle",
-            title: "Harbor Warning Circle",
-            editionId: "cinematic-harbor",
-            host: "You",
-            bookTitle: "Storm Harbor Revised",
-            memberCount: 1,
-            checkpoint: "Chapter 1 and the harbor warning",
-            vibe: "Moment-led close reading",
-            summary: "A user-created public circle built from a promoted harbor line.",
-            sourceMomentId: "promoted-harbor-warning",
-            createdAt: "2026-03-08T12:04:34.000Z",
-          },
-        ],
-        promotedMoments: [
-          {
-            id: "promoted-harbor-warning",
-            bookId: "book-1",
-            bookTitle: "Storm Harbor Revised",
-            chapterIndex: 0,
-            chapterLabel: "Chapter 1",
-            progressSeconds: 94,
-            quoteText: "The harbor kept its warnings polished and quiet.",
-            promotedAt: "2026-03-08T12:04:40.000Z",
-            editionId: "cinematic-harbor",
-            circleId: "created-harbor-warning-circle",
-          },
-        ],
-      },
-    });
-
-    const socialOwner = upsertUserByEmail({
-      email: "host@example.com",
-      displayName: "Harbor Host",
-    });
-    linkWorkspaceToUser("workspace-1", socialOwner.id);
-
-    expect(listPublicSocialCircles()).toEqual([
-      expect.objectContaining({
-        id: "created-harbor-warning-circle",
-        ownerWorkspaceId: "workspace-1",
-        ownerUserId: socialOwner.id,
-        ownerDisplayName: "Harbor Host",
-        moderationStatus: "active",
-        reportCount: 0,
-        editionId: "cinematic-harbor",
-        title: "Harbor Warning Circle",
-      }),
-    ]);
-    expect(listPublicSocialMoments()).toEqual([
-      expect.objectContaining({
-        id: "promoted-harbor-warning",
-        ownerWorkspaceId: "workspace-1",
-        ownerUserId: socialOwner.id,
-        ownerDisplayName: "Harbor Host",
-        moderationStatus: "active",
-        reportCount: 0,
-        bookId: "book-1",
-        bookTitle: "Storm Harbor Revised",
-      }),
-    ]);
-
-    expect(getSocialCommunityPulse()).toMatchObject({
-      totalSocialWorkspaces: 1,
-      totalSavedEditions: 1,
-      totalJoinedCircles: 2,
-      totalPromotedMoments: 1,
-      editionCounts: [
-        {
-          editionId: "cinematic-harbor",
-          saves: 1,
-          reuses: 1,
-        },
-      ],
-      circleCounts: [
-        {
-          circleId: "circle-storm-harbor",
-          joins: 1,
-          reopens: 1,
-          shares: 2,
-        },
-        {
-          circleId: "created-harbor-warning-circle",
-          joins: 1,
-          reopens: 0,
-          shares: 0,
-        },
-      ],
-      momentCounts: [
-        {
-          momentId: "promoted-harbor-warning",
-          promotions: 1,
-        },
-      ],
-      lastSyncedAt: "2026-03-08T12:04:40.000Z",
-    });
-
-    expect(listRecentSocialActivityEvents(6)).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          kind: "moment-promoted",
-          subjectId: "promoted-harbor-warning",
-          quantity: 1,
-          metadata: expect.objectContaining({
-            bookTitle: "Storm Harbor Revised",
-            chapterLabel: "Chapter 1",
-          }),
-        }),
-        expect.objectContaining({
-          kind: "circle-joined",
-          subjectId: "created-harbor-warning-circle",
-          quantity: 1,
-          metadata: expect.objectContaining({
-            circleTitle: "Harbor Warning Circle",
-            editionId: "cinematic-harbor",
-          }),
-        }),
-        expect.objectContaining({
-          kind: "circle-shared",
-          subjectId: "circle-storm-harbor",
-          quantity: 2,
-        }),
-        expect.objectContaining({
-          kind: "edition-reused",
-          subjectId: "cinematic-harbor",
-          quantity: 1,
-        }),
-      ]),
+  function seedStoredBooks(
+    workspaceId: string,
+    books: Array<{
+      bookId: string;
+      chapterCount: number;
+      coverGlyph?: string;
+      coverLabel?: string;
+      coverTheme?: string;
+      draftText: string;
+      genreLabel?: string;
+      title: string;
+      updatedAt: string;
+    }>,
+    lastSyncedAt: string | null,
+  ) {
+    const database = getDatabase();
+    seedWorkspace(workspaceId, lastSyncedAt);
+    const insertBook = database.prepare(
+      `
+        insert into synced_books (
+          workspace_id, book_id, title, chapter_count, updated_at, draft_text,
+          cover_theme, cover_label, cover_glyph, genre_label
+        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
     );
 
-    syncWorkspaceLibrarySnapshot("workspace-1", {
-      libraryBooks: [],
-      draftTexts: [],
-      listeningProfiles: [],
-      defaultListeningProfile: null,
-      sampleRequest: null,
-      playbackStates: [],
-      playbackDefaults: null,
-      discoveryPreferences: null,
-      socialState: {
-        savedEditions: [],
-        circleMemberships: [],
-        createdCircles: [],
-        promotedMoments: [],
-      },
-      syncedAt: "2026-03-08T12:06:00.000Z",
-    });
+    for (const book of books) {
+      insertBook.run(
+        workspaceId,
+        book.bookId,
+        book.title,
+        book.chapterCount,
+        book.updatedAt,
+        book.draftText,
+        book.coverTheme ?? null,
+        book.coverLabel ?? null,
+        book.coverGlyph ?? null,
+        book.genreLabel ?? null,
+      );
+    }
+  }
 
-    expect(listPublicSocialCircles()).toEqual([]);
-    expect(listPublicSocialMoments()).toEqual([]);
-  });
-
-  it("creates users and links workspaces to them", () => {
-    const tempDir = mkdtempSync(path.join(tmpdir(), "adaptive-audio-player-"));
-    createdDirs.push(tempDir);
-    process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
-
-    const user = upsertUserByEmail({
-      email: "gillian@example.com",
-      displayName: "Gillian",
-    });
-
-    expect(getUserById(user.id)?.email).toBe("gillian@example.com");
-    expect(getUserById(user.id)?.sessionVersion).toBe(1);
-
-    expect(rotateUserSessionVersion(user.id)?.sessionVersion).toBe(2);
-    expect(getUserById(user.id)?.sessionVersion).toBe(2);
-    const session = createAccountSession(
-      user.id,
-      "2026-04-08T12:10:00.000Z",
-      "Safari on Mac",
-    );
-    expect(session?.userId).toBe(user.id);
-    expect(session?.label).toBe("Safari on Mac");
-    expect(listAccountSessionsForUser(user.id, session?.id)).toEqual([
-      expect.objectContaining({
-        id: session?.id,
-        label: "Safari on Mac",
-        isCurrent: true,
-      }),
-    ]);
-    expect(getAccountSessionById(session?.id ?? "")?.revokedAt).toBeNull();
-    expect(
-      revokeAccountSession(session?.id ?? "", "signed-out")?.endedReason,
-    ).toBe("signed-out");
-    expect(listAccountSessionsForUser(user.id)).toEqual([]);
-    expect(listEndedAccountSessionsForUser(user.id)).toEqual([
-      expect.objectContaining({
-        id: session?.id,
-        endedReason: "signed-out",
-      }),
-    ]);
-
-    syncWorkspaceLibrarySnapshot("workspace-2", {
-      libraryBooks: [],
-      draftTexts: [],
-      listeningProfiles: [],
-      defaultListeningProfile: null,
-      sampleRequest: null,
-      playbackStates: [],
-      playbackDefaults: null,
-      discoveryPreferences: null,
-      socialState: null,
-      syncedAt: "2026-03-08T12:10:00.000Z",
-    });
-
-    linkWorkspaceToUser("workspace-2", user.id);
-    expect(getWorkspaceUser("workspace-2")?.displayName).toBe("Gillian");
-    expect(listWorkspacesForUser(user.id, "workspace-2")).toEqual([
-      {
-        workspaceId: "workspace-2",
-        syncedBookCount: 0,
-        lastSyncedAt: "2026-03-08T12:10:00.000Z",
-        latestBookId: null,
-        latestBookTitle: null,
-        latestBookCoverTheme: null,
-        latestBookCoverLabel: null,
-        latestBookCoverGlyph: null,
-        latestBookGenreLabel: null,
-        latestPlayableArtifactKind: null,
-        latestSessionBookId: null,
-        latestSessionBookTitle: null,
-        latestSessionChapterIndex: null,
-        latestSessionProgressSeconds: null,
-        latestSessionArtifactKind: null,
-        latestSessionUpdatedAt: null,
-        latestResumePath: null,
-        isCurrent: true,
-      },
-    ]);
-  });
-
-  it("excludes expired sessions from active session summaries", () => {
-    const tempDir = mkdtempSync(path.join(tmpdir(), "adaptive-audio-player-"));
-    createdDirs.push(tempDir);
-    process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
-
-    const user = upsertUserByEmail({
-      email: "expired@example.com",
-      displayName: "Expired",
-    });
-
-    const activeSession = createAccountSession(
-      user.id,
-      "2099-04-08T12:10:00.000Z",
-      "Chrome on Mac",
-    );
-
-    createAccountSession(
-      user.id,
-      "2000-04-08T12:10:00.000Z",
-      "Safari on Mac",
-    );
-
-    expect(listAccountSessionsForUser(user.id, activeSession?.id)).toEqual([
-      expect.objectContaining({
-        id: activeSession?.id,
-        label: "Chrome on Mac",
-        isCurrent: true,
-      }),
-    ]);
-  });
-
-  it("prunes revoked and expired sessions during normal session activity", () => {
-    const tempDir = mkdtempSync(path.join(tmpdir(), "adaptive-audio-player-"));
-    createdDirs.push(tempDir);
-    process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
-
-    const user = upsertUserByEmail({
-      email: "prune@example.com",
-      displayName: "Prune",
-    });
-
-    const revokedSession = createAccountSession(
-      user.id,
-      "2099-04-08T12:10:00.000Z",
-      "Safari on Mac",
-    );
-    const recentlyExpiredAt = new Date(
-      Date.now() - 24 * 60 * 60 * 1000,
-    ).toISOString();
-    const expiredSession = createAccountSession(
-      user.id,
-      recentlyExpiredAt,
-      "Chrome on Mac",
-    );
-
-    revokeAccountSession(revokedSession?.id ?? "", "signed-out");
-
-    const activeSession = createAccountSession(
-      user.id,
-      "2099-05-08T12:10:00.000Z",
-      "Edge on Mac",
-    );
-
-    expect(getAccountSessionById(revokedSession?.id ?? "")?.endedReason).toBe(
-      "signed-out",
-    );
-    expect(getAccountSessionById(expiredSession?.id ?? "")).not.toBeNull();
-    expect(listAccountSessionsForUser(user.id, activeSession?.id)).toEqual([
-      expect.objectContaining({
-        id: activeSession?.id,
-        label: "Edge on Mac",
-        isCurrent: true,
-      }),
-    ]);
-    expect(listEndedAccountSessionsForUser(user.id)).toEqual([
-      expect.objectContaining({
-        id: revokedSession?.id,
-        endedReason: "signed-out",
-      }),
-      expect.objectContaining({
-        id: expiredSession?.id,
-        endedReason: "expired",
-      }),
-    ]);
-  });
+  function getGenerationLeaseRows(workspaceId: string) {
+    return getDatabase()
+      .prepare(
+        `
+          select id, status, attempt_count, last_heartbeat_at, lease_expires_at,
+                 completed_at, error_message
+          from sync_jobs
+          where workspace_id = ?
+            and kind in ('sample-generation', 'full-book-generation')
+          order by attempt_count asc, created_at asc, id asc
+        `,
+      )
+      .all(workspaceId) as Array<{
+      id: string;
+      status: string;
+      attempt_count: number;
+      last_heartbeat_at: string | null;
+      lease_expires_at: string | null;
+      completed_at: string | null;
+      error_message: string | null;
+    }>;
+  }
 
   it("stores and updates worker heartbeat state", () => {
     const tempDir = mkdtempSync(path.join(tmpdir(), "adaptive-audio-player-"));
@@ -645,23 +187,19 @@ describe("backend sqlite library sync", () => {
     createdDirs.push(tempDir);
     process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
 
-    syncWorkspaceLibrarySnapshot("workspace-dedupe", {
-      libraryBooks: [
+    seedStoredBooks(
+      "workspace-dedupe",
+      [
         {
           bookId: "book-1",
           title: "Storm Harbor",
           chapterCount: 2,
           updatedAt: "2026-03-10T20:00:00.000Z",
+          draftText: "Chapter 1\nStorm Harbor",
         },
       ],
-      draftTexts: [{ bookId: "book-1", text: "Chapter 1\nStorm Harbor" }],
-      listeningProfiles: [],
-      defaultListeningProfile: null,
-      sampleRequest: null,
-      playbackStates: [],
-      playbackDefaults: null,
-      syncedAt: "2026-03-10T20:01:00.000Z",
-    });
+      "2026-03-10T20:01:00.000Z",
+    );
 
     const firstJob = enqueueGenerationJob({
       workspaceId: "workspace-dedupe",
@@ -682,253 +220,22 @@ describe("backend sqlite library sync", () => {
     expect(listRecentGenerationJobsForBook("workspace-dedupe", "book-1")).toHaveLength(1);
   });
 
-  it("includes the latest synced book for each linked workspace", () => {
-    const tempDir = mkdtempSync(path.join(tmpdir(), "adaptive-audio-player-"));
-    createdDirs.push(tempDir);
-    process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
+  it("lists recent generation jobs for a workspace", () => {
+    useTemporaryDatabase();
 
-    const user = upsertUserByEmail({
-      email: "reader@example.com",
-      displayName: "Reader",
-    });
-
-    syncWorkspaceLibrarySnapshot("workspace-a", {
-      libraryBooks: [
-        {
-          bookId: "book-a",
-          title: "Earlier Title",
-          chapterCount: 2,
-          updatedAt: "2026-03-08T10:00:00.000Z",
-        },
-        {
-          bookId: "book-b",
-          title: "Latest Title",
-          chapterCount: 3,
-          updatedAt: "2026-03-08T11:00:00.000Z",
-        },
-      ],
-      draftTexts: [
-        { bookId: "book-a", text: "A" },
-        { bookId: "book-b", text: "B" },
-      ],
-      listeningProfiles: [],
-      defaultListeningProfile: null,
-      sampleRequest: null,
-      playbackStates: [],
-      playbackDefaults: null,
-      syncedAt: "2026-03-08T11:30:00.000Z",
-    });
-
-    linkWorkspaceToUser("workspace-a", user.id);
-
-    expect(listWorkspacesForUser(user.id, "workspace-a")).toEqual([
-      {
-        workspaceId: "workspace-a",
-        syncedBookCount: 2,
-        lastSyncedAt: "2026-03-08T11:30:00.000Z",
-        latestBookId: "book-b",
-        latestBookTitle: "Latest Title",
-        latestBookCoverTheme: null,
-        latestBookCoverLabel: null,
-        latestBookCoverGlyph: null,
-        latestBookGenreLabel: null,
-        latestPlayableArtifactKind: null,
-        latestSessionBookId: null,
-        latestSessionBookTitle: null,
-        latestSessionChapterIndex: null,
-        latestSessionProgressSeconds: null,
-        latestSessionArtifactKind: null,
-        latestSessionUpdatedAt: null,
-        latestResumePath: "/books/book-b",
-        isCurrent: true,
-      },
-    ]);
-  });
-
-  it("prefers a playable artifact when building workspace resume paths", () => {
-    const tempDir = mkdtempSync(path.join(tmpdir(), "adaptive-audio-player-"));
-    createdDirs.push(tempDir);
-    process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
-
-    const user = upsertUserByEmail({
-      email: "artifact-reader@example.com",
-      displayName: "Artifact Reader",
-    });
-
-    syncWorkspaceLibrarySnapshot("workspace-artifact", {
-      libraryBooks: [
-        {
-          bookId: "book-z",
-          title: "Playable Title",
-          chapterCount: 4,
-          updatedAt: "2026-03-08T11:00:00.000Z",
-        },
-      ],
-      draftTexts: [{ bookId: "book-z", text: "Chapter 1\nPlayable" }],
-      listeningProfiles: [],
-      defaultListeningProfile: null,
-      sampleRequest: null,
-      playbackStates: [],
-      playbackDefaults: null,
-      syncedAt: "2026-03-08T11:30:00.000Z",
-    });
-    linkWorkspaceToUser("workspace-artifact", user.id);
-
-    const fullBookJob = enqueueGenerationJob({
-      workspaceId: "workspace-artifact",
-      kind: "full-book-generation",
-      bookId: "book-z",
-      narratorId: "sloane",
-      mode: "immersive",
-      chapterCount: 4,
-    });
-
-    expect(claimNextGenerationJob()?.id).toBe(fullBookJob?.id);
-    completeGenerationJob(fullBookJob?.id ?? "", "workspace-artifact", {
-      assetPath: "generated/workspace-artifact/book-z-full.wav",
-      mimeType: "audio/wav",
-      provider: "mock",
-    });
-
-    expect(listWorkspacesForUser(user.id, "workspace-artifact")).toEqual([
-      {
-        workspaceId: "workspace-artifact",
-        syncedBookCount: 1,
-        lastSyncedAt: "2026-03-08T11:30:00.000Z",
-        latestBookId: "book-z",
-        latestBookTitle: "Playable Title",
-        latestBookCoverTheme: null,
-        latestBookCoverLabel: null,
-        latestBookCoverGlyph: null,
-        latestBookGenreLabel: null,
-        latestPlayableArtifactKind: "full-book-generation",
-        latestSessionBookId: null,
-        latestSessionBookTitle: null,
-        latestSessionChapterIndex: null,
-        latestSessionProgressSeconds: null,
-        latestSessionArtifactKind: null,
-        latestSessionUpdatedAt: null,
-        latestResumePath: "/player/book-z?artifact=full",
-        isCurrent: true,
-      },
-    ]);
-  });
-
-  it("prefers the latest synced listening session over a generic artifact resume path", () => {
-    const tempDir = mkdtempSync(path.join(tmpdir(), "adaptive-audio-player-"));
-    createdDirs.push(tempDir);
-    process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
-
-    const user = upsertUserByEmail({
-      email: "session-reader@example.com",
-      displayName: "Session Reader",
-    });
-
-    syncWorkspaceLibrarySnapshot("workspace-session", {
-      libraryBooks: [
-        {
-          bookId: "book-session",
-          title: "Session Title",
-          chapterCount: 3,
-          updatedAt: "2026-03-08T11:00:00.000Z",
-        },
-      ],
-      draftTexts: [{ bookId: "book-session", text: "Chapter 1\nSession" }],
-      listeningProfiles: [],
-      defaultListeningProfile: null,
-      sampleRequest: null,
-      playbackStates: [
-        {
-          bookId: "book-session",
-          state: {
-            currentChapterIndex: 1,
-            progressSeconds: 73,
-            speed: 1.15,
-            isBookmarked: false,
-            sleepTimerMinutes: 15,
-            playbackArtifactKind: "sample-generation",
-            bookmarks: [],
-            updatedAt: "2026-03-08T11:45:00.000Z",
-          },
-        },
-      ],
-      playbackDefaults: null,
-      syncedAt: "2026-03-08T11:46:00.000Z",
-    });
-    linkWorkspaceToUser("workspace-session", user.id);
-
-    const summary = listWorkspacesForUser(user.id, "workspace-session");
-    expect(summary).toEqual([
-      {
-        workspaceId: "workspace-session",
-        syncedBookCount: 1,
-        lastSyncedAt: "2026-03-08T11:46:00.000Z",
-        latestBookId: "book-session",
-        latestBookTitle: "Session Title",
-        latestBookCoverTheme: null,
-        latestBookCoverLabel: null,
-        latestBookCoverGlyph: null,
-        latestBookGenreLabel: null,
-        latestPlayableArtifactKind: null,
-        latestSessionBookId: "book-session",
-        latestSessionBookTitle: "Session Title",
-        latestSessionChapterIndex: 1,
-        latestSessionProgressSeconds: 73,
-        latestSessionArtifactKind: "sample-generation",
-        latestSessionUpdatedAt: "2026-03-08T11:45:00.000Z",
-        latestResumePath: "/player/book-session?artifact=sample",
-        isCurrent: true,
-      },
-    ]);
-  });
-
-  it("lists recent sync jobs for a workspace and its signed-in user", () => {
-    const tempDir = mkdtempSync(path.join(tmpdir(), "adaptive-audio-player-"));
-    createdDirs.push(tempDir);
-    process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
-
-    const user = upsertUserByEmail({
-      email: "jobs@example.com",
-      displayName: "Jobs",
-    });
-
-    syncWorkspaceLibrarySnapshot("workspace-jobs", {
-      libraryBooks: [
+    seedStoredBooks(
+      "workspace-jobs",
+      [
         {
           bookId: "book-1",
           title: "Storm Harbor",
           chapterCount: 2,
           updatedAt: "2026-03-08T12:00:00.000Z",
+          draftText: "Chapter 1",
         },
       ],
-      draftTexts: [{ bookId: "book-1", text: "Chapter 1" }],
-      listeningProfiles: [],
-      defaultListeningProfile: null,
-      sampleRequest: null,
-      playbackStates: [],
-      playbackDefaults: null,
-      syncedAt: "2026-03-08T12:01:00.000Z",
-    });
-
-    linkWorkspaceToUser("workspace-jobs", user.id);
-
-    const workspaceJobs = listRecentSyncJobsForWorkspace("workspace-jobs");
-    expect(workspaceJobs).toHaveLength(1);
-    expect(workspaceJobs[0]).toMatchObject({
-      workspaceId: "workspace-jobs",
-      kind: "library-sync",
-      status: "completed",
-      books: 1,
-      profiles: 0,
-      playbackStates: 0,
-      bookTitle: null,
-      playableArtifactKind: null,
-      resumePath: null,
-    });
-
-    const userJobs = listRecentSyncJobsForUser(user.id);
-    expect(userJobs).toHaveLength(1);
-    expect(userJobs[0]?.workspaceId).toBe("workspace-jobs");
+      "2026-03-08T12:01:00.000Z",
+    );
 
     const queuedJob = enqueueGenerationJob({
       workspaceId: "workspace-jobs",
@@ -950,8 +257,25 @@ describe("backend sqlite library sync", () => {
     const runningJob = claimNextGenerationJob();
     expect(runningJob?.status).toBe("running");
     expect(runningJob?.id).toBe(queuedJob?.id);
-    const completedJob = completeGenerationJob(queuedJob?.id ?? "", "workspace-jobs");
-    expect(completedJob?.status).toBe("completed");
+    const firstSampleAsset = writeGeneratedAudioAsset({
+      workspaceId: "workspace-jobs",
+      bookId: "book-1",
+      kind: "sample-generation",
+      extension: "wav",
+      data: Buffer.from("first sample"),
+    });
+    const completedJob = completeGenerationJob(
+      queuedJob?.id ?? "",
+      "workspace-jobs",
+      {
+        ...testOutputAsset("book-1-sample-v1"),
+        assetPath: firstSampleAsset.relativePath,
+      },
+    );
+    expect(completedJob).toMatchObject({
+      ok: true,
+      job: { status: "completed" },
+    });
     expect(getGenerationJob(queuedJob?.id ?? "", "workspace-jobs")?.status).toBe("completed");
 
     const queuedSecondSampleJob = enqueueGenerationJob({
@@ -963,8 +287,15 @@ describe("backend sqlite library sync", () => {
     });
 
     claimNextGenerationJob();
+    const secondSampleAsset = writeGeneratedAudioAsset({
+      workspaceId: "workspace-jobs",
+      bookId: "book-1",
+      kind: "sample-generation",
+      extension: "wav",
+      data: Buffer.from("second sample"),
+    });
     completeGenerationJob(queuedSecondSampleJob?.id ?? "", "workspace-jobs", {
-      assetPath: "generated/workspace-jobs/book-1-sample-v2.wav",
+      assetPath: secondSampleAsset.relativePath,
       mimeType: "audio/wav",
       provider: "mock",
     });
@@ -1011,6 +342,19 @@ describe("backend sqlite library sync", () => {
       status: "running",
     });
     expect(runningFullBookJob?.id).toBe(queuedFullBookJob?.id);
+    expect(
+      updateGenerationJobProgress(queuedFullBookJob?.id ?? "", "workspace-jobs", {
+        totalChapters: 2,
+        completedChapters: 1,
+        currentChapterIndex: 0,
+        currentChapterTitle: "Chapter 1",
+      })?.renderProgress,
+    ).toEqual({
+      totalChapters: 2,
+      completedChapters: 1,
+      currentChapterIndex: 0,
+      currentChapterTitle: "Chapter 1",
+    });
 
     const completedFullBookJob = completeGenerationJob(
       queuedFullBookJob?.id ?? "",
@@ -1019,13 +363,36 @@ describe("backend sqlite library sync", () => {
         assetPath: "generated/workspace-jobs/book-1-full.wav",
         mimeType: "audio/wav",
         provider: "mock",
+        chapterAssetPaths: [
+          "generated/workspace-jobs/book-1-chapter-1.wav",
+          "generated/workspace-jobs/book-1-chapter-2.wav",
+        ],
+        chapterArtifacts: [
+          {
+            assetPath: "generated/workspace-jobs/book-1-chapter-1.wav",
+            mimeType: "audio/wav",
+            provider: "mock",
+            chapterIndex: 0,
+            chapterTitle: "Chapter 1",
+          },
+          {
+            assetPath: "generated/workspace-jobs/book-1-chapter-2.wav",
+            mimeType: "audio/wav",
+            provider: "mock",
+            chapterIndex: 1,
+            chapterTitle: "Chapter 2",
+          },
+        ],
       },
     );
     expect(completedFullBookJob).toMatchObject({
-      kind: "full-book-generation",
-      status: "completed",
-      bookId: "book-1",
-      chapterCount: 2,
+      ok: true,
+      job: {
+        kind: "full-book-generation",
+        status: "completed",
+        bookId: "book-1",
+        chapterCount: 2,
+      },
     });
 
     const bookJobs = listRecentGenerationJobsForBook("workspace-jobs", "book-1", 10);
@@ -1046,6 +413,10 @@ describe("backend sqlite library sync", () => {
         bookId: "book-1",
         kind: "full-book-generation",
         chapterCount: 2,
+        chapterAssetPaths: [
+          "generated/workspace-jobs/book-1-chapter-1.wav",
+          "generated/workspace-jobs/book-1-chapter-2.wav",
+        ],
       }),
       expect.objectContaining({
         workspaceId: "workspace-jobs",
@@ -1060,12 +431,27 @@ describe("backend sqlite library sync", () => {
       "book-1",
       10,
     );
-    expect(generationHistory).toHaveLength(3);
+    expect(generationHistory).toHaveLength(4);
     expect(generationHistory).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           jobId: queuedFullBookJob?.id,
           kind: "full-book-generation",
+          isChapterArtifact: false,
+        }),
+        expect.objectContaining({
+          jobId: queuedFullBookJob?.id,
+          kind: "full-book-generation",
+          chapterIndex: 0,
+          chapterTitle: "Chapter 1",
+          isChapterArtifact: true,
+        }),
+        expect.objectContaining({
+          jobId: queuedFullBookJob?.id,
+          kind: "full-book-generation",
+          chapterIndex: 1,
+          chapterTitle: "Chapter 2",
+          isChapterArtifact: true,
         }),
         expect.objectContaining({
           jobId: queuedSecondSampleJob?.id,
@@ -1073,14 +459,17 @@ describe("backend sqlite library sync", () => {
           narratorId: "marlowe",
           mode: "classic",
         }),
-        expect.objectContaining({
-          jobId: queuedJob?.id,
-          kind: "sample-generation",
-          narratorId: "sloane",
-          mode: "immersive",
-        }),
       ]),
     );
+    expect(getGenerationArtifactForJob(queuedFullBookJob?.id ?? "", "workspace-jobs"))
+      .toEqual(
+        expect.objectContaining({
+          jobId: queuedFullBookJob?.id,
+          kind: "full-book-generation",
+          assetPath: "generated/workspace-jobs/book-1-full.wav",
+          isChapterArtifact: false,
+        }),
+      );
     expect(getGenerationArtifactForJob(queuedSecondSampleJob?.id ?? "", "workspace-jobs"))
       .toEqual(
         expect.objectContaining({
@@ -1090,7 +479,258 @@ describe("backend sqlite library sync", () => {
           mode: "classic",
         }),
       );
-    expect(getWorkspaceSyncSummary("workspace-jobs")?.generatedOutputCount).toBe(2);
+    expect(getGenerationOutputsForBook("workspace-jobs", "book-1")).toHaveLength(
+      2,
+    );
+  });
+
+  it("rejects completion while a generation job is queued", () => {
+    useTemporaryDatabase();
+    const queuedJob = enqueueGenerationJob({
+      workspaceId: "workspace-completion",
+      kind: "sample-generation",
+      bookId: "book-queued",
+      narratorId: "marlowe",
+      mode: "classic",
+    });
+
+    const result = completeGenerationJob(
+      queuedJob?.id ?? "",
+      "workspace-completion",
+      testOutputAsset("book-queued"),
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "state-conflict",
+      currentStatus: "queued",
+      job: { id: queuedJob?.id, status: "queued" },
+    });
+    expect(getGenerationOutputsForBook("workspace-completion", "book-queued")).toEqual(
+      [],
+    );
+    expect(
+      listGenerationOutputHistoryForBook(
+        "workspace-completion",
+        "book-queued",
+      ),
+    ).toEqual([]);
+    expect(
+      getGenerationArtifactForJob(
+        queuedJob?.id ?? "",
+        "workspace-completion",
+      ),
+    ).toBeNull();
+  });
+
+  it("rejects completion after cancellation and leaves the job cancelled", () => {
+    useTemporaryDatabase();
+    const queuedJob = enqueueGenerationJob({
+      workspaceId: "workspace-completion",
+      kind: "sample-generation",
+      bookId: "book-cancelled",
+      narratorId: "marlowe",
+      mode: "classic",
+    });
+    expect(claimNextGenerationJob()?.id).toBe(queuedJob?.id);
+    expect(
+      cancelGenerationJob(queuedJob?.id ?? "", "workspace-completion")?.status,
+    ).toBe("cancelled");
+
+    const result = completeGenerationJob(
+      queuedJob?.id ?? "",
+      "workspace-completion",
+      testOutputAsset("book-cancelled"),
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      code: "state-conflict",
+      currentStatus: "cancelled",
+      job: { id: queuedJob?.id, status: "cancelled" },
+    });
+    expect(
+      getGenerationJob(queuedJob?.id ?? "", "workspace-completion"),
+    ).toMatchObject({
+      status: "cancelled",
+      errorMessage: "Cancelled by user.",
+    });
+    expect(
+      getGenerationOutputsForBook("workspace-completion", "book-cancelled"),
+    ).toEqual([]);
+    expect(
+      listGenerationOutputHistoryForBook(
+        "workspace-completion",
+        "book-cancelled",
+      ),
+    ).toEqual([]);
+  });
+
+  it("returns a conflict for duplicate completion without duplicating history", () => {
+    useTemporaryDatabase();
+    const queuedJob = enqueueGenerationJob({
+      workspaceId: "workspace-completion",
+      kind: "sample-generation",
+      bookId: "book-duplicate",
+      narratorId: "marlowe",
+      mode: "classic",
+    });
+    expect(claimNextGenerationJob()?.id).toBe(queuedJob?.id);
+    const outputAsset = testOutputAsset("book-duplicate");
+
+    expect(
+      completeGenerationJob(
+        queuedJob?.id ?? "",
+        "workspace-completion",
+        outputAsset,
+      ),
+    ).toMatchObject({ ok: true, job: { status: "completed" } });
+    const duplicateResult = completeGenerationJob(
+      queuedJob?.id ?? "",
+      "workspace-completion",
+      outputAsset,
+    );
+
+    expect(duplicateResult).toMatchObject({
+      ok: false,
+      code: "state-conflict",
+      currentStatus: "completed",
+      job: { id: queuedJob?.id, status: "completed" },
+    });
+    expect(
+      listGenerationOutputHistoryForBook(
+        "workspace-completion",
+        "book-duplicate",
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("rolls back every completion row when a mid-transaction write fails", () => {
+    useTemporaryDatabase();
+    const queuedJob = enqueueGenerationJob({
+      workspaceId: "workspace-completion",
+      kind: "full-book-generation",
+      bookId: "book-rollback",
+      narratorId: "sloane",
+      mode: "classic",
+      chapterCount: 1,
+    });
+    expect(claimNextGenerationJob()?.id).toBe(queuedJob?.id);
+    getDatabase().exec(`
+      create trigger reject_generation_completion
+      before update of status on sync_jobs
+      when new.status = 'completed'
+      begin
+        select raise(abort, 'injected completion failure');
+      end;
+    `);
+
+    expect(() =>
+      completeGenerationJob(
+        queuedJob?.id ?? "",
+        "workspace-completion",
+        {
+          ...testOutputAsset("book-rollback-full"),
+          chapterAssetPaths: ["generated/test/book-rollback-chapter-1.wav"],
+          chapterArtifacts: [
+            {
+              ...testOutputAsset("book-rollback-chapter-1"),
+              chapterIndex: 0,
+              chapterTitle: "Chapter 1",
+            },
+          ],
+        },
+      ),
+    ).toThrow("injected completion failure");
+
+    expect(
+      getGenerationJob(queuedJob?.id ?? "", "workspace-completion")?.status,
+    ).toBe("running");
+    expect(
+      getGenerationOutputsForBook("workspace-completion", "book-rollback"),
+    ).toEqual([]);
+    expect(
+      listGenerationOutputHistoryForBook(
+        "workspace-completion",
+        "book-rollback",
+      ),
+    ).toEqual([]);
+    expect(
+      getGenerationArtifactForJob(
+        queuedJob?.id ?? "",
+        "workspace-completion",
+      ),
+    ).toBeNull();
+  });
+
+  it("commits the job, latest output, and artifact history atomically", () => {
+    useTemporaryDatabase();
+    const queuedJob = enqueueGenerationJob({
+      workspaceId: "workspace-completion",
+      kind: "full-book-generation",
+      bookId: "book-atomic",
+      narratorId: "sloane",
+      mode: "classic",
+      chapterCount: 2,
+    });
+    expect(claimNextGenerationJob()?.id).toBe(queuedJob?.id);
+
+    const result = completeGenerationJob(
+      queuedJob?.id ?? "",
+      "workspace-completion",
+      {
+        ...testOutputAsset("book-atomic-full"),
+        chapterAssetPaths: [
+          "generated/test/book-atomic-chapter-1.wav",
+          "generated/test/book-atomic-chapter-2.wav",
+        ],
+        chapterArtifacts: [
+          {
+            ...testOutputAsset("book-atomic-chapter-1"),
+            chapterIndex: 0,
+            chapterTitle: "Chapter 1",
+          },
+          {
+            ...testOutputAsset("book-atomic-chapter-2"),
+            chapterIndex: 1,
+            chapterTitle: "Chapter 2",
+          },
+        ],
+      },
+    );
+
+    expect(result).toMatchObject({
+      ok: true,
+      job: {
+        id: queuedJob?.id,
+        status: "completed",
+        playableArtifactKind: "full-book-generation",
+      },
+    });
+    expect(getGenerationOutputsForBook("workspace-completion", "book-atomic")).toEqual([
+      expect.objectContaining({
+        assetPath: "generated/test/book-atomic-full.wav",
+        chapterAssetPaths: [
+          "generated/test/book-atomic-chapter-1.wav",
+          "generated/test/book-atomic-chapter-2.wav",
+        ],
+      }),
+    ]);
+    expect(
+      listGenerationOutputHistoryForBook(
+        "workspace-completion",
+        "book-atomic",
+      ),
+    ).toHaveLength(3);
+    expect(
+      getGenerationArtifactForJob(
+        queuedJob?.id ?? "",
+        "workspace-completion",
+      ),
+    ).toMatchObject({
+      assetPath: "generated/test/book-atomic-full.wav",
+      isChapterArtifact: false,
+    });
   });
 
   it("can fail a running generation job", () => {
@@ -1148,5 +788,547 @@ describe("backend sqlite library sync", () => {
       chapterCount: 4,
     });
     expect(retriedJob?.id).not.toBe(queuedJob?.id);
+  });
+
+  it("keeps a freshly leased generation job running", () => {
+    useTemporaryDatabase();
+    const claimedAt = "2026-07-18T12:00:00.000Z";
+    const queuedJob = enqueueGenerationJob({
+      workspaceId: "workspace-fresh-lease",
+      kind: "sample-generation",
+      bookId: "book-fresh-lease",
+      narratorId: "marlowe",
+      mode: "classic",
+    });
+
+    expect(claimNextGenerationJob({ now: claimedAt })?.id).toBe(queuedJob?.id);
+    expect(
+      claimNextGenerationJob({ now: "2026-07-18T12:00:30.000Z" }),
+    ).toBeNull();
+    expect(getGenerationLeaseRows("workspace-fresh-lease")).toEqual([
+      expect.objectContaining({
+        id: queuedJob?.id,
+        status: "running",
+        attempt_count: 1,
+        last_heartbeat_at: claimedAt,
+        lease_expires_at: "2026-07-18T12:00:45.000Z",
+        completed_at: null,
+        error_message: null,
+      }),
+    ]);
+  });
+
+  it("renews a running job heartbeat before its lease expires", () => {
+    useTemporaryDatabase();
+    const queuedJob = enqueueGenerationJob({
+      workspaceId: "workspace-renew-lease",
+      kind: "sample-generation",
+      bookId: "book-renew-lease",
+      narratorId: "marlowe",
+      mode: "classic",
+    });
+    expect(
+      claimNextGenerationJob({ now: "2026-07-18T12:00:00.000Z" })?.id,
+    ).toBe(queuedJob?.id);
+
+    expect(
+      renewGenerationJobLease(
+        queuedJob?.id ?? "",
+        "workspace-renew-lease",
+        { now: "2026-07-18T12:00:30.000Z" },
+      ),
+    ).toMatchObject({ id: queuedJob?.id, status: "running" });
+    expect(
+      claimNextGenerationJob({ now: "2026-07-18T12:01:00.000Z" }),
+    ).toBeNull();
+    expect(getGenerationLeaseRows("workspace-renew-lease")[0]).toMatchObject({
+      attempt_count: 1,
+      last_heartbeat_at: "2026-07-18T12:00:30.000Z",
+      lease_expires_at: "2026-07-18T12:01:15.000Z",
+    });
+  });
+
+  it("reclaims an expired job exactly once with a fenced replacement id", () => {
+    useTemporaryDatabase();
+    const queuedJob = enqueueGenerationJob({
+      workspaceId: "workspace-expired-lease",
+      kind: "full-book-generation",
+      bookId: "book-expired-lease",
+      narratorId: "sloane",
+      mode: "classic",
+      chapterCount: 2,
+    });
+    const original = claimNextGenerationJob({
+      now: "2026-07-18T12:00:00.000Z",
+    });
+    expect(original?.id).toBe(queuedJob?.id);
+
+    const replacement = claimNextGenerationJob({
+      now: "2026-07-18T12:01:00.000Z",
+    });
+    expect(replacement).toMatchObject({
+      status: "running",
+      workspaceId: "workspace-expired-lease",
+      kind: "full-book-generation",
+      bookId: "book-expired-lease",
+      chapterCount: 2,
+    });
+    expect(replacement?.id).not.toBe(original?.id);
+    expect(
+      claimNextGenerationJob({ now: "2026-07-18T12:01:00.000Z" }),
+    ).toBeNull();
+
+    const rows = getGenerationLeaseRows("workspace-expired-lease");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toMatchObject({
+      id: original?.id,
+      status: "failed",
+      attempt_count: 1,
+      completed_at: "2026-07-18T12:01:00.000Z",
+      lease_expires_at: null,
+      error_message:
+        "Generation stopped because the worker heartbeat expired. A replacement job was queued automatically.",
+    });
+    expect(rows[1]).toMatchObject({
+      id: replacement?.id,
+      status: "running",
+      attempt_count: 2,
+      last_heartbeat_at: "2026-07-18T12:01:00.000Z",
+      lease_expires_at: "2026-07-18T12:01:45.000Z",
+    });
+    expect(
+      completeGenerationJob(
+        original?.id ?? "",
+        "workspace-expired-lease",
+        testOutputAsset("stale-worker-output"),
+      ),
+    ).toMatchObject({
+      ok: false,
+      code: "state-conflict",
+      currentStatus: "failed",
+    });
+  });
+
+  it("rejects completion after lease expiry before recovery is claimed", () => {
+    useTemporaryDatabase();
+    const queuedJob = enqueueGenerationJob({
+      workspaceId: "workspace-expired-completion",
+      kind: "sample-generation",
+      bookId: "book-expired-completion",
+      narratorId: "marlowe",
+      mode: "classic",
+    });
+    expect(
+      claimNextGenerationJob({ now: "2026-07-18T12:00:00.000Z" })?.id,
+    ).toBe(queuedJob?.id);
+
+    expect(
+      completeGenerationJob(
+        queuedJob?.id ?? "",
+        "workspace-expired-completion",
+        testOutputAsset("expired-completion"),
+      ),
+    ).toMatchObject({
+      ok: false,
+      code: "state-conflict",
+      currentStatus: "running",
+      message: "Generation job lease expired before completion.",
+    });
+    expect(
+      getGenerationJob(
+        queuedJob?.id ?? "",
+        "workspace-expired-completion",
+      )?.status,
+    ).toBe("running");
+    expect(
+      getGenerationOutputsForBook(
+        "workspace-expired-completion",
+        "book-expired-completion",
+      ),
+    ).toEqual([]);
+
+    const replacement = claimNextGenerationJob({
+      now: "2026-07-18T12:01:00.000Z",
+    });
+    expect(replacement).toMatchObject({
+      status: "running",
+      bookId: "book-expired-completion",
+    });
+    expect(replacement?.id).not.toBe(queuedJob?.id);
+  });
+
+  it("stops automatic recovery after three expired worker attempts", () => {
+    useTemporaryDatabase();
+    enqueueGenerationJob({
+      workspaceId: "workspace-max-attempts",
+      kind: "sample-generation",
+      bookId: "book-max-attempts",
+      narratorId: "marlowe",
+      mode: "classic",
+    });
+
+    expect(
+      claimNextGenerationJob({ now: "2026-07-18T12:00:00.000Z" }),
+    ).not.toBeNull();
+    expect(
+      claimNextGenerationJob({ now: "2026-07-18T12:01:00.000Z" }),
+    ).not.toBeNull();
+    expect(
+      claimNextGenerationJob({ now: "2026-07-18T12:02:00.000Z" }),
+    ).not.toBeNull();
+    expect(
+      claimNextGenerationJob({ now: "2026-07-18T12:03:00.000Z" }),
+    ).toBeNull();
+
+    const rows = getGenerationLeaseRows("workspace-max-attempts");
+    expect(rows).toHaveLength(3);
+    expect(rows.map((row) => row.attempt_count)).toEqual([1, 2, 3]);
+    expect(rows.map((row) => row.status)).toEqual(["failed", "failed", "failed"]);
+    expect(rows[2]).toMatchObject({
+      completed_at: "2026-07-18T12:03:00.000Z",
+      lease_expires_at: null,
+      error_message:
+        "Generation stopped after 3 worker attempts expired. Retry the job to try again.",
+    });
+
+    const manualRetry = retryGenerationJob(
+      rows[2]?.id ?? "",
+      "workspace-max-attempts",
+    );
+    expect(manualRetry).toMatchObject({
+      status: "queued",
+      bookId: "book-max-attempts",
+    });
+  });
+
+  it("atomically allows only one claim for a queued job", () => {
+    useTemporaryDatabase();
+    const queuedJob = enqueueGenerationJob({
+      workspaceId: "workspace-atomic-claim",
+      kind: "sample-generation",
+      bookId: "book-atomic-claim",
+      narratorId: "marlowe",
+      mode: "classic",
+    });
+    const now = "2026-07-18T12:00:00.000Z";
+
+    const claims = [
+      claimNextGenerationJob({ now }),
+      claimNextGenerationJob({ now }),
+    ].filter(Boolean);
+
+    expect(claims).toHaveLength(1);
+    expect(claims[0]).toMatchObject({
+      id: queuedJob?.id,
+      status: "running",
+    });
+    expect(getGenerationLeaseRows("workspace-atomic-claim")[0]).toMatchObject({
+      attempt_count: 1,
+      last_heartbeat_at: now,
+    });
+  });
+
+  it("never recovers a user-cancelled job as worker loss", () => {
+    useTemporaryDatabase();
+    const queuedJob = enqueueGenerationJob({
+      workspaceId: "workspace-cancelled-lease",
+      kind: "sample-generation",
+      bookId: "book-cancelled-lease",
+      narratorId: "marlowe",
+      mode: "classic",
+    });
+    expect(
+      claimNextGenerationJob({ now: "2026-07-18T12:00:00.000Z" })?.id,
+    ).toBe(queuedJob?.id);
+    expect(
+      cancelGenerationJob(
+        queuedJob?.id ?? "",
+        "workspace-cancelled-lease",
+      )?.status,
+    ).toBe("cancelled");
+    expect(
+      failGenerationJob(
+        queuedJob?.id ?? "",
+        "workspace-cancelled-lease",
+        "Late worker failure.",
+      ),
+    ).toMatchObject({
+      status: "cancelled",
+      errorMessage: "Cancelled by user.",
+    });
+
+    expect(
+      claimNextGenerationJob({ now: "2026-07-18T12:01:00.000Z" }),
+    ).toBeNull();
+    expect(getGenerationLeaseRows("workspace-cancelled-lease")).toEqual([
+      expect.objectContaining({
+        id: queuedJob?.id,
+        status: "cancelled",
+        attempt_count: 1,
+        lease_expires_at: null,
+        error_message: "Cancelled by user.",
+      }),
+    ]);
+  });
+
+  it("retains only the latest artifact and expires terminal generation jobs after 30 days", () => {
+    useTemporaryDatabase();
+    const firstAsset = writeGeneratedAudioAsset({
+      workspaceId: "workspace-retention",
+      bookId: "book-retention",
+      kind: "sample-generation",
+      extension: "wav",
+      data: Buffer.from("first sample"),
+    });
+    const firstJob = enqueueGenerationJob({
+      workspaceId: "workspace-retention",
+      kind: "sample-generation",
+      bookId: "book-retention",
+      narratorId: "marlowe",
+      mode: "classic",
+    });
+    expect(claimNextGenerationJob()?.id).toBe(firstJob?.id);
+    expect(
+      completeGenerationJob(firstJob?.id ?? "", "workspace-retention", {
+        ...testOutputAsset("ignored"),
+        assetPath: firstAsset.relativePath,
+      }),
+    ).toMatchObject({ ok: true });
+    getDatabase()
+      .prepare(
+        "update sync_jobs set created_at = ?, completed_at = ? where id = ?",
+      )
+      .run(
+        "2026-05-01T12:00:00.000Z",
+        "2026-05-01T12:01:00.000Z",
+        firstJob?.id,
+      );
+
+    const latestAsset = writeGeneratedAudioAsset({
+      workspaceId: "workspace-retention",
+      bookId: "book-retention",
+      kind: "sample-generation",
+      extension: "wav",
+      data: Buffer.from("latest sample"),
+    });
+    const latestJob = enqueueGenerationJob({
+      workspaceId: "workspace-retention",
+      kind: "sample-generation",
+      bookId: "book-retention",
+      narratorId: "sloane",
+      mode: "immersive",
+    });
+    expect(claimNextGenerationJob()?.id).toBe(latestJob?.id);
+    expect(
+      completeGenerationJob(latestJob?.id ?? "", "workspace-retention", {
+        ...testOutputAsset("ignored"),
+        assetPath: latestAsset.relativePath,
+      }),
+    ).toMatchObject({ ok: true });
+
+    expect(existsSync(firstAsset.absolutePath)).toBe(false);
+    expect(existsSync(latestAsset.absolutePath)).toBe(true);
+    expect(
+      listGenerationOutputHistoryForBook(
+        "workspace-retention",
+        "book-retention",
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        jobId: latestJob?.id,
+        assetPath: latestAsset.relativePath,
+      }),
+    ]);
+    expect(
+      listRecentGenerationJobsForBook(
+        "workspace-retention",
+        "book-retention",
+      ),
+    ).toEqual([expect.objectContaining({ id: latestJob?.id, status: "completed" })]);
+  });
+
+  it("deletes one book's rows and contained artifacts without touching another book", () => {
+    useTemporaryDatabase();
+    seedStoredBooks(
+      "workspace-delete",
+      [
+        {
+          bookId: "book-a",
+          title: "Delete Me",
+          chapterCount: 2,
+          updatedAt: "2026-07-18T12:00:00.000Z",
+          draftText: "Delete manuscript",
+        },
+        {
+          bookId: "book-b",
+          title: "Keep Me",
+          chapterCount: 1,
+          updatedAt: "2026-07-18T12:01:00.000Z",
+          draftText: "Keep manuscript",
+        },
+      ],
+      "2026-07-18T12:02:00.000Z",
+    );
+    const db = getDatabase();
+
+    const missingAsset = writeGeneratedAudioAsset({
+      workspaceId: "workspace-delete",
+      bookId: "book-a",
+      kind: "sample-generation",
+      extension: "wav",
+      data: Buffer.from("sample"),
+    });
+    const sampleJob = enqueueGenerationJob({
+      workspaceId: "workspace-delete",
+      kind: "sample-generation",
+      bookId: "book-a",
+      narratorId: "marlowe",
+      mode: "classic",
+    });
+    expect(claimNextGenerationJob()?.id).toBe(sampleJob?.id);
+    expect(
+      completeGenerationJob(sampleJob?.id ?? "", "workspace-delete", {
+        ...testOutputAsset("ignored"),
+        assetPath: missingAsset.relativePath,
+      }),
+    ).toMatchObject({ ok: true });
+
+    const deletedAsset = writeGeneratedAudioAsset({
+      workspaceId: "workspace-delete",
+      bookId: "book-a",
+      kind: "full-book-generation",
+      extension: "wav",
+      data: Buffer.from("full book"),
+    });
+    const fullJob = enqueueGenerationJob({
+      workspaceId: "workspace-delete",
+      kind: "full-book-generation",
+      bookId: "book-a",
+      narratorId: "marlowe",
+      mode: "classic",
+      chapterCount: 2,
+    });
+    expect(claimNextGenerationJob()?.id).toBe(fullJob?.id);
+    expect(
+      completeGenerationJob(fullJob?.id ?? "", "workspace-delete", {
+        ...testOutputAsset("ignored"),
+        assetPath: deletedAsset.relativePath,
+      }),
+    ).toMatchObject({ ok: true });
+
+    const preservedAsset = writeGeneratedAudioAsset({
+      workspaceId: "workspace-delete",
+      bookId: "book-b",
+      kind: "sample-generation",
+      extension: "wav",
+      data: Buffer.from("keep sample"),
+    });
+    const preservedJob = enqueueGenerationJob({
+      workspaceId: "workspace-delete",
+      kind: "sample-generation",
+      bookId: "book-b",
+      narratorId: "sloane",
+      mode: "immersive",
+    });
+    expect(claimNextGenerationJob()?.id).toBe(preservedJob?.id);
+    expect(
+      completeGenerationJob(preservedJob?.id ?? "", "workspace-delete", {
+        ...testOutputAsset("ignored"),
+        assetPath: preservedAsset.relativePath,
+      }),
+    ).toMatchObject({ ok: true });
+
+    rmSync(missingAsset.absolutePath, { force: true });
+    expect(deleteWorkspaceBook("workspace-delete", "book-a")).toMatchObject({
+      ok: true,
+      deletedFiles: 1,
+      missingFiles: 1,
+    });
+
+    expect(existsSync(deletedAsset.absolutePath)).toBe(false);
+    expect(existsSync(preservedAsset.absolutePath)).toBe(true);
+    expect(getGenerationOutputsForBook("workspace-delete", "book-a")).toEqual([]);
+    expect(
+      listGenerationOutputHistoryForBook("workspace-delete", "book-a"),
+    ).toEqual([]);
+    expect(
+      listRecentGenerationJobsForBook("workspace-delete", "book-a"),
+    ).toEqual([]);
+    expect(getGenerationOutputsForBook("workspace-delete", "book-b")).toEqual([
+      expect.objectContaining({ assetPath: preservedAsset.relativePath }),
+    ]);
+    expect(
+      listGenerationOutputHistoryForBook("workspace-delete", "book-b"),
+    ).toHaveLength(1);
+    expect(
+      listRecentGenerationJobsForBook("workspace-delete", "book-b"),
+    ).toHaveLength(1);
+
+    expect(
+      db
+        .prepare(
+          "select book_id from synced_books where workspace_id = ? order by book_id",
+        )
+        .all("workspace-delete"),
+    ).toEqual([{ book_id: "book-b" }]);
+  });
+
+  it("rejects an out-of-root artifact path and preserves retryable book metadata", () => {
+    const tempDir = useTemporaryDatabase();
+    const outsidePath = path.join(tempDir, "outside.wav");
+    writeFileSync(outsidePath, "outside audio");
+    const queuedJob = enqueueGenerationJob({
+      workspaceId: "workspace-malicious-delete",
+      kind: "sample-generation",
+      bookId: "book-malicious-delete",
+      narratorId: "marlowe",
+      mode: "classic",
+    });
+    expect(claimNextGenerationJob()?.id).toBe(queuedJob?.id);
+    expect(
+      completeGenerationJob(
+        queuedJob?.id ?? "",
+        "workspace-malicious-delete",
+        {
+          ...testOutputAsset("ignored"),
+          assetPath: outsidePath,
+        },
+      ),
+    ).toMatchObject({ ok: true });
+
+    expect(
+      deleteWorkspaceBook(
+        "workspace-malicious-delete",
+        "book-malicious-delete",
+      ),
+    ).toMatchObject({
+      ok: false,
+      code: "artifact-cleanup-failed",
+      failures: [
+        expect.objectContaining({
+          assetPath: outsidePath,
+          status: "rejected",
+        }),
+      ],
+    });
+    expect(existsSync(outsidePath)).toBe(true);
+    expect(
+      getGenerationOutputsForBook(
+        "workspace-malicious-delete",
+        "book-malicious-delete",
+      ),
+    ).toHaveLength(1);
+    expect(
+      listGenerationOutputHistoryForBook(
+        "workspace-malicious-delete",
+        "book-malicious-delete",
+      ),
+    ).toHaveLength(1);
+    expect(
+      listRecentGenerationJobsForBook(
+        "workspace-malicious-delete",
+        "book-malicious-delete",
+      ),
+    ).toHaveLength(1);
   });
 });

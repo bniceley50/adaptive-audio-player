@@ -7,6 +7,7 @@ const webServerEnv = Object.fromEntries(
     (entry): entry is [string, string] => entry[1] !== undefined && entry[0] !== "NO_COLOR",
   ),
 );
+const localBrowserExecutable = process.env.AAP_PLAYWRIGHT_EXECUTABLE_PATH;
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -15,6 +16,9 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:3100",
     headless: true,
+    launchOptions: localBrowserExecutable
+      ? { executablePath: localBrowserExecutable }
+      : undefined,
   },
   webServer: {
     command: "pnpm dev:all",

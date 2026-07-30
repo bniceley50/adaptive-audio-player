@@ -1,17 +1,10 @@
 import { NextResponse } from "next/server";
 
+import { resolveGeneratedAudioAssetPath } from "@/lib/backend/audio-storage";
+import { createAudioStreamResponse } from "@/lib/backend/http-audio";
+import { getGenerationOutputForBookKind } from "@/lib/backend/sqlite";
 import {
-  getGenerationOutputForBookKind,
-  getSyncedBookTitle,
-  touchAccountSession,
-} from "@/lib/backend/sqlite";
-import { readGeneratedAudioAsset } from "@/lib/backend/audio-storage";
-import {
-  accountCookieName,
-  readSignedAccountSessionFromCookieValue,
   readWorkspaceIdFromCookieValue,
-  readVerifiedAccountIdFromCookieValue,
-  verifyWorkspaceAccess,
   workspaceCookieName,
 } from "@/lib/backend/workspace-session";
 
@@ -26,57 +19,24 @@ function parseCookieValue(request: Request, cookieName: string) {
   );
 }
 
-function buildPlayerPath(bookId: string, kind: "sample-generation" | "full-book-generation") {
-  if (kind === "full-book-generation") {
-    return `/player/${bookId}?artifact=full`;
-  }
-
-  return `/player/${bookId}?artifact=sample`;
-}
-
-function buildActivityLabel(
-  title: string | null,
-  kind: "sample-generation" | "full-book-generation",
-) {
-  const baseTitle = title?.trim() || "your audiobook";
-
-  if (kind === "full-book-generation") {
-    return `Listening to ${baseTitle} (full book)`;
-  }
-
-  return `Listening to ${baseTitle} (sample)`;
-}
-
 export async function GET(
   request: Request,
   context: { params: Promise<{ bookId: string }> },
 ) {
   const { bookId } = await context.params;
-  const rawWorkspaceId = readWorkspaceIdFromCookieValue(
+  const workspaceId = readWorkspaceIdFromCookieValue(
     parseCookieValue(request, workspaceCookieName),
   );
-  const accountId = readVerifiedAccountIdFromCookieValue(
-    parseCookieValue(request, accountCookieName),
-  );
-  const accountSessionId =
-    readSignedAccountSessionFromCookieValue(
-      parseCookieValue(request, accountCookieName),
-    )?.sessionId ?? null;
-  const workspaceAccess = verifyWorkspaceAccess(rawWorkspaceId, accountId);
   const kind = request.url.includes("kind=full-book-generation")
     ? "full-book-generation"
     : "sample-generation";
 
-  if (workspaceAccess.error) {
-    return NextResponse.json({ error: workspaceAccess.error }, { status: 403 });
-  }
-
-  if (!workspaceAccess.workspaceId) {
+  if (!workspaceId) {
     return NextResponse.json({ error: "No workspace is active." }, { status: 401 });
   }
 
   const output = getGenerationOutputForBookKind(
-    workspaceAccess.workspaceId,
+    workspaceId,
     bookId,
     kind,
   );
@@ -84,25 +44,18 @@ export async function GET(
     return NextResponse.json({ error: "Audio output not found." }, { status: 404 });
   }
 
-  const asset = readGeneratedAudioAsset(output.assetPath);
-  if (!asset) {
+  const filePath = resolveGeneratedAudioAssetPath(output.assetPath);
+  if (!filePath) {
     return NextResponse.json({ error: "Audio asset is missing." }, { status: 404 });
   }
 
-  if (accountSessionId) {
-    touchAccountSession(accountSessionId, {
-      path: buildPlayerPath(bookId, kind),
-      label: buildActivityLabel(
-        getSyncedBookTitle(workspaceAccess.workspaceId, bookId),
-        kind,
-      ),
-    });
+  const audioResponse = await createAudioStreamResponse(request, {
+    contentType: output.mimeType,
+    filePath,
+  });
+  if (audioResponse.status === 404) {
+    return NextResponse.json({ error: "Audio asset is missing." }, { status: 404 });
   }
 
-  return new NextResponse(asset.data, {
-    headers: {
-      "Content-Type": output.mimeType,
-      "Cache-Control": "no-store",
-    },
-  });
+  return audioResponse;
 }

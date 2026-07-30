@@ -1,38 +1,98 @@
 # Security
 
-## Threat Model
+## V1 trust boundary
 
-Primary assets:
-- User-uploaded books and documents
-- Generated audio assets
-- Listening preferences
-- Account identity
+V1 is a private, single-user, local-first Windows 11 x64 desktop product. The
+application runtime, Kokoro model, optional explicitly installed Chatterbox
+runtime, worker, sidecars, SQLite database, manuscripts, and generated audio
+stay on the user's machine. Production narration does not
+send manuscript text to cloud TTS and has no automatic mock fallback.
 
-## Initial Rules
+The local operating-system user and the packaged application are the v1 trust
+boundary. Accounts, cloud sync, public sharing, community features, analytics,
+and multi-device access are not part of v1. If hosted or shared access is added,
+implementation must stop and introduce verified authentication, per-resource
+authorization, storage isolation, quotas, and a new privacy review first.
 
-- Imports are private by default
-- No DRM cracking
-- No public sharing of imported files
-- Validate all upload types and sizes
-- Validate all public form inputs at the server boundary
-- Avoid exposing raw storage paths in responses
+No email-only or otherwise unverified login route may create an authenticated
+session. Legacy account and workspace-session code is migration-only until it is
+removed and must not be represented as a supported security boundary.
 
-## Security Checklist
+## Protected assets
 
-- [ ] Auth required before private asset access
-- [ ] Input validation on all mutation routes
-- [ ] No secrets committed
-- [ ] Env vars validated at startup
-- [ ] Errors do not leak internals
+- Imported TXT and DRM-free EPUB source material
+- Extracted manuscripts and chapter metadata
+- Generated samples and full-book audio
+- Playback position and listening preferences
+- Local job, failure, and recovery state
 
-## Backend Sync Notes
+Raw manuscripts, audio bytes, local identifiers, and filesystem paths are
+private. Browser-facing responses use bounded DTOs and artifact URLs or IDs;
+they never contain raw storage paths.
 
-- Workspace sync uses an anonymous httpOnly cookie instead of localStorage-only identity.
-- Sync payloads are validated at the API boundary before SQLite persistence.
-- This is a bridge step, not full auth. Private asset protection still needs real account-based authorization.
+## Content rights
 
-## Account Notes
+- Accept only DRM-free material the user owns or is authorized to transform.
+- Never bypass, remove, or help defeat DRM.
+- Do not publicly share imported material or generated audio.
+- Import copy and validation must not imply support for PDF, DOCX, MP3, or M4B
+  narrator replacement in v1.
 
-- Account session uses a separate httpOnly cookie.
-- Current sign-in is local and email-backed only; it is not yet passwordless email delivery or third-party hosted auth.
-- Workspaces can now be linked to users in SQLite, which is the first ownership step before account-based data isolation.
+## Input and resource limits
+
+- TXT input: at most 5 MB.
+- EPUB input: at most 25 MB compressed and DRM-free.
+- Extracted content: at most 1,000,000 characters and 300 chapters.
+- Validate extension, media type, structure, expanded size, entry count, and
+  text bounds at the server boundary before persistence or generation.
+- Reject malformed, encrypted, path-traversing, deeply nested, or
+  decompression-bomb EPUB content with a non-technical error.
+- Allow only server-owned voice IDs and server-derived book/chapter metadata in
+  generation requests.
+
+## Local service and filesystem rules
+
+- Local service endpoints must be reachable only through the packaged local
+  application boundary; packaging must document loopback ports and firewall
+  behavior before release.
+- Resolve generated files beneath the configured generated-audio root and reject
+  absolute paths, traversal, prefix confusion, and unsupported symlink escapes.
+- Stream large audio with validated HTTP byte ranges; never read a complete full
+  book into server memory for routine playback.
+- Do not log manuscript content, secrets, raw local paths, or generated audio.
+- Keep secrets and model/render payloads out of git.
+- Fail closed when the local TTS engine is absent, unhealthy, misconfigured, or
+  returns invalid output.
+- Bind every narration sidecar to loopback, authenticate it with an independent
+  per-launch secret, and reject compressed, unbounded, or oversized render
+  requests. The optional Chatterbox interface must not accept reference audio,
+  voice-cloning inputs, or unapproved narrator IDs.
+
+## Retention and deletion
+
+- Retain a book's source, extracted manuscript, current sample, current full-book
+  artifact, playback progress, and required job metadata locally until the user
+  deletes the book.
+- Remove superseded generated artifacts and failed or cancelled temporary files
+  during bounded replacement and cleanup; v1 does not retain advanced render
+  history as a customer feature.
+- Deleting a book removes its imported blobs, manuscript, chapters, generated
+  files, playback state, jobs, artifacts, and database metadata without touching
+  another book.
+- Validate every deletion target against the generated-data root. Never use a
+  broad recursive deletion target.
+- A partial cleanup is reported actionably and remains retryable; it is never
+  silently presented as complete.
+
+## Release security gate
+
+- [ ] Supported input formats and every size boundary are tested.
+- [ ] Generated and archived audio deny cross-book access and expose no paths.
+- [ ] No unverified login route can create a session.
+- [ ] No routine playback update uploads a manuscript or full-library snapshot.
+- [ ] Cancellation cannot later transition to completion.
+- [ ] Restart recovery cannot create duplicate or falsely completed work.
+- [ ] Book deletion proves complete per-book cleanup and isolation.
+- [ ] Environment variables and local service configuration fail safely.
+- [ ] No secrets, model weights, manuscripts, generated audio, or private paths
+      appear in git, logs, browser responses, screenshots, or release evidence.

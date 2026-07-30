@@ -1,197 +1,151 @@
-// @vitest-environment jsdom
+import { describe, expect, it } from "vitest";
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { resolveSampleGenerationState } from "@/lib/library/local-library";
 
-import {
-  readLocalDraftText,
-  readLocalGenerationOutputs,
-  readLocalLibraryBook,
-  readLocalListeningProfile,
-  readLocalSampleRequest,
-  readRemovedLocalLibraryBook,
-  replaceRemovedLocalLibraryBooks,
-  resolvePreferredGenerationOutput,
-  upsertLocalLibraryBook,
-  writeLocalDraftText,
-  writeLocalGenerationOutput,
-  writeLocalListeningProfile,
-  writeLocalSampleRequest,
-  type RemovedLocalLibraryBook,
-} from "@/lib/library/local-library";
-import {
-  readPersistedPlaybackState,
-  writePersistedPlaybackState,
-} from "@/lib/playback/local-playback";
+describe("resolveSampleGenerationState", () => {
+  const selection = {
+    bookId: "book-1",
+    narratorId: "sloane",
+    mode: "classic",
+  };
+  const request = { ...selection };
 
-describe("replaceRemovedLocalLibraryBooks", () => {
-  beforeEach(() => {
-    const store = new Map<string, string>();
-    Object.defineProperty(window, "localStorage", {
-      configurable: true,
-      value: {
-        getItem(key: string) {
-          return store.has(key) ? store.get(key)! : null;
-        },
-        setItem(key: string, value: string) {
-          store.set(key, value);
-        },
-        removeItem(key: string) {
-          store.delete(key);
-        },
-      },
+  function job(
+    status: string,
+    overrides: Partial<{
+      bookId: string | null;
+      id: string;
+      mode: string | null;
+      narratorId: string | null;
+    }> = {},
+  ) {
+    return {
+      id: "sample-job-1",
+      bookId: selection.bookId,
+      narratorId: selection.narratorId,
+      mode: selection.mode,
+      status,
+      ...overrides,
+    };
+  }
+
+  function artifact(
+    overrides: Partial<{
+      artifactId: string | null;
+      artifactUrl: string;
+      bookId: string;
+      isCurrent: boolean;
+      jobId: string | null;
+      mode: string | null;
+      narratorId: string | null;
+    }> = {},
+  ) {
+    return {
+      artifactId: "artifact-1",
+      artifactUrl: "/api/audio/generated/artifacts/artifact-1",
+      bookId: selection.bookId,
+      narratorId: selection.narratorId,
+      mode: selection.mode,
+      isCurrent: true,
+      jobId: "sample-job-1",
+      ...overrides,
+    };
+  }
+
+  function resolve({
+    activeJob = null,
+    output = null,
+    sampleRequest = null,
+  }: {
+    activeJob?: ReturnType<typeof job> | null;
+    output?: ReturnType<typeof artifact> | null;
+    sampleRequest?: typeof request | null;
+  } = {}) {
+    return resolveSampleGenerationState({
+      ...selection,
+      job: activeJob,
+      output,
+      request: sampleRequest,
+    });
+  }
+
+  it("represents requested, queued, and running states without playability", () => {
+    expect(resolve({ sampleRequest: request })).toEqual({
+      isPlayable: false,
+      status: "requested",
+    });
+    expect(resolve({ activeJob: job("queued"), sampleRequest: request })).toEqual({
+      isPlayable: false,
+      status: "queued",
+    });
+    expect(resolve({ activeJob: job("running"), sampleRequest: request })).toEqual({
+      isPlayable: false,
+      status: "running",
     });
   });
 
-  it("removes active local state for backend-removed books", () => {
-    upsertLocalLibraryBook({
-      bookId: "demo-book-2",
-      title: "Quiet Harbor Revised",
-      chapterCount: 3,
-      updatedAt: new Date().toISOString(),
-      coverTheme: "from-sky-200 via-cyan-100 to-white",
-      coverLabel: "Harbor",
-      coverGlyph: "QH",
-      genreLabel: "Coastal mystery",
+  it("keeps failed and cancelled jobs non-playable after reload", () => {
+    expect(resolve({ activeJob: job("failed"), sampleRequest: request })).toEqual({
+      isPlayable: false,
+      status: "failed",
     });
-    writeLocalDraftText("demo-book-2", "Chapter 1\nHello there");
-    writeLocalListeningProfile({
-      bookId: "demo-book-2",
-      narratorId: "sloane",
-      narratorName: "Sloane",
-      mode: "immersive",
-    });
-    writeLocalSampleRequest({
-      bookId: "demo-book-2",
-      narratorId: "sloane",
-      mode: "immersive",
-    });
-    writePersistedPlaybackState("demo-book-2", {
-      currentChapterIndex: 1,
-      progressSeconds: 48,
-      speed: 1.1,
-      isBookmarked: true,
-      sleepTimerMinutes: 15,
-      playbackArtifactKind: "sample-generation",
-      bookmarks: [
-        {
-          id: "bookmark-1",
-          chapterIndex: 1,
-          progressSeconds: 48,
-          createdAt: new Date().toISOString(),
-        },
-      ],
-    });
-    writeLocalGenerationOutput({
-      workspaceId: "workspace-1",
-      bookId: "demo-book-2",
-      kind: "sample-generation",
-      narratorId: "sloane",
-      mode: "immersive",
-      chapterCount: 3,
-      assetPath: "/audio/demo-book-2-sample.mp3",
-      mimeType: "audio/mpeg",
-      provider: "mock",
-      generatedAt: new Date().toISOString(),
-    });
-
-    const removedSnapshot: RemovedLocalLibraryBook = {
-      book: {
-        bookId: "demo-book-2",
-        title: "Quiet Harbor Revised",
-        chapterCount: 3,
-        updatedAt: new Date().toISOString(),
-        coverTheme: "from-sky-200 via-cyan-100 to-white",
-        coverLabel: "Harbor",
-        coverGlyph: "QH",
-        genreLabel: "Coastal mystery",
-      },
-      draftText: "Chapter 1\nHello there",
-      profile: {
-        bookId: "demo-book-2",
-        narratorId: "sloane",
-        narratorName: "Sloane",
-        mode: "immersive",
-      },
-      sampleRequest: {
-        bookId: "demo-book-2",
-        narratorId: "sloane",
-        mode: "immersive",
-      },
-      playbackState: {
-        currentChapterIndex: 1,
-        progressSeconds: 48,
-        speed: 1.1,
-        isBookmarked: true,
-        sleepTimerMinutes: 15,
-        playbackArtifactKind: "sample-generation",
-        bookmarks: [
-          {
-            id: "bookmark-1",
-            chapterIndex: 1,
-            progressSeconds: 48,
-            createdAt: new Date().toISOString(),
-          },
-        ],
-      },
-      generationOutputs: [
-        {
-          workspaceId: "workspace-1",
-          bookId: "demo-book-2",
-          kind: "sample-generation",
-          narratorId: "sloane",
-          mode: "immersive",
-          chapterCount: 3,
-          assetPath: "/audio/demo-book-2-sample.mp3",
-          mimeType: "audio/mpeg",
-          provider: "mock",
-          generatedAt: new Date().toISOString(),
-        },
-      ],
-      removedAt: new Date().toISOString(),
-    };
-
-    replaceRemovedLocalLibraryBooks([removedSnapshot]);
-
-    expect(readLocalLibraryBook("demo-book-2")).toBeNull();
-    expect(readLocalDraftText("demo-book-2")).toBe("");
-    expect(readLocalListeningProfile("demo-book-2")).toBeNull();
-    expect(readLocalSampleRequest()).toBeNull();
-    expect(readPersistedPlaybackState("demo-book-2")).toBeNull();
     expect(
-      readLocalGenerationOutputs().filter((output) => output.bookId === "demo-book-2"),
-    ).toHaveLength(0);
-    expect(readRemovedLocalLibraryBook("demo-book-2")?.book.title).toBe(
-      "Quiet Harbor Revised",
-    );
+      resolve({ activeJob: job("cancelled"), sampleRequest: request }),
+    ).toEqual({
+      isPlayable: false,
+      status: "cancelled",
+    });
   });
-});
 
-describe("resolvePreferredGenerationOutput", () => {
-  it("prefers the fresher generated output", () => {
-    const localOutput = {
-      workspaceId: "workspace-1",
-      bookId: "demo-book-1",
-      kind: "sample-generation" as const,
-      narratorId: "marlowe",
-      mode: "ambient",
-      chapterCount: 4,
-      assetPath: "/audio/local.mp3",
-      mimeType: "audio/mpeg",
-      provider: "mock" as const,
-      generatedAt: "2026-03-13T12:00:00.000Z",
-    };
+  it("treats an old request and a completed artifact for another voice as stale", () => {
+    expect(
+      resolve({
+        sampleRequest: { ...request, narratorId: "jules" },
+      }),
+    ).toEqual({ isPlayable: false, status: "stale" });
+    expect(
+      resolve({
+        activeJob: job("completed"),
+        output: artifact({ narratorId: "jules" }),
+        sampleRequest: request,
+      }),
+    ).toEqual({ isPlayable: false, status: "stale" });
+  });
 
-    const syncedOutput = {
-      ...localOutput,
-      assetPath: "/audio/synced.mp3",
-      generatedAt: "2026-03-13T13:00:00.000Z",
-    };
+  it("does not unlock playback when completion has no accessible artifact", () => {
+    expect(
+      resolve({ activeJob: job("completed"), sampleRequest: request }),
+    ).toEqual({ isPlayable: false, status: "missing-artifact" });
+    expect(
+      resolve({
+        activeJob: job("completed"),
+        output: artifact({ artifactUrl: "" }),
+        sampleRequest: request,
+      }),
+    ).toEqual({ isPlayable: false, status: "missing-artifact" });
+    expect(
+      resolve({
+        activeJob: job("completed"),
+        output: artifact({ artifactId: null }),
+        sampleRequest: request,
+      }),
+    ).toEqual({ isPlayable: false, status: "missing-artifact" });
+    expect(
+      resolve({
+        activeJob: job("completed"),
+        output: artifact({ jobId: "older-job" }),
+        sampleRequest: request,
+      }),
+    ).toEqual({ isPlayable: false, status: "missing-artifact" });
+  });
 
-    expect(resolvePreferredGenerationOutput(localOutput, syncedOutput)?.assetPath).toBe(
-      "/audio/synced.mp3",
-    );
-    expect(resolvePreferredGenerationOutput(syncedOutput, localOutput)?.assetPath).toBe(
-      "/audio/synced.mp3",
-    );
+  it("unlocks playback only for the matching completed artifact", () => {
+    expect(
+      resolve({
+        activeJob: job("completed"),
+        output: artifact(),
+        sampleRequest: request,
+      }),
+    ).toEqual({ isPlayable: true, status: "completed-with-artifact" });
   });
 });

@@ -17,16 +17,13 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const navItems = [
-    { href: "/", label: "Home", description: "Library and account" },
-    { href: "/import", label: "Import", description: "Bring in a new book" },
-    { href: "/social", label: "Community", description: "Versions, clubs, highlights" },
-    { href: "/jobs", label: "Jobs", description: "Queue and backend activity" },
+    { href: "/", label: "Library", description: "Your books and listening progress" },
+    { href: "/import", label: "Add book", description: "Import a book to narrate" },
   ];
 
   const playerNavItems = [
-    { href: "/", label: "Home" },
-    { href: "/import", label: "Import" },
-    { href: "/jobs", label: "Jobs" },
+    { href: "/", label: "Library" },
+    { href: "/import", label: "Add book" },
   ];
 
   if (variant === "player") {
@@ -72,6 +69,14 @@ export function AppShell({
           <div className="flex flex-col gap-6">
             {children}
           </div>
+          <footer className="mt-6 flex justify-end border-t border-[var(--player-border)] pt-4">
+            <Link
+              className="text-xs text-[var(--player-text-soft)] transition hover:text-[var(--player-text)]"
+              href="/about"
+            >
+              About &amp; third-party notices
+            </Link>
+          </footer>
         </div>
       </main>
     );
@@ -98,9 +103,7 @@ export function AppShell({
                   {title}
                 </h1>
                 <p className="max-w-2xl text-sm leading-6 text-stone-600 lg:text-base">
-                  Bring in a book, choose how it should sound, and listen. Community
-                  picks and advanced controls are there when you want them, not when
-                  you are trying to get started.
+                  Import a book, choose a voice, and listen.
                 </p>
               </div>
             </div>
@@ -147,6 +150,15 @@ export function AppShell({
           </div>
         </header>
         {children}
+        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-stone-200 px-1 pt-2 text-xs text-stone-500">
+          <span>Adaptive Audio Player 0.1.0</span>
+          <Link
+            className="font-medium text-stone-600 underline-offset-4 transition hover:text-stone-950 hover:underline"
+            href="/about"
+          >
+            About &amp; third-party notices
+          </Link>
+        </footer>
       </div>
     </main>
   );

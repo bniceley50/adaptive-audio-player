@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "test-results/**",
     "playwright-report/**",
+    "data/local-chatterbox/**",
+    "data/local-tts/**",
   ]),
 ]);
 

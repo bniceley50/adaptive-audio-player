@@ -1,302 +1,308 @@
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { GET } from "@/app/api/audio/generated/[bookId]/route";
-import {
-  createAccountSession,
-  completeGenerationJob,
-  enqueueGenerationJob,
-    linkWorkspaceToUser,
-  listAccountSessionsForUser,
-  resetDatabaseForTests,
-  syncWorkspaceLibrarySnapshot,
-  upsertUserByEmail,
-} from "@/lib/backend/sqlite";
 import { writeGeneratedAudioAsset } from "@/lib/backend/audio-storage";
 import {
-  createSignedAccountSession,
-  createSignedWorkspaceCookieValue,
-} from "@/lib/backend/workspace-session";
+  claimNextGenerationJob,
+  completeGenerationJob,
+  enqueueGenerationJob,
+  getDatabase,
+  resetDatabaseForTests,
+} from "@/lib/backend/sqlite";
+import { createSignedWorkspaceCookieValue } from "@/lib/backend/workspace-session";
+
+type GenerationKind = "full-book-generation" | "sample-generation";
 
 describe("generated audio route", () => {
-  const createdDirs: string[] = [];
+  const createdDirectories: string[] = [];
 
   afterEach(() => {
     resetDatabaseForTests();
 
-    for (const dir of createdDirs.splice(0, createdDirs.length)) {
-      rmSync(dir, { recursive: true, force: true });
+    for (const directory of createdDirectories.splice(0)) {
+      rmSync(directory, { force: true, recursive: true });
     }
 
+    delete process.env.ADAPTIVE_AUDIO_PLAYER_DATA_ROOT;
     delete process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH;
   });
 
-  it("streams generated audio for the active workspace", async () => {
-    const tempDir = mkdtempSync(path.join(tmpdir(), "adaptive-audio-player-"));
-    createdDirs.push(tempDir);
-    process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
+  function configureTestDatabase() {
+    const directory = mkdtempSync(
+      path.join(process.cwd(), ".adaptive-audio-route-"),
+    );
+    createdDirectories.push(directory);
+    process.env.ADAPTIVE_AUDIO_PLAYER_DATA_ROOT = directory;
+    process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(
+      directory,
+      "library.sqlite",
+    );
+  }
 
-    syncWorkspaceLibrarySnapshot("workspace-audio", {
-      libraryBooks: [
-        {
-          bookId: "book-1",
-          title: "Storm Harbor",
-          chapterCount: 2,
-          updatedAt: "2026-03-08T12:00:00.000Z",
-        },
-      ],
-      draftTexts: [{ bookId: "book-1", text: "Chapter 1\nStorm Harbor" }],
-      listeningProfiles: [],
-      defaultListeningProfile: null,
-      sampleRequest: null,
-      playbackStates: [],
-      playbackDefaults: null,
-      syncedAt: "2026-03-08T12:01:00.000Z",
-    });
+  function seedStoredBook(
+    workspaceId: string,
+    bookId = "book-1",
+    title = "Storm Harbor",
+  ) {
+    const database = getDatabase();
+    const timestamp = "2026-03-08T12:00:00.000Z";
+    database
+      .prepare(
+        `
+          insert into workspaces (id, created_at, updated_at, last_synced_at)
+          values (?, ?, ?, null)
+        `,
+      )
+      .run(workspaceId, timestamp, timestamp);
+    database
+      .prepare(
+        `
+          insert into synced_books (
+            workspace_id, book_id, title, chapter_count, updated_at, draft_text
+          ) values (?, ?, ?, 2, ?, ?)
+        `,
+      )
+      .run(workspaceId, bookId, title, timestamp, `Chapter 1\n${title}`);
+  }
 
-    const asset = writeGeneratedAudioAsset({
-      workspaceId: "workspace-audio",
-      bookId: "book-1",
-      kind: "sample-generation",
-      extension: "wav",
-      data: Buffer.from("RIFFmock-audio"),
-    });
-
+  function recordOutput(input: {
+    assetPath?: string;
+    bookId?: string;
+    data?: Buffer;
+    kind?: GenerationKind;
+    workspaceId?: string;
+  }) {
+    const workspaceId = input.workspaceId ?? "workspace-audio";
+    const bookId = input.bookId ?? "book-1";
+    const kind = input.kind ?? "sample-generation";
+    const data = input.data ?? Buffer.from("RIFFmock-audio");
+    const assetPath =
+      input.assetPath ??
+      writeGeneratedAudioAsset({
+        bookId,
+        data,
+        extension: "wav",
+        kind,
+        workspaceId,
+      }).relativePath;
     const job = enqueueGenerationJob({
-      workspaceId: "workspace-audio",
-      kind: "sample-generation",
-      bookId: "book-1",
+      bookId,
+      kind,
+      mode: "narration",
       narratorId: "sloane",
-      mode: "immersive",
+      workspaceId,
     });
+    if (!job) {
+      throw new Error("Expected a generation job fixture.");
+    }
 
-    completeGenerationJob(job?.id ?? "", "workspace-audio", {
-      assetPath: asset.relativePath,
+    const claimedJob = claimNextGenerationJob();
+    if (claimedJob?.id !== job.id) {
+      throw new Error("Expected the generation job fixture to be running.");
+    }
+
+    const completion = completeGenerationJob(job.id, workspaceId, {
+      assetPath,
       mimeType: "audio/wav",
       provider: "mock",
     });
+    if (!completion.ok) {
+      throw new Error("Expected the generation job fixture to complete.");
+    }
 
-    const response = await GET(
+    return data;
+  }
+
+  function setupOutput(input: {
+    assetPath?: string;
+    bookId?: string;
+    data?: Buffer;
+    kind?: GenerationKind;
+    title?: string;
+    workspaceId?: string;
+  } = {}) {
+    const workspaceId = input.workspaceId ?? "workspace-audio";
+    const bookId = input.bookId ?? "book-1";
+    configureTestDatabase();
+    seedStoredBook(workspaceId, bookId, input.title);
+    return recordOutput({ ...input, bookId, workspaceId });
+  }
+
+  async function requestAudio(input: {
+    accountCookieValue?: string;
+    bookId?: string;
+    kind?: GenerationKind;
+    range?: string;
+    workspaceId?: string;
+  } = {}) {
+    const bookId = input.bookId ?? "book-1";
+    const kind = input.kind ?? "sample-generation";
+    const headers = new Headers();
+    const cookies: string[] = [];
+
+    if (input.workspaceId) {
+      cookies.push(
+        `adaptive-audio-player.workspace=${createSignedWorkspaceCookieValue(input.workspaceId)}`,
+      );
+    }
+    if (input.accountCookieValue) {
+      cookies.push(
+        `adaptive-audio-player.account=${input.accountCookieValue}`,
+      );
+    }
+    if (cookies.length > 0) {
+      headers.set("cookie", cookies.join("; "));
+    }
+    if (input.range) {
+      headers.set("range", input.range);
+    }
+
+    return GET(
       new Request(
-        "http://localhost/api/audio/generated/book-1?kind=sample-generation",
-        {
-          headers: {
-            cookie: `adaptive-audio-player.workspace=${createSignedWorkspaceCookieValue("workspace-audio")}`,
-          },
-        },
+        `http://localhost/api/audio/generated/${bookId}?kind=${kind}`,
+        { headers },
       ),
-      { params: Promise.resolve({ bookId: "book-1" }) },
+      { params: Promise.resolve({ bookId }) },
     );
+  }
+
+  it("streams the complete generated file for the active workspace", async () => {
+    const data = setupOutput();
+
+    const response = await requestAudio({ workspaceId: "workspace-audio" });
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("accept-ranges")).toBe("bytes");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("content-length")).toBe(String(data.length));
     expect(response.headers.get("content-type")).toBe("audio/wav");
-    expect(Buffer.from(await response.arrayBuffer()).subarray(0, 4).toString()).toBe(
-      "RIFF",
-    );
+    expect(Buffer.from(await response.arrayBuffer()).equals(data)).toBe(true);
   });
 
-  it("updates the signed-in session with listening activity", async () => {
-    const tempDir = mkdtempSync(path.join(tmpdir(), "adaptive-audio-player-"));
-    createdDirs.push(tempDir);
-    process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
+  it("streams only the requested byte range", async () => {
+    const data = setupOutput();
 
-    syncWorkspaceLibrarySnapshot("workspace-audio", {
-      libraryBooks: [
-        {
-          bookId: "book-1",
-          title: "Storm Harbor",
-          chapterCount: 2,
-          updatedAt: "2026-03-08T12:00:00.000Z",
-        },
-      ],
-      draftTexts: [{ bookId: "book-1", text: "Chapter 1\nStorm Harbor" }],
-      listeningProfiles: [],
-      defaultListeningProfile: null,
-      sampleRequest: null,
-      playbackStates: [],
-      playbackDefaults: null,
-      syncedAt: "2026-03-08T12:01:00.000Z",
-    });
-
-    const owner = upsertUserByEmail({
-      email: "owner@example.com",
-      displayName: "Owner",
-    });
-    linkWorkspaceToUser("workspace-audio", owner.id);
-    const ownerSession = createAccountSession(
-      owner.id,
-      new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-      "Safari on Mac",
-    );
-
-    const asset = writeGeneratedAudioAsset({
+    const response = await requestAudio({
+      range: "bytes=0-3",
       workspaceId: "workspace-audio",
-      bookId: "book-1",
-      kind: "full-book-generation",
-      extension: "wav",
-      data: Buffer.from("RIFFmock-audio"),
     });
 
-    const job = enqueueGenerationJob({
-      workspaceId: "workspace-audio",
-      kind: "full-book-generation",
-      bookId: "book-1",
-      narratorId: "sloane",
-      mode: "immersive",
-    });
-
-    completeGenerationJob(job?.id ?? "", "workspace-audio", {
-      assetPath: asset.relativePath,
-      mimeType: "audio/wav",
-      provider: "mock",
-    });
-
-    const response = await GET(
-      new Request(
-        "http://localhost/api/audio/generated/book-1?kind=full-book-generation",
-        {
-          headers: {
-            cookie: [
-              `adaptive-audio-player.workspace=${createSignedWorkspaceCookieValue("workspace-audio")}`,
-              `adaptive-audio-player.account=${createSignedAccountSession(
-                owner.id,
-                ownerSession?.id ?? "",
-              )}`,
-            ].join("; "),
-          },
-        },
-      ),
-      { params: Promise.resolve({ bookId: "book-1" }) },
+    expect(response.status).toBe(206);
+    expect(response.headers.get("content-length")).toBe("4");
+    expect(response.headers.get("content-range")).toBe(
+      `bytes 0-3/${data.length}`,
     );
-
-    expect(response.status).toBe(200);
-
-    const sessions = listAccountSessionsForUser(owner.id, ownerSession?.id ?? null, 5);
-    expect(sessions[0]).toMatchObject({
-      id: ownerSession?.id,
-      lastActivityLabel: "Listening to Storm Harbor (full book)",
-      lastActivityPath: "/player/book-1?artifact=full",
-    });
+    await expect(response.text()).resolves.toBe("RIFF");
   });
 
-  it("falls back to deterministic demo audio when the synced asset path is a portfolio demo path", async () => {
-    const tempDir = mkdtempSync(path.join(tmpdir(), "adaptive-audio-player-"));
-    createdDirs.push(tempDir);
-    process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
+  it("returns 416 for an unsatisfiable byte range", async () => {
+    const data = setupOutput();
 
-    syncWorkspaceLibrarySnapshot("workspace-audio", {
-      libraryBooks: [
-        {
-          bookId: "demo-book-1",
-          title: "Harbor Lights",
-          chapterCount: 3,
-          updatedAt: "2026-03-08T12:00:00.000Z",
-        },
-      ],
-      draftTexts: [{ bookId: "demo-book-1", text: "Chapter 1\nHarbor Lights" }],
-      listeningProfiles: [],
-      defaultListeningProfile: null,
-      sampleRequest: null,
-      playbackStates: [],
-      playbackDefaults: null,
-      syncedAt: "2026-03-08T12:01:00.000Z",
-    });
-
-    const job = enqueueGenerationJob({
+    const response = await requestAudio({
+      range: "bytes=100-200",
       workspaceId: "workspace-audio",
-      kind: "full-book-generation",
-      bookId: "demo-book-1",
-      narratorId: "sloane",
-      mode: "immersive",
     });
 
-    completeGenerationJob(job?.id ?? "", "workspace-audio", {
-      assetPath: "generated/demo/demo-book-1/full-book-generation.wav",
-      mimeType: "audio/wav",
-      provider: "mock",
-    });
-
-    const response = await GET(
-      new Request(
-        "http://localhost/api/audio/generated/demo-book-1?kind=full-book-generation",
-        {
-          headers: {
-            cookie: `adaptive-audio-player.workspace=${createSignedWorkspaceCookieValue("workspace-audio")}`,
-          },
-        },
-      ),
-      { params: Promise.resolve({ bookId: "demo-book-1" }) },
-    );
-
-    expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toBe("audio/wav");
-    expect(Buffer.from(await response.arrayBuffer()).subarray(0, 4).toString()).toBe(
-      "RIFF",
-    );
+    expect(response.status).toBe(416);
+    expect(response.headers.get("content-length")).toBe("0");
+    expect(response.headers.get("content-range")).toBe(`bytes */${data.length}`);
+    await expect(response.arrayBuffer()).resolves.toHaveProperty("byteLength", 0);
   });
 
-  it("rejects access when the signed-in account does not own the linked workspace", async () => {
-    const tempDir = mkdtempSync(path.join(tmpdir(), "adaptive-audio-player-"));
-    createdDirs.push(tempDir);
-    process.env.ADAPTIVE_AUDIO_PLAYER_DB_PATH = path.join(tempDir, "library.sqlite");
+  it("requires an active workspace", async () => {
+    const response = await requestAudio();
 
-    syncWorkspaceLibrarySnapshot("workspace-audio", {
-      libraryBooks: [
-        {
-          bookId: "book-1",
-          title: "Storm Harbor",
-          chapterCount: 2,
-          updatedAt: "2026-03-08T12:00:00.000Z",
-        },
-      ],
-      draftTexts: [{ bookId: "book-1", text: "Chapter 1\nStorm Harbor" }],
-      listeningProfiles: [],
-      defaultListeningProfile: null,
-      sampleRequest: null,
-      playbackStates: [],
-      playbackDefaults: null,
-      syncedAt: "2026-03-08T12:01:00.000Z",
-    });
-
-    const owner = upsertUserByEmail({
-      email: "owner@example.com",
-      displayName: "Owner",
-    });
-    const intruder = upsertUserByEmail({
-      email: "intruder@example.com",
-      displayName: "Intruder",
-    });
-    linkWorkspaceToUser("workspace-audio", owner.id);
-
-    const intruderSession = createAccountSession(
-      intruder.id,
-      new Date(Date.now() + 60 * 60 * 1000).toISOString(),
-      "Test browser",
-    );
-
-    const response = await GET(
-      new Request(
-        "http://localhost/api/audio/generated/book-1?kind=sample-generation",
-        {
-          headers: {
-            cookie: [
-              `adaptive-audio-player.workspace=${createSignedWorkspaceCookieValue("workspace-audio")}`,
-              `adaptive-audio-player.account=${createSignedAccountSession(
-                intruder.id,
-                intruderSession?.id ?? "",
-              )}`,
-            ].join("; "),
-          },
-        },
-      ),
-      { params: Promise.resolve({ bookId: "book-1" }) },
-    );
-
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({
-      error: "This workspace belongs to another account.",
+      error: "No workspace is active.",
     });
+  });
+
+  it("does not reveal an output owned by another workspace", async () => {
+    setupOutput();
+
+    const response = await requestAudio({ workspaceId: "workspace-other" });
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: "Audio output not found.",
+    });
+  });
+
+  it("returns 404 when the asset file is missing", async () => {
+    setupOutput({
+      assetPath: "generated/demo/book-1/sample-generation.wav",
+    });
+
+    const response = await requestAudio({
+      workspaceId: "workspace-audio",
+    });
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: "Audio asset is missing.",
+    });
+  });
+
+  it("rejects an absolute stored path even when it points inside the generated root", async () => {
+    configureTestDatabase();
+    seedStoredBook("workspace-audio");
+    const asset = writeGeneratedAudioAsset({
+      bookId: "book-1",
+      data: Buffer.from("RIFFprivate-audio"),
+      extension: "wav",
+      kind: "sample-generation",
+      workspaceId: "workspace-audio",
+    });
+    recordOutput({ assetPath: asset.absolutePath });
+
+    const response = await requestAudio({ workspaceId: "workspace-audio" });
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: "Audio asset is missing.",
+    });
+  });
+
+  it("rejects a stored traversal path that escapes the generated root", async () => {
+    configureTestDatabase();
+    seedStoredBook("workspace-audio");
+    const testRoot = createdDirectories.at(-1);
+    if (!testRoot) {
+      throw new Error("Expected a test data root fixture.");
+    }
+
+    const outsidePath = path.join(testRoot, "outside.wav");
+    writeFileSync(outsidePath, "RIFFoutside-audio");
+    const traversalPath = [
+      path.relative(process.cwd(), path.join(testRoot, "generated-audio")),
+      "..",
+      "outside.wav",
+    ].join(path.sep);
+    expect(path.isAbsolute(traversalPath)).toBe(false);
+    expect(traversalPath).toContain(`..${path.sep}`);
+    recordOutput({ assetPath: traversalPath });
+
+    const response = await requestAudio({ workspaceId: "workspace-audio" });
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({
+      error: "Audio asset is missing.",
+    });
+  });
+
+  it("streams full-book audio without requiring a legacy account session", async () => {
+    const data = setupOutput({ kind: "full-book-generation" });
+
+    const response = await requestAudio({
+      accountCookieValue: "stale-legacy-session",
+      kind: "full-book-generation",
+      workspaceId: "workspace-audio",
+    });
+
+    expect(response.status).toBe(200);
+    expect(Buffer.from(await response.arrayBuffer()).equals(data)).toBe(true);
   });
 });
