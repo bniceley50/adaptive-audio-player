@@ -652,14 +652,24 @@ try:
         raise RuntimeError(f"Python 3.11 is required; found {sys.version.split()[0]}")
     expected = {
         "chatterbox-tts": "0.1.7",
+        "diffusers": "0.38.0",
+        "fastapi": "0.140.9",
+        "starlette": "1.3.1",
         "torch": "2.11.0+cu130",
         "torchaudio": "2.11.0+cu130",
+        "transformers": "5.5.0",
     }
     for package, version in expected.items():
         actual = importlib.metadata.version(package)
         if actual != version:
             raise RuntimeError(f"{package} must be {version}; found {actual}")
-    for module in ("chatterbox.tts", "fastapi", "soundfile", "torch", "uvicorn"):
+    for package in ("gradio", "gradio-client"):
+        try:
+            actual = importlib.metadata.version(package)
+        except importlib.metadata.PackageNotFoundError:
+            continue
+        raise RuntimeError(f"excluded package {package} {actual} is installed")
+    for module in ("chatterbox.tts", "diffusers", "fastapi", "soundfile", "starlette", "torch", "transformers", "uvicorn"):
         importlib.import_module(module)
     import torch
     if not torch.cuda.is_available():
@@ -690,8 +700,14 @@ export async function resolveChatterboxRuntime() {
       manifest?.package?.name !== "chatterbox-tts" ||
       manifest?.package?.version !== "0.1.7" ||
       manifest?.runtime?.python !== "3.11" ||
+      manifest?.runtime?.diffusers !== "0.38.0" ||
+      manifest?.runtime?.fastapi !== "0.140.9" ||
+      manifest?.runtime?.starlette !== "1.3.1" ||
       manifest?.runtime?.torch !== "2.11.0+cu130" ||
       manifest?.runtime?.torchaudio !== "2.11.0+cu130" ||
+      manifest?.runtime?.transformers !== "5.5.0" ||
+      JSON.stringify(manifest?.excludedPackages) !==
+        JSON.stringify(["gradio", "gradio-client"]) ||
       manifest?.model?.revision !==
         "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18" ||
       manifest?.voice?.id !== "chatterbox-default" ||

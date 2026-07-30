@@ -81,6 +81,46 @@ class ChatterboxCoreTests(unittest.TestCase):
                 ):
                     core.verify_runtime_manifest(settings)
 
+    def test_runtime_packages_require_patched_pins_and_exclude_gradio(self) -> None:
+        manifest = {
+            "package": {"version": "0.1.7"},
+            "runtime": {
+                "python": "3.11",
+                "diffusers": "0.38.0",
+                "starlette": "1.3.1",
+                "transformers": "5.5.0",
+            },
+            "excludedPackages": ["gradio", "gradio-client"],
+        }
+        installed = {
+            "chatterbox-tts": "0.1.7",
+            "diffusers": "0.38.0",
+            "starlette": "1.3.1",
+            "transformers": "5.5.0",
+        }
+
+        def version_without_gradio(package: str) -> str:
+            if package in installed:
+                return installed[package]
+            raise core.importlib.metadata.PackageNotFoundError(package)
+
+        with patch.object(
+            core.importlib.metadata,
+            "version",
+            side_effect=version_without_gradio,
+        ):
+            core.verify_runtime_packages(manifest)
+
+        with patch.object(
+            core.importlib.metadata,
+            "version",
+            side_effect=lambda package: installed.get(package, "6.15.1"),
+        ):
+            with self.assertRaisesRegex(
+                core.ChatterboxRuntimeError, "excluded package gradio"
+            ):
+                core.verify_runtime_packages(manifest)
+
     def test_launch_secret_accepts_exactly_one_constant_time_candidate(self) -> None:
         expected = "a" * 64
         self.assertTrue(core.request_has_launch_secret([expected], expected))

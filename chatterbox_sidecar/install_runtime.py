@@ -135,25 +135,38 @@ def copy_package_license(environment_root: Path, destination_root: Path) -> None
 
 def verify_runtime_versions() -> None:
     expected = load_expected_manifest()
-    actual = {
-        "chatterbox-tts": importlib.metadata.version("chatterbox-tts"),
-        "torch": importlib.metadata.version("torch"),
-        "torchaudio": importlib.metadata.version("torchaudio"),
-    }
     required = {
         "chatterbox-tts": expected["package"]["version"],
-        "torch": expected["runtime"]["torch"],
-        "torchaudio": expected["runtime"]["torchaudio"],
+        **{
+            package: version
+            for package, version in expected["runtime"].items()
+            if package != "python"
+        },
+    }
+    actual = {
+        package: importlib.metadata.version(package) for package in required
     }
     if actual != required:
         raise InstallationError(
             "The installed Chatterbox package versions do not match the pinned runtime."
         )
 
+    for package in expected.get("excludedPackages", []):
+        try:
+            version = importlib.metadata.version(package)
+        except importlib.metadata.PackageNotFoundError:
+            continue
+        raise InstallationError(
+            f"The installed Chatterbox runtime contains excluded package {package} {version}."
+        )
+
     import chatterbox.tts  # noqa: F401
+    import diffusers  # noqa: F401
     import fastapi  # noqa: F401
     import soundfile  # noqa: F401
+    import starlette  # noqa: F401
     import torch
+    import transformers  # noqa: F401
     import uvicorn  # noqa: F401
 
     if not torch.cuda.is_available():

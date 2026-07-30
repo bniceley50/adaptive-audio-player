@@ -6,9 +6,14 @@
   },
   "runtime": {
     "python": "3.11",
+    "diffusers": "0.38.0",
+    "fastapi": "0.140.9",
+    "starlette": "1.3.1",
     "torch": "2.11.0+cu130",
-    "torchaudio": "2.11.0+cu130"
+    "torchaudio": "2.11.0+cu130",
+    "transformers": "5.5.0"
   },
+  "excludedPackages": ["gradio", "gradio-client"],
   "model": {
     "repoId": "ResembleAI/chatterbox",
     "revision": "5bb1f6ee58e50c3b8d408bc82a6d3740c2db6e18",

@@ -716,3 +716,16 @@ Why:
 - A live benchmark on the approved public-domain Alice chapter transcribed 13 minutes 16 seconds of MP3 audio in 4.9 seconds on the Windows reference machine with 30-second context windows. The result was usable but contained recognizable-word errors, which confirms that transcript review is a product requirement rather than optional polish.
 - Reusing FFmpeg's built-in whisper.cpp integration avoids contaminating the proven Kokoro and Chatterbox Python environments with a third dependency stack while preserving fully local processing.
 - Contained temporary ingestion and conversion into the existing reviewed-text book contract minimizes retention of the original recording and reuses the already verified narration, generation, and playback pipeline.
+
+## 2026-07-30 - Pin the patched dependency closure and exclude unused Gradio
+
+Decision:
+- Patch Next.js and its matching ESLint configuration to 16.2.11, and force the audited transitive PostCSS, Minimatch, and brace-expansion closures to 8.5.18, 10.2.6, and 5.0.8 through workspace-level pnpm overrides.
+- Keep `chatterbox-tts==0.1.7` and its approved model revision, but override its stale dependency pins with the minimum advisory-patched `transformers==5.5.0`, `diffusers==0.38.0`, and `starlette==1.3.1` releases.
+- Do not install Gradio or gradio-client in the app-managed High Quality runtime. They are unused by the authenticated loopback sidecar and expand the HTTP surface unnecessarily.
+- Record and fail-closed verify the security-sensitive Chatterbox package versions and the absence of Gradio in the approved runtime manifest.
+
+Why:
+- Eleven unique advisories produced 31 duplicated Dependabot alerts across package manifests and lockfiles. Exact patched pins close the vulnerable dependency paths while preserving reproducibility.
+- Chatterbox is installed with `--no-deps`, its TTS module does not import Gradio, and the application provides its own authenticated FastAPI sidecar; removing the unused upstream demo UI reduces attack surface.
+- Runtime version verification prevents an older locally installed dependency closure from being treated as High Quality-ready after the source policy changes.

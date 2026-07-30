@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "@zip.js/zip.js": "2.8.31",
-    "next": "16.2.6",
+    "next": "16.2.11",
     "react": "19.2.3",
     "react-dom": "19.2.3"
   },
@@ -39,7 +39,7 @@
     "@vitest/coverage-v8": "^4.1.0",
     "electron": "43.1.1",
     "eslint": "^9",
-    "eslint-config-next": "16.2.6",
+    "eslint-config-next": "16.2.11",
     "jsdom": "^28.1.0",
     "tailwindcss": "^4",
     "typescript": "^5",

@@ -21,7 +21,7 @@ const repositoryRoot = path.resolve(
 
 export const reviewedSourceHashes = Object.freeze({
   "pnpm-lock.yaml":
-    "c1595e408eddfb60be8def3a461d56267ea2e3846a62d3f8dcbf817f40b72d2a",
+    "48e60a70139458ccd431c9ab51f05735b2f0b70b7eacac4654eff9ed0cf00dec",
   "tts_sidecar/requirements-build.txt":
     "7bd5441196cbad237e88e0bab09beb64a1d707913a4f0f7ae43d2f25e0139392",
   "tts_sidecar/requirements.txt":

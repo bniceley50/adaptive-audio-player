@@ -147,8 +147,11 @@ def verify_runtime_manifest(settings: ChatterboxSettings) -> dict[str, Any]:
 def verify_runtime_packages(manifest: dict[str, Any]) -> None:
     expected = {
         "chatterbox-tts": manifest["package"]["version"],
-        "torch": manifest["runtime"]["torch"],
-        "torchaudio": manifest["runtime"]["torchaudio"],
+        **{
+            package: version
+            for package, version in manifest["runtime"].items()
+            if package != "python"
+        },
     }
     try:
         actual = {
@@ -161,6 +164,15 @@ def verify_runtime_packages(manifest: dict[str, Any]) -> None:
     if actual != expected:
         raise ChatterboxRuntimeError(
             "High Quality setup has unexpected package versions."
+        )
+
+    for package in manifest.get("excludedPackages", []):
+        try:
+            version = importlib.metadata.version(package)
+        except importlib.metadata.PackageNotFoundError:
+            continue
+        raise ChatterboxRuntimeError(
+            f"High Quality setup contains excluded package {package} {version}."
         )
 
 
